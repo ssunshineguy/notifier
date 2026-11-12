@@ -236,3 +236,64 @@ sequenceDiagram
 | Проверка условия | Вместо Information Services используется эмулятор. |
 | Эксплуатация | За рамками прототипа остались трассировка, мониторинг, Sentry, Vault, динамическая конфигурация и эксперименты. |
 | Сборка и поставка | Предусмотрена локальная сборка Docker-образа. CI/CD за рамками прототипа. |
+
+## Тестирование
+
+| Уровень | Что покрывает | База | Где лежит и как запускается |
+| --- | --- | --- | --- |
+| Unit | `core` (ретраи, дедлайн, статусы), handlers и worker с фейковым репозиторием и часами | нет | рядом с кодом, `go test ./...` |
+| Интеграционные | `storage/postgres`: запросы, lease, `SKIP LOCKED` с параллельными горутинами, collector | Postgres в testcontainers, чистый на каждый прогон | `internal/storage/postgres/`, build tag `integration` |
+| E2E | Сценарии целиком: CRUD, доставка, ретраи, дедлайн | весь стенд в docker compose | `tests/e2e/`, Playwright |
+
+Корректность Worker держится на семантике SQL, которую нельзя проверить ни моками, ни снаружи через API, поэтому слой хранилища тестируется на настоящем Postgres.
+
+## Структура репозитория
+
+```
+├── ai/                                # Источник AI-окружения, в .claude/ доставляет scripts/ai-setup.sh
+│   ├── rules/                         # Правила по слоям, подгружаются по paths: во frontmatter
+│   ├── skills/                        # Workflow'ы для частых задач
+│   └── agents/                        # Guards: read-only подагенты-ревьюеры
+├── api/                               # Контракт API
+│   ├── spec/                          # Исходник OpenAPI-спецификации, разбитый по файлам
+│   │   ├── openapi.yaml               # Точка входа: info, servers, $ref на paths и webhooks
+│   │   ├── paths/                     # Ручки, по файлу на ресурс
+│   │   ├── webhooks/                  # Контракт callback'а клиенту
+│   │   └── components/                # schemas, parameters, responses
+│   └── bundle/                        # Собранная спецификация, вход для кодогенерации
+├── cmd/
+│   ├── notifier/                      # Точка входа: режимы api | worker | collector | migrate
+│   └── emulator/                      # Эмулятор Information Service и приёмник callback'ов
+├── configs/
+│   └── config.yaml                    # Единственный конфиг, монтируется в compose (пока не создан)
+├── internal/
+│   ├── application/                   # Сборка зависимостей и жизненный цикл каждого режима
+│   ├── config/                        # Структура конфига и загрузка
+│   ├── core/                          # Доменная логика без I/O: сущности, статусы, ретраи
+│   ├── server/                        # HTTP-слой
+│   │   ├── codegen/                   # Сгенерированный ogen-код, руками не правится
+│   │   ├── handlers/                  # Реализация ручек
+│   │   └── middleware/                # X-Client-ID, X-Request-ID, recover, логирование
+│   ├── worker/                        # Poller, lease через SKIP LOCKED, пул горутин
+│   ├── collector/                     # Пакетная очистка остановленных нотификаций
+│   ├── interactions/                  # Исходящие вызовы
+│   │   ├── infoservice/               # Клиенты источников условий
+│   │   └── callback/                  # Доставка уведомления клиенту
+│   └── storage/
+│       └── postgres/                  # Репозиторий и SQL, интеграционные тесты на testcontainers
+├── migrations/                        # SQL-миграции goose: {nnn}__{name}.sql
+├── tests/
+│   └── e2e/                           # Playwright (TypeScript), тестирование API
+│       ├── fixtures/                  # Клиенты API и эмулятора, генераторы данных
+│       └── specs/                     # Сценарии
+├── build/                             # Dockerfile (multi-stage: notifier, emulator)
+├── scripts/                           # Скрипты разработки; Makefile вызывает их
+├── docs/                              # Схемы и ADR
+├── docker-compose.yaml                # Локальный стенд (пока не создан)
+├── Makefile                           # Точка входа для команд разработки (пока не создан)
+├── .golangci.yaml                     # Конфигурация golangci-lint
+├── go.mod
+├── AGENTS.md                          # Контекст для ИИ-агентов
+├── CLAUDE.md                          # Подключает AGENTS.md для Claude Code
+└── README.md                          # Этот файл
+```

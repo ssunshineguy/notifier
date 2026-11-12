@@ -1,0 +1,20 @@
+# Сборка
+/bin/
+
+# AI-окружение: генерируется из ai/ через scripts/ai-setup.sh
+/.claude/
+
+# Playwright
+node_modules/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/blob-report/
+
+# Локальное окружение
+.env
+*.local.yaml
+
+# IDE и ОС
+.idea/
+.vscode/
+.DS_Store
