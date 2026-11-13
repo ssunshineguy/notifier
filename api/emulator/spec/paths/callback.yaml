@@ -7,6 +7,12 @@ post:
     Receives the notification event sent by Notifier Worker when the conditions
     are met or the deadline is reached. Delivery is at least once, so the same
     notification identifier may be received more than once.
+
+    Uses the response status and delay configured for the notification
+    identifier. The default is 200 with no delay. An override applies to every
+    attempt until it is replaced or deleted.
+    If the emulator shuts down during a delay, it returns 503 when the
+    connection is still open.
   requestBody:
     required: true
     content:
@@ -21,5 +27,15 @@ post:
   responses:
     "200":
       description: The event is accepted.
+    "201":
+      description: The event is accepted with the configured 201 status.
     "400":
       $ref: ../components/responses/BadEvent.yaml
+    "404":
+      $ref: ../components/responses/SimulatedCallbackFailure.yaml
+    "415":
+      $ref: ../components/responses/UnsupportedMediaType.yaml
+    "500":
+      $ref: ../components/responses/SimulatedCallbackFailure.yaml
+    "503":
+      $ref: ../components/responses/SimulatedCallbackFailure.yaml

@@ -30,7 +30,7 @@ func recordError(string, error) {}
 
 // handleGetPriceRequest handles getPrice operation.
 //
-// Returns the price from Information Service 2 in minor units.
+// Returns the client's configured price in minor units or zero.
 //
 // GET /price
 func (s *Server) handleGetPriceRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -118,7 +118,7 @@ func (s *Server) handleGetPriceRequest(args [0]string, argsEscaped bool, w http.
 
 // handleGetTimeRequest handles getTime operation.
 //
-// Returns the current time in UTC from Information Service 1.
+// Returns the client's configured time or the current time in UTC.
 //
 // GET /time
 func (s *Server) handleGetTimeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -151,7 +151,7 @@ func (s *Server) handleGetTimeRequest(args [0]string, argsEscaped bool, w http.R
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetTimeOperation,
-			OperationSummary: "Get the current time",
+			OperationSummary: "Get the emulated time",
 			OperationID:      "getTime",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -209,6 +209,10 @@ func (s *Server) handleGetTimeRequest(args [0]string, argsEscaped bool, w http.R
 // Receives the notification event sent by Notifier Worker when the conditions are met or the deadline
 // is reached. Delivery is at least once, so the same notification identifier may be received more than
 // once.
+//
+// Uses the response status and delay configured for the notification identifier. The default is 200
+// with no delay. An override applies to every attempt until it is replaced or deleted. If the emulator
+// shuts down during a delay, it returns 503 when the connection is still open.
 //
 // POST /callback
 func (s *Server) handleReceiveNotificationEventRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -282,6 +286,388 @@ func (s *Server) handleReceiveNotificationEventRequest(args [0]string, argsEscap
 	}
 
 	if err := encodeReceiveNotificationEventResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleResetCallbackOverrideRequest handles resetCallbackOverride operation.
+//
+// Restores 200 with no delay. Returns 200 even if no override exists.
+//
+// DELETE /v1/callback-overrides/{notification_id}
+func (s *Server) handleResetCallbackOverrideRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ResetCallbackOverrideOperation,
+			ID:   "resetCallbackOverride",
+		}
+	)
+	params, err := decodeResetCallbackOverrideParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ResetCallbackOverrideRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ResetCallbackOverrideOperation,
+			OperationSummary: "Reset a notification's callback response",
+			OperationID:      "resetCallbackOverride",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "notification_id",
+					In:   "path",
+				}: params.NotificationID,
+				{
+					Name: "X-Request-ID",
+					In:   "header",
+				}: params.XRequestID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ResetCallbackOverrideParams
+			Response = ResetCallbackOverrideRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackResetCallbackOverrideParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ResetCallbackOverride(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ResetCallbackOverride(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeResetCallbackOverrideResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleResetClientOverridesRequest handles resetClientOverrides operation.
+//
+// Clears both parameters for the client. Returns 200 even if no override exists.
+//
+// DELETE /v1/client-overrides/{client_id}
+func (s *Server) handleResetClientOverridesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ResetClientOverridesOperation,
+			ID:   "resetClientOverrides",
+		}
+	)
+	params, err := decodeResetClientOverridesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ResetClientOverridesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ResetClientOverridesOperation,
+			OperationSummary: "Reset a client's Information Service values",
+			OperationID:      "resetClientOverrides",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "client_id",
+					In:   "path",
+				}: params.ClientID,
+				{
+					Name: "X-Request-ID",
+					In:   "header",
+				}: params.XRequestID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ResetClientOverridesParams
+			Response = ResetClientOverridesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackResetClientOverridesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ResetClientOverrides(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ResetClientOverrides(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeResetClientOverridesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSetCallbackOverrideRequest handles setCallbackOverride operation.
+//
+// Creates or replaces the response status and delay for the notification.
+//
+// POST /v1/callback-overrides/{notification_id}
+func (s *Server) handleSetCallbackOverrideRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetCallbackOverrideOperation,
+			ID:   "setCallbackOverride",
+		}
+	)
+	params, err := decodeSetCallbackOverrideParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetCallbackOverrideRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SetCallbackOverrideRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetCallbackOverrideOperation,
+			OperationSummary: "Set the callback response for a notification",
+			OperationID:      "setCallbackOverride",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "notification_id",
+					In:   "path",
+				}: params.NotificationID,
+				{
+					Name: "X-Request-ID",
+					In:   "header",
+				}: params.XRequestID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CallbackOverride
+			Params   = SetCallbackOverrideParams
+			Response = SetCallbackOverrideRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSetCallbackOverrideParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SetCallbackOverride(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SetCallbackOverride(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetCallbackOverrideResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSetClientOverrideRequest handles setClientOverride operation.
+//
+// Sets or replaces the selected parameter. The client's other parameter keeps its value.
+//
+// POST /v1/client-overrides/{client_id}
+func (s *Server) handleSetClientOverrideRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetClientOverrideOperation,
+			ID:   "setClientOverride",
+		}
+	)
+	params, err := decodeSetClientOverrideParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetClientOverrideRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SetClientOverrideRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetClientOverrideOperation,
+			OperationSummary: "Set an Information Service value for a client",
+			OperationID:      "setClientOverride",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "client_id",
+					In:   "path",
+				}: params.ClientID,
+				{
+					Name: "X-Request-ID",
+					In:   "header",
+				}: params.XRequestID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = ClientOverride
+			Params   = SetClientOverrideParams
+			Response = SetClientOverrideRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSetClientOverrideParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SetClientOverride(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SetClientOverride(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetClientOverrideResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

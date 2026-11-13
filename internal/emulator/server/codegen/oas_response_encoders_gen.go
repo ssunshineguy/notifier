@@ -160,12 +160,405 @@ func encodeReceiveNotificationEventResponse(response ReceiveNotificationEventRes
 
 		return nil
 
-	case *Problem:
+	case *ReceiveNotificationEventCreated:
+		w.WriteHeader(201)
+
+		return nil
+
+	case *ReceiveNotificationEventBadRequest:
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(400)
 
 		e := new(jx.Encoder)
 		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ReceiveNotificationEventNotFound:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(404)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UnsupportedMediaTypeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(415)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ReceiveNotificationEventInternalServerError:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(500)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ReceiveNotificationEventServiceUnavailable:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(503)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeResetCallbackOverrideResponse(response ResetCallbackOverrideRes, w http.ResponseWriter) error {
+	switch response := response.(type) {
+	case *OverrideApplied:
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(200)
+
+		return nil
+
+	case *BadOverrideRequestHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeResetClientOverridesResponse(response ResetClientOverridesRes, w http.ResponseWriter) error {
+	switch response := response.(type) {
+	case *OverrideApplied:
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(200)
+
+		return nil
+
+	case *BadOverrideRequestHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeSetCallbackOverrideResponse(response SetCallbackOverrideRes, w http.ResponseWriter) error {
+	switch response := response.(type) {
+	case *OverrideApplied:
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(200)
+
+		return nil
+
+	case *BadOverrideRequestHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UnsupportedMediaTypeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(415)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeSetClientOverrideResponse(response SetClientOverrideRes, w http.ResponseWriter) error {
+	switch response := response.(type) {
+	case *OverrideApplied:
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(200)
+
+		return nil
+
+	case *BadOverrideRequestHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UnsupportedMediaTypeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(415)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
 		if _, err := e.WriteTo(w); err != nil {
 			return errors.Wrap(err, "write")
 		}

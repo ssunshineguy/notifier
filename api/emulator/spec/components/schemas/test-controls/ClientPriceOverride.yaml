@@ -1,0 +1,15 @@
+title: ClientPriceOverride
+type: object
+additionalProperties: false
+required:
+  - parameter
+  - value
+properties:
+  parameter:
+    type: string
+    enum: [price]
+  value:
+    description: Price in minor units, where 19990 represents 199.90 major units.
+    type: integer
+    format: int64
+    example: 19990

@@ -1,0 +1,8 @@
+name: client_id
+in: path
+required: true
+description: Value of `X-Client-ID` used by the Information Service requests.
+schema:
+  type: string
+  minLength: 1
+  example: emulator-test-client

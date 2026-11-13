@@ -32,6 +32,9 @@ The service is a single `notifier` binary that runs in different modes:
 
 Described in [README.md](README.md#структура-репозитория).
 
+Run the standalone test emulator with `go run ./cmd/emulator`. Its OpenAPI
+source lives in `api/emulator/spec/` and its runtime code in `internal/emulator/`.
+
 ## Where to look
 
 | Area | Paths and rules |

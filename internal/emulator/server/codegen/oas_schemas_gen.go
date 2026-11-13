@@ -38,6 +38,281 @@ func (s *BadInformationRequestHeaders) SetResponse(val Problem) {
 func (*BadInformationRequestHeaders) getPriceRes() {}
 func (*BadInformationRequestHeaders) getTimeRes()  {}
 
+// BadOverrideRequestHeaders wraps Problem with response headers.
+type BadOverrideRequestHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *BadOverrideRequestHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *BadOverrideRequestHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *BadOverrideRequestHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *BadOverrideRequestHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*BadOverrideRequestHeaders) resetCallbackOverrideRes() {}
+func (*BadOverrideRequestHeaders) resetClientOverridesRes()  {}
+func (*BadOverrideRequestHeaders) setCallbackOverrideRes()   {}
+func (*BadOverrideRequestHeaders) setClientOverrideRes()     {}
+
+// Ref: #/components/schemas/CallbackOverride
+type CallbackOverride struct {
+	// HTTP status returned by POST /callback.
+	StatusCode CallbackOverrideStatusCode `json:"status_code"`
+	// Delay in milliseconds before returning the configured status. Zero returns immediately.
+	ResponseTimeout int32 `json:"response_timeout"`
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *CallbackOverride) GetStatusCode() CallbackOverrideStatusCode {
+	return s.StatusCode
+}
+
+// GetResponseTimeout returns the value of ResponseTimeout.
+func (s *CallbackOverride) GetResponseTimeout() int32 {
+	return s.ResponseTimeout
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *CallbackOverride) SetStatusCode(val CallbackOverrideStatusCode) {
+	s.StatusCode = val
+}
+
+// SetResponseTimeout sets the value of ResponseTimeout.
+func (s *CallbackOverride) SetResponseTimeout(val int32) {
+	s.ResponseTimeout = val
+}
+
+// HTTP status returned by POST /callback.
+type CallbackOverrideStatusCode int
+
+const (
+	CallbackOverrideStatusCode200 CallbackOverrideStatusCode = 200
+	CallbackOverrideStatusCode201 CallbackOverrideStatusCode = 201
+	CallbackOverrideStatusCode400 CallbackOverrideStatusCode = 400
+	CallbackOverrideStatusCode404 CallbackOverrideStatusCode = 404
+	CallbackOverrideStatusCode500 CallbackOverrideStatusCode = 500
+	CallbackOverrideStatusCode503 CallbackOverrideStatusCode = 503
+)
+
+// AllValues returns all CallbackOverrideStatusCode values.
+func (CallbackOverrideStatusCode) AllValues() []CallbackOverrideStatusCode {
+	return []CallbackOverrideStatusCode{
+		CallbackOverrideStatusCode200,
+		CallbackOverrideStatusCode201,
+		CallbackOverrideStatusCode400,
+		CallbackOverrideStatusCode404,
+		CallbackOverrideStatusCode500,
+		CallbackOverrideStatusCode503,
+	}
+}
+
+// Ref: #/components/schemas/ClientOverride
+// ClientOverride represents sum type.
+type ClientOverride struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                ClientOverrideType
+	ClientTimeOverride  ClientTimeOverride
+	ClientPriceOverride ClientPriceOverride
+}
+
+// ClientOverrideType is oneOf type of ClientOverride.
+type ClientOverrideType string
+
+// Possible values for ClientOverrideType.
+const (
+	ClientTimeOverrideClientOverride  ClientOverrideType = "time"
+	ClientPriceOverrideClientOverride ClientOverrideType = "price"
+)
+
+// IsClientTimeOverride reports whether ClientOverride is ClientTimeOverride.
+func (s ClientOverride) IsClientTimeOverride() bool {
+	return s.Type == ClientTimeOverrideClientOverride
+}
+
+// IsClientPriceOverride reports whether ClientOverride is ClientPriceOverride.
+func (s ClientOverride) IsClientPriceOverride() bool {
+	return s.Type == ClientPriceOverrideClientOverride
+}
+
+// SetClientTimeOverride sets ClientOverride to ClientTimeOverride.
+func (s *ClientOverride) SetClientTimeOverride(v ClientTimeOverride) {
+	s.Type = ClientTimeOverrideClientOverride
+	s.ClientTimeOverride = v
+}
+
+// GetClientTimeOverride returns ClientTimeOverride and true boolean if ClientOverride is ClientTimeOverride.
+func (s ClientOverride) GetClientTimeOverride() (v ClientTimeOverride, ok bool) {
+	if !s.IsClientTimeOverride() {
+		return v, false
+	}
+	return s.ClientTimeOverride, true
+}
+
+// NewClientTimeOverrideClientOverride returns new ClientOverride from ClientTimeOverride.
+func NewClientTimeOverrideClientOverride(v ClientTimeOverride) ClientOverride {
+	var s ClientOverride
+	s.SetClientTimeOverride(v)
+	return s
+}
+
+// SetClientPriceOverride sets ClientOverride to ClientPriceOverride.
+func (s *ClientOverride) SetClientPriceOverride(v ClientPriceOverride) {
+	s.Type = ClientPriceOverrideClientOverride
+	s.ClientPriceOverride = v
+}
+
+// GetClientPriceOverride returns ClientPriceOverride and true boolean if ClientOverride is ClientPriceOverride.
+func (s ClientOverride) GetClientPriceOverride() (v ClientPriceOverride, ok bool) {
+	if !s.IsClientPriceOverride() {
+		return v, false
+	}
+	return s.ClientPriceOverride, true
+}
+
+// NewClientPriceOverrideClientOverride returns new ClientOverride from ClientPriceOverride.
+func NewClientPriceOverrideClientOverride(v ClientPriceOverride) ClientOverride {
+	var s ClientOverride
+	s.SetClientPriceOverride(v)
+	return s
+}
+
+// Ref: #/components/schemas/ClientPriceOverride
+type ClientPriceOverride struct {
+	Parameter ClientPriceOverrideParameter `json:"parameter"`
+	// Price in minor units, where 19990 represents 199.90 major units.
+	Value int64 `json:"value"`
+}
+
+// GetParameter returns the value of Parameter.
+func (s *ClientPriceOverride) GetParameter() ClientPriceOverrideParameter {
+	return s.Parameter
+}
+
+// GetValue returns the value of Value.
+func (s *ClientPriceOverride) GetValue() int64 {
+	return s.Value
+}
+
+// SetParameter sets the value of Parameter.
+func (s *ClientPriceOverride) SetParameter(val ClientPriceOverrideParameter) {
+	s.Parameter = val
+}
+
+// SetValue sets the value of Value.
+func (s *ClientPriceOverride) SetValue(val int64) {
+	s.Value = val
+}
+
+type ClientPriceOverrideParameter string
+
+const (
+	ClientPriceOverrideParameterPrice ClientPriceOverrideParameter = "price"
+)
+
+// AllValues returns all ClientPriceOverrideParameter values.
+func (ClientPriceOverrideParameter) AllValues() []ClientPriceOverrideParameter {
+	return []ClientPriceOverrideParameter{
+		ClientPriceOverrideParameterPrice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClientPriceOverrideParameter) MarshalText() ([]byte, error) {
+	switch s {
+	case ClientPriceOverrideParameterPrice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClientPriceOverrideParameter) UnmarshalText(data []byte) error {
+	switch ClientPriceOverrideParameter(data) {
+	case ClientPriceOverrideParameterPrice:
+		*s = ClientPriceOverrideParameterPrice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ClientTimeOverride
+type ClientTimeOverride struct {
+	Parameter ClientTimeOverrideParameter `json:"parameter"`
+	// RFC 3339 timestamp whose UTC year is between 0000 and 9999, returned as UTC by GET /time.
+	Value time.Time `json:"value"`
+}
+
+// GetParameter returns the value of Parameter.
+func (s *ClientTimeOverride) GetParameter() ClientTimeOverrideParameter {
+	return s.Parameter
+}
+
+// GetValue returns the value of Value.
+func (s *ClientTimeOverride) GetValue() time.Time {
+	return s.Value
+}
+
+// SetParameter sets the value of Parameter.
+func (s *ClientTimeOverride) SetParameter(val ClientTimeOverrideParameter) {
+	s.Parameter = val
+}
+
+// SetValue sets the value of Value.
+func (s *ClientTimeOverride) SetValue(val time.Time) {
+	s.Value = val
+}
+
+type ClientTimeOverrideParameter string
+
+const (
+	ClientTimeOverrideParameterTime ClientTimeOverrideParameter = "time"
+)
+
+// AllValues returns all ClientTimeOverrideParameter values.
+func (ClientTimeOverrideParameter) AllValues() []ClientTimeOverrideParameter {
+	return []ClientTimeOverrideParameter{
+		ClientTimeOverrideParameterTime,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClientTimeOverrideParameter) MarshalText() ([]byte, error) {
+	switch s {
+	case ClientTimeOverrideParameterTime:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClientTimeOverrideParameter) UnmarshalText(data []byte) error {
+	switch ClientTimeOverrideParameter(data) {
+	case ClientTimeOverrideParameterTime:
+		*s = ClientTimeOverrideParameterTime
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 //   - `success` — the conditions were met.
 //   - `deadline_exceeded` — the conditions were not met before `deadline_dt`.
 //
@@ -211,6 +486,26 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
+// Ref: #/components/responses/OverrideApplied
+type OverrideApplied struct {
+	XRequestID OptString
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *OverrideApplied) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *OverrideApplied) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+func (*OverrideApplied) resetCallbackOverrideRes() {}
+func (*OverrideApplied) resetClientOverridesRes()  {}
+func (*OverrideApplied) setCallbackOverrideRes()   {}
+func (*OverrideApplied) setClientOverrideRes()     {}
+
 // Ref: #/components/schemas/Price
 type Price struct {
 	// Price as an integer count of minor units. One major unit equals 100 minor units. For example, 19990
@@ -333,16 +628,35 @@ func (s *Problem) SetErrors(val []FieldError) {
 	s.Errors = val
 }
 
-func (*Problem) receiveNotificationEventRes() {}
+type ReceiveNotificationEventBadRequest Problem
+
+func (*ReceiveNotificationEventBadRequest) receiveNotificationEventRes() {}
+
+// ReceiveNotificationEventCreated is response for ReceiveNotificationEvent operation.
+type ReceiveNotificationEventCreated struct{}
+
+func (*ReceiveNotificationEventCreated) receiveNotificationEventRes() {}
+
+type ReceiveNotificationEventInternalServerError Problem
+
+func (*ReceiveNotificationEventInternalServerError) receiveNotificationEventRes() {}
+
+type ReceiveNotificationEventNotFound Problem
+
+func (*ReceiveNotificationEventNotFound) receiveNotificationEventRes() {}
 
 // ReceiveNotificationEventOK is response for ReceiveNotificationEvent operation.
 type ReceiveNotificationEventOK struct{}
 
 func (*ReceiveNotificationEventOK) receiveNotificationEventRes() {}
 
+type ReceiveNotificationEventServiceUnavailable Problem
+
+func (*ReceiveNotificationEventServiceUnavailable) receiveNotificationEventRes() {}
+
 // Ref: #/components/schemas/Time
 type Time struct {
-	// Current UTC timestamp in ISO 8601 (RFC 3339) format.
+	// Emulated UTC timestamp in ISO 8601 (RFC 3339) format.
 	Time time.Time `json:"time"`
 }
 
@@ -383,3 +697,33 @@ func (s *TimeHeaders) SetResponse(val Time) {
 }
 
 func (*TimeHeaders) getTimeRes() {}
+
+// UnsupportedMediaTypeHeaders wraps Problem with response headers.
+type UnsupportedMediaTypeHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *UnsupportedMediaTypeHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *UnsupportedMediaTypeHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *UnsupportedMediaTypeHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UnsupportedMediaTypeHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*UnsupportedMediaTypeHeaders) receiveNotificationEventRes() {}
+func (*UnsupportedMediaTypeHeaders) setCallbackOverrideRes()      {}
+func (*UnsupportedMediaTypeHeaders) setClientOverrideRes()        {}

@@ -2,14 +2,14 @@ get:
   operationId: getTime
   tags:
     - information-services
-  summary: Get the current time
-  description: Returns the current time in UTC from Information Service 1.
+  summary: Get the emulated time
+  description: Returns the client's configured time or the current time in UTC.
   parameters:
     - $ref: ../../../spec/components/parameters/RequestId.yaml
     - $ref: ../components/parameters/ClientId.yaml
   responses:
     "200":
-      description: Current time in UTC.
+      description: Emulated time in UTC.
       headers:
         X-Request-ID:
           $ref: ../../../spec/components/headers/RequestId.yaml

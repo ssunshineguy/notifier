@@ -1,0 +1,19 @@
+title: CallbackOverride
+type: object
+additionalProperties: false
+required:
+  - status_code
+  - response_timeout
+properties:
+  status_code:
+    description: HTTP status returned by POST /callback.
+    type: integer
+    enum: [200, 201, 400, 404, 500, 503]
+    example: 503
+  response_timeout:
+    description: Delay in milliseconds before returning the configured status. Zero returns immediately.
+    type: integer
+    format: int32
+    minimum: 0
+    maximum: 2147483647
+    example: 1500

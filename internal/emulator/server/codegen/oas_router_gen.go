@@ -20,6 +20,14 @@ var (
 	rn3AllowedHeaders = map[string]string{
 		"GET": "X-Client-Id,X-Request-Id",
 	}
+	rn6AllowedHeaders = map[string]string{
+		"DELETE": "X-Request-Id",
+		"POST":   "Content-Type,X-Request-Id",
+	}
+	rn9AllowedHeaders = map[string]string{
+		"DELETE": "X-Request-Id",
+		"POST":   "Content-Type,X-Request-Id",
+	}
 )
 
 func (s *Server) cutPrefix(path string) (string, bool) {
@@ -52,6 +60,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	args := [1]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -147,6 +156,100 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
+			case 'v': // Prefix: "v1/c"
+
+				if l := len("v1/c"); len(elem) >= l && elem[0:l] == "v1/c" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'a': // Prefix: "allback-overrides/"
+
+					if l := len("allback-overrides/"); len(elem) >= l && elem[0:l] == "allback-overrides/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "notification_id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "DELETE":
+							s.handleResetCallbackOverrideRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleSetCallbackOverrideRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "DELETE,POST",
+								allowedHeaders: rn6AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				case 'l': // Prefix: "lient-overrides/"
+
+					if l := len("lient-overrides/"); len(elem) >= l && elem[0:l] == "lient-overrides/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "client_id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "DELETE":
+							s.handleResetClientOverridesRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleSetClientOverrideRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "DELETE,POST",
+								allowedHeaders: rn9AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				}
+
 			}
 
 		}
@@ -162,7 +265,7 @@ type Route struct {
 	operationGroup string
 	pathPattern    string
 	count          int
-	args           [0]string
+	args           [1]string
 }
 
 // Name returns ogen operation name.
@@ -310,7 +413,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					switch method {
 					case "GET":
 						r.name = GetTimeOperation
-						r.summary = "Get the current time"
+						r.summary = "Get the emulated time"
 						r.operationID = "getTime"
 						r.operationGroup = ""
 						r.pathPattern = "/time"
@@ -320,6 +423,106 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+
+			case 'v': // Prefix: "v1/c"
+
+				if l := len("v1/c"); len(elem) >= l && elem[0:l] == "v1/c" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'a': // Prefix: "allback-overrides/"
+
+					if l := len("allback-overrides/"); len(elem) >= l && elem[0:l] == "allback-overrides/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "notification_id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "DELETE":
+							r.name = ResetCallbackOverrideOperation
+							r.summary = "Reset a notification's callback response"
+							r.operationID = "resetCallbackOverride"
+							r.operationGroup = ""
+							r.pathPattern = "/v1/callback-overrides/{notification_id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "POST":
+							r.name = SetCallbackOverrideOperation
+							r.summary = "Set the callback response for a notification"
+							r.operationID = "setCallbackOverride"
+							r.operationGroup = ""
+							r.pathPattern = "/v1/callback-overrides/{notification_id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 'l': // Prefix: "lient-overrides/"
+
+					if l := len("lient-overrides/"); len(elem) >= l && elem[0:l] == "lient-overrides/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "client_id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "DELETE":
+							r.name = ResetClientOverridesOperation
+							r.summary = "Reset a client's Information Service values"
+							r.operationID = "resetClientOverrides"
+							r.operationGroup = ""
+							r.pathPattern = "/v1/client-overrides/{client_id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "POST":
+							r.name = SetClientOverrideOperation
+							r.summary = "Set an Information Service value for a client"
+							r.operationID = "setClientOverride"
+							r.operationGroup = ""
+							r.pathPattern = "/v1/client-overrides/{client_id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

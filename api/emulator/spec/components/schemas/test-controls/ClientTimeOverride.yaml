@@ -1,0 +1,15 @@
+title: ClientTimeOverride
+type: object
+additionalProperties: false
+required:
+  - parameter
+  - value
+properties:
+  parameter:
+    type: string
+    enum: [time]
+  value:
+    description: RFC 3339 timestamp whose UTC year is between 0000 and 9999, returned as UTC by GET /time.
+    type: string
+    format: date-time
+    example: "2026-12-01T09:00:00Z"
