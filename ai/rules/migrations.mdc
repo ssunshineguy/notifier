@@ -1,0 +1,147 @@
+---
+description: Naming, locking and idempotency rules for PostgreSQL migrations
+globs: db/**
+paths:
+  - db/**
+alwaysApply: false
+---
+
+# Database migrations
+
+Migrations live in `db/migrations`, run with goose as `notifier_migrator`, and are applied by
+`make migrate`, which also regenerates `db/schema/`.
+
+## Files
+
+- One file per change: `{nnn}__{snake_case_description}.sql`, the next free number, for example
+  `003__t_notification_add_priority.sql`.
+- Forward-only: no `-- +goose Down`. A rollback is a new migration.
+- Never edit a migration that has been merged or applied outside a local stand.
+- No grants: tables are granted to the mode roles by default privileges from `db/init`.
+- Schema-qualify every object: `notifier.t_notification`, not `t_notification`.
+- Comments follow `ai/rules/comments.mdc`.
+
+## Naming
+
+All names are singular and in snake_case. `<table>` below is the table name without the `t_` prefix.
+
+| Object | Pattern | Example |
+| --- | --- | --- |
+| Table | `t_<name>` | `t_notification` |
+| Function | `f_<name>` | `f_notification_stop` |
+| Sequence | `s_<table>_<column>` | `s_notification_id` |
+| Index | `ix_<table>_<column>` | `ix_notification_next_scheduled_dt` |
+| Primary key | `pk_<table>_<column>` | `pk_notification_id` |
+| Foreign key | `fk_<table>_<column>` | `fk_notification_client_id` |
+| Unique | `uq_<table>_<column>` | `uq_notification_client_id_external_id` |
+| Check | `ck_<table>_<column>` | `ck_notification_external_id` |
+
+- A multi-column constraint or index joins the columns: `uq_notification_client_id_external_id`.
+- A name longer than 63 characters is cut by PostgreSQL: shorten the column or table part.
+
+## Types
+
+- No `varchar(n)`: use `text` with a named length check.
+
+  ```sql
+  ALTER TABLE notifier.t_notification ADD COLUMN IF NOT EXISTS comment text;
+  ALTER TABLE notifier.t_notification DROP CONSTRAINT IF EXISTS ck_notification_comment;
+  ALTER TABLE notifier.t_notification
+      ADD CONSTRAINT ck_notification_comment CHECK (length(comment) <= 200);
+  ```
+
+- No `interval`: an integer with the unit in the name (`max_lifetime_sec`, `callback_timeout_ms`).
+- Timestamps are `timestamptz` with the `_dt` suffix.
+
+## Locks on existing tables
+
+`ALTER TABLE` on a table that already holds data takes an `ACCESS EXCLUSIVE` lock. While it waits
+for the lock, every query to the table queues behind it, so a long wait stops the service. Bound the
+wait and take the lock explicitly:
+
+```sql
+-- +goose Up
+SET LOCAL lock_timeout = '6s';
+LOCK TABLE notifier.t_notification IN ACCESS EXCLUSIVE MODE;
+ALTER TABLE notifier.t_notification ADD COLUMN IF NOT EXISTS priority smallint;
+```
+
+- `SET LOCAL` because goose runs each migration in a transaction: the timeout ends with it.
+- If the lock is not taken in time, the migration fails and is safe to rerun later.
+- Tables created in the same migration need no lock.
+
+## Indexes on existing tables
+
+A plain `CREATE INDEX` blocks writes to the table for the whole build, and `CONCURRENTLY` takes too
+long to wait for during a rollout. So a new index on an existing table is applied **by hand in
+production before the migration is rolled out**:
+
+1. In production, before the rollout, run by hand:
+
+   ```sql
+   CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_notification_external_id
+       ON notifier.t_notification (external_id);
+   ```
+
+   If the build fails, it leaves an `INVALID` index that `IF NOT EXISTS` would skip: drop it with
+   `DROP INDEX CONCURRENTLY IF EXISTS ix_notification_external_id` and run the build again.
+
+2. The migration contains the same index without `CONCURRENTLY`. In production it finds the index
+   and finishes at once; on local and test databases it builds the index on small data:
+
+   ```sql
+   -- +goose Up
+   SET LOCAL lock_timeout = '6s';
+   CREATE INDEX IF NOT EXISTS ix_notification_external_id
+       ON notifier.t_notification (external_id);
+   ```
+
+   The name and the definition must match the manual command exactly.
+
+**When a change adds an index to an existing table, warn the owner explicitly** that the index must
+be created by hand in production before the rollout, and put the manual command into the PR
+description under "Manual steps before rollout".
+
+Indexes created together with their table in the same migration need none of this.
+
+## Checks on existing tables
+
+A check on a table with data is added `NOT VALID` and validated separately, so the long scan does not
+hold an exclusive lock:
+
+```sql
+-- +goose Up
+SET LOCAL lock_timeout = '6s';
+LOCK TABLE notifier.t_notification IN ACCESS EXCLUSIVE MODE;
+ALTER TABLE notifier.t_notification DROP CONSTRAINT IF EXISTS ck_notification_priority;
+ALTER TABLE notifier.t_notification
+    ADD CONSTRAINT ck_notification_priority CHECK (priority BETWEEN 0 AND 9) NOT VALID;
+ALTER TABLE notifier.t_notification VALIDATE CONSTRAINT ck_notification_priority;
+```
+
+## Rerunnable changes
+
+A migration must succeed even if its changes were already applied by hand.
+
+- Create with `IF NOT EXISTS`: `CREATE TABLE`, `CREATE INDEX`, `ADD COLUMN`.
+- Drop with `IF EXISTS`: `DROP TABLE`, `DROP INDEX`, `DROP COLUMN`, `DROP CONSTRAINT`.
+- `ADD CONSTRAINT` has no `IF NOT EXISTS`: drop the constraint `IF EXISTS` first, as above.
+- Functions use `CREATE OR REPLACE FUNCTION`.
+- Inserted data uses `ON CONFLICT DO NOTHING`:
+
+  ```sql
+  INSERT INTO notifier.t_client (client_id, callback_url)
+  VALUES ('emulator', 'http://emulator:8081/notification')
+  ON CONFLICT DO NOTHING;
+  ```
+
+## Checklist
+
+1. Names follow the table above; everything is singular.
+2. Every object is schema-qualified.
+3. Every statement is rerunnable.
+4. Changes to existing tables set `lock_timeout` and lock explicitly.
+5. A new index on an existing table is flagged to the owner and listed under "Manual steps before
+   rollout" in the PR description.
+6. No `varchar`, no `interval`, no grants, no `Down`.
+7. `make migrate` passes twice in a row and `db/schema/` is regenerated.

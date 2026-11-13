@@ -7,6 +7,7 @@ cd "$root"
 
 (cd api && redocly lint notifier && redocly bundle notifier)
 
+# Drops known ogen warnings about header name case and problem+json status checks.
 go tool ogen \
   --config api/ogen.yaml \
   --target internal/server/codegen \

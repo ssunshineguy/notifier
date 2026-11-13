@@ -1,0 +1,6 @@
+# Credentials of the local stand only, see db/init.
+database:
+  migrator_dsn: postgres://notifier_migrator:notifier_migrator@postgres:5432/notifier?sslmode=disable
+  api_dsn: postgres://notifier_api:notifier_api@postgres:5432/notifier?sslmode=disable
+  worker_dsn: postgres://notifier_worker:notifier_worker@postgres:5432/notifier?sslmode=disable
+  collector_dsn: postgres://notifier_collector:notifier_collector@postgres:5432/notifier?sslmode=disable

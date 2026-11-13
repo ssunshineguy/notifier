@@ -1,20 +1,16 @@
-# Build
 /bin/
 
-# AI environment: generated from ai/ by scripts/ai-setup.sh
+# Generated from ai/ by scripts/ai-setup.sh.
 /.claude/
 
-# Playwright
 node_modules/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
 tests/e2e/blob-report/
 
-# Local environment
 .env
 *.local.yaml
 
-# IDE and OS
 .idea/
 .vscode/
 .DS_Store
