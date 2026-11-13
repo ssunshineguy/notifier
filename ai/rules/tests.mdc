@@ -1,0 +1,18 @@
+---
+description: Test changed Go behavior at the boundary that owns it
+globs: internal/**,cmd/notifier/**,tests/**
+paths:
+  - internal/**
+  - cmd/notifier/**
+  - tests/**
+alwaysApply: false
+---
+
+# Tests
+
+- Use colocated Go tests for domain rules and HTTP behavior. Pass a fixed time to domain tests. Use `httptest` and the existing consumer-side stubs for handlers and middleware.
+- Check the observable result and the changed failure case. For HTTP, verify the relevant status, content type, headers or body. For retries, duplicate creation, or cross-client access, verify the resulting state or absence of an unintended write.
+- Use synchronization when testing queueing and cancellation. Keep sleeps out of ordering assertions.
+- For changed SQL or Compose behavior, use a real local PostgreSQL or Compose smoke check when the behavior depends on it. Inspect relevant rows or query results. Use a disposable database for fixtures, migrations and failure injection.
+- Run the relevant tests while implementing and `go test ./...` before handing off a Go change. Use `go test -race ./...` for concurrency or lifecycle changes. Report the manual scenarios actually run and any material verification gaps.
+- Use [PR coverage methodology](../skills/pr-description/SKILL.md#test-coverage) for percentages. Judge test adequacy by the changed behavior, including any runtime checks needed to verify it.

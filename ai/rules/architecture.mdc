@@ -1,0 +1,25 @@
+---
+description: Go package boundaries and dependency wiring
+globs: cmd/notifier/**,internal/**
+paths:
+  - cmd/notifier/**
+  - internal/**
+alwaysApply: false
+---
+
+# Go package boundaries
+
+| Package | Responsibility |
+| --- | --- |
+| `cmd/notifier` | Parse flags, load configuration, handle process signals and select the mode. |
+| `internal/application` | Wire dependencies and own their lifecycle. See `api.go` for the pool, ogen server, middleware and shutdown. |
+| `internal/core` | Domain types and rules. Keep them independent of other internal packages and I/O. Pass in time when a rule depends on it. |
+| `internal/server/handlers` | Map ogen requests to domain inputs, call domain logic and storage interfaces, map outcomes to typed responses. |
+| `internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |
+| `internal/storage/postgres` | Own SQL, PostgreSQL transactions, row mapping and database error translation. |
+| `internal/interactions` | Own outbound transport. Keep domain policy in the caller or in core. |
+
+- Define storage interfaces where they are consumed. Server code depends on these interfaces and domain types. Application supplies the concrete store.
+- Keep storage and outbound adapters independent of server, worker and collector packages. Keep ogen types at the HTTP boundary.
+- Pass the request or job context into I/O. In PostgreSQL, the operation budget covers waiting for a pool connection and reading the result. Reuse `Store.scanRow` for single-row operations.
+- Scope client-owned lookups and mutations by the client ID resolved from the request. For notification creation, the database unique constraint on `(client_id, external_id)` arbitrates concurrent requests. The duplicate lookup uses the same key.

@@ -2,6 +2,8 @@
 
 # Generated from ai/ by scripts/ai-setup.sh.
 /.claude/
+/.agents/skills/
+/.codex/agents/
 
 node_modules/
 tests/e2e/test-results/

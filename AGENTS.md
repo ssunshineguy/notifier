@@ -24,13 +24,15 @@ The service is a single `notifier` binary that runs in different modes:
 
 Described in [README.md](README.md#структура-репозитория).
 
-## Layer boundaries
+## Where to look
 
-- `core` imports nothing from `internal/` and performs no I/O.
-- `server/handlers` is a thin layer: parse the request → call the logic → write the response. No SQL or HTTP clients here.
-- `storage` and `interactions` do not import `server`, `worker` or `collector`.
-- `server/codegen` is generated from `api/bundle/openapi.yaml`; change it only through the spec in `api/spec/`.
-- Dependencies are wired only in `application`.
+| Area | Paths and rules |
+| --- | --- |
+| Go package boundaries | `cmd/notifier/`, `internal/`, [architecture rules](ai/rules/architecture.mdc) |
+| HTTP contract | `api/spec/`, [OpenAPI rules](ai/rules/openapi.mdc) |
+| HTTP implementation | `internal/server/`, `internal/application/api.go`, [HTTP rules](ai/rules/http-api.mdc) |
+| SQL and migrations | `internal/storage/postgres/`, `db/`, [migration rules](ai/rules/migrations.mdc) |
+| Tests and verification | Colocated `*_test.go`, [test rules](ai/rules/tests.mdc) |
 
 ## Database
 
@@ -50,25 +52,46 @@ Follow `ai/rules/comments.mdc`: default to no comment, write one only for a reas
 
 ## AI environment
 
-`ai/` is the source of rules, guards and skills; `make ai-setup` links it into `.claude/`
-(rules become `.claude/rules/*.md`). Edit files in `ai/`, never in `.claude/`, and rerun
-`make ai-setup` after adding or removing a file.
+`AGENTS.md` is the entry point. `CLAUDE.md` imports it. Edit rules, skills and guards in `ai/`.
+With `python3` available, run `make ai-setup` after cloning, changing a guard, or adding, removing, or renaming AI files.
+It links Claude Code rules, skills and agents under `.claude/`, links Codex skills under
+`.agents/skills/`, and generates Codex agent definitions under `.codex/agents/`. These paths
+are local setup output.
+Use the rules linked above for the layer you touch.
+
+## Workflows
+
+| Task | Skill |
+| --- | --- |
+| Add or change an API operation | [change-api](ai/skills/change-api/SKILL.md) |
+| Regenerate the API bundle and ogen | [generate-api](ai/skills/generate-api/SKILL.md) |
+| Verify API behavior on a local Compose stack | [verify-local-api](ai/skills/verify-local-api/SKILL.md) |
+| Run guards and checks | [review-changes](ai/skills/review-changes/SKILL.md) |
+| Prepare a GitHub PR or publish it with approval | [publish-pr](ai/skills/publish-pr/SKILL.md) |
+| Write or revise the PR description and coverage | [pr-description](ai/skills/pr-description/SKILL.md) |
 
 ## Guards
 
-Read-only reviewer subagents in `ai/agents/`. Call them after finishing a logical unit, passing the
-list of changed files.
+Delegate to the applicable read-only reviewers from `ai/agents/` after each logical unit.
+Pass the changed files, comparison base, and relevant test evidence. For an independent check,
+use the named agent or give a reviewer the corresponding Markdown instructions.
 
 | Guard | When |
 | --- | --- |
-| `comment-guard` | After any change that adds or edits comments. |
+| `architecture-guard` | After production Go changes in `cmd/notifier/` or `internal/`. |
+| `api-contract-guard` | After OpenAPI, generated API, or observable HTTP behavior changes. |
+| `test-coverage-guard` | After Go behavior, SQL, or Compose startup changes. |
+| `migration-guard` | After changes to `db/migrations` or `db/init`, before applying them. |
+| `comment-guard` | After adding or editing code comments. |
 | `readme-guard` | After editing `README.md`. |
-| `migration-guard` | After adding or changing a file in `db/migrations` or `db/init`, before `make migrate`. |
+
+Review each blocker and warn against the task scope. Fix confirmed findings and rerun affected
+checks. Report any agreed exception or unverified behavior at handoff.
 
 ## Keeping docs up to date
 
 Update this file and the relevant `ai/rules/` when the folder structure, layer boundaries, run modes, or development commands change.
 
-When a project change affects information in `README.md`, propose the specific update to the PR author and wait for approval before editing.
-
-Agree on the scope of every `README.md` edit with the PR author before editing. Add new content only when the PR author explicitly asks for it. An explicit request for a specific README change is approval for that scope.
+When a change affects `README.md`, propose the specific edit to the PR author and wait for
+approval. An explicit request for a specific edit is approval for that scope. Add new content
+only when the author explicitly asks for it.

@@ -1,0 +1,18 @@
+---
+description: HTTP behavior for authentication, overload, timeouts and health
+globs: internal/server/**,internal/application/api.go,docker-compose.yaml
+paths:
+  - internal/server/**
+  - internal/application/api.go
+  - docker-compose.yaml
+alwaysApply: false
+---
+
+# HTTP behavior
+
+- Read [OpenAPI conventions](openapi.mdc) when changing the wire contract. The split spec is in `api/spec/`.
+- Business operations obtain the client from the request context. In the prototype, ogen security resolves the caller-supplied `X-Client-ID` against PostgreSQL. In the target setup, the API Gateway authenticates the client and supplies this header. Missing or unknown IDs yield `401`. A database failure during lookup yields `500`.
+- Preserve `X-Request-ID` where specified. Map unexpected failures to a generic problem response. Keep SQL errors and other implementation details out of the response.
+- `RunAPI` wraps admission and the router with `RequestTimeout` so queue wait shares the request budget. Full queue or slot wait expiry returns `429`. Request deadline expiry returns `503`.
+- Liveness checks the HTTP process. Readiness executes `SELECT 1` under the configured database operation timeout. Health routes are public and bypass admission while keeping the HTTP request deadline.
+- Compose checks `/health/ready` with `curl` after migrations complete. Keep the route, listening address, port and probe timeout aligned when changing startup.
