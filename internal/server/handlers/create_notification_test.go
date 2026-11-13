@@ -24,10 +24,11 @@ import (
 
 type clientSourceStub struct {
 	client core.Client
+	err    error
 }
 
 func (s clientSourceStub) GetClient(context.Context, string) (core.Client, error) {
-	return s.client, nil
+	return s.client, s.err
 }
 
 func TestPrepareCreateNotification(t *testing.T) {
@@ -138,6 +139,7 @@ type notificationStoreStub struct {
 	connectionErr      error
 	getNotification    func(context.Context, uuid.UUID, string) (core.NotificationDetails, error)
 	updateNotification func(context.Context, uuid.UUID, string, []core.Condition) (core.NotificationDetails, error)
+	deleteNotification func(context.Context, uuid.UUID, string) error
 }
 
 func (s *notificationStoreStub) CheckConnection(context.Context) error {

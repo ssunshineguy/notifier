@@ -24,6 +24,7 @@ type Store interface {
 	FindNotificationID(ctx context.Context, clientID, externalID string) (uuid.UUID, bool, error)
 	GetNotification(ctx context.Context, notificationID uuid.UUID, clientID string) (core.NotificationDetails, error)
 	UpdateNotification(ctx context.Context, notificationID uuid.UUID, clientID string, conditions []core.Condition) (core.NotificationDetails, error)
+	DeleteNotification(ctx context.Context, notificationID uuid.UUID, clientID string) error
 }
 
 // Handler implements the Notifier operations defined in OpenAPI.

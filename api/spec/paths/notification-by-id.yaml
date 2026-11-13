@@ -141,15 +141,20 @@ delete:
     - notifications
   summary: Delete a notification
   description: |
-    Stops an active notification. A delete request for an already stopped
-    notification owned by the client also returns `200`. An event that is
-    already being delivered may still arrive.
+    Deletes a notification owned by the client, whether active or already
+    stopped. After deletion, the notification is no longer available through
+    GET or PUT, and the client can reuse its `external_id`. A missing
+    notification or one owned by another client returns `404`, including a
+    repeated DELETE after successful deletion. An event that is already
+    being delivered may still arrive.
   responses:
     "200":
       description: The deletion request succeeded.
       headers:
         X-Request-ID:
           $ref: ../components/headers/RequestId.yaml
+    "400":
+      $ref: ../components/responses/BadRequest.yaml
     "401":
       $ref: ../components/responses/Unauthorized.yaml
     "404":

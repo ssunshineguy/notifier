@@ -187,8 +187,10 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 
 // handleDeleteNotificationRequest handles deleteNotification operation.
 //
-// Stops an active notification. A delete request for an already stopped notification owned by the
-// client also returns `200`. An event that is already being delivered may still arrive.
+// Deletes a notification owned by the client, whether active or already stopped. After deletion, the
+// notification is no longer available through GET or PUT, and the client can reuse its `external_id`.
+// A missing notification or one owned by another client returns `404`, including a repeated DELETE
+// after successful deletion. An event that is already being delivered may still arrive.
 //
 // DELETE /v1/notifications/{notification_id}
 func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
