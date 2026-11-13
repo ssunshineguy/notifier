@@ -15,8 +15,9 @@ import (
 	"github.com/ssunshineguy/notifier/internal/server/middleware"
 )
 
-// NotificationStore saves notifications and finds existing IDs by client and external ID.
-type NotificationStore interface {
+// Store persists notifications and checks database connectivity for the API.
+type Store interface {
+	CheckConnection(ctx context.Context) error
 	CreateNotification(ctx context.Context, notification core.Notification) (uuid.UUID, error)
 	FindNotificationID(ctx context.Context, clientID, externalID string) (uuid.UUID, bool, error)
 }
@@ -24,15 +25,15 @@ type NotificationStore interface {
 // Handler implements the Notifier operations defined in OpenAPI.
 type Handler struct {
 	codegen.UnimplementedHandler
-	notifications NotificationStore
+	store         Store
 	scheduledTime time.Duration
 }
 
 var _ codegen.Handler = (*Handler)(nil)
 
 // NewHandler supplies the store and the delay before the first notification check.
-func NewHandler(notifications NotificationStore, scheduledTime time.Duration) *Handler {
-	return &Handler{notifications: notifications, scheduledTime: scheduledTime}
+func NewHandler(store Store, scheduledTime time.Duration) *Handler {
+	return &Handler{store: store, scheduledTime: scheduledTime}
 }
 
 // CreateNotification saves the notification after validating it against the client's settings and the condition tree.
@@ -50,7 +51,7 @@ func (h *Handler) CreateNotification(ctx context.Context, req *codegen.Notificat
 			return nil, err
 		}
 
-		id, found, lookupErr := h.notifications.FindNotificationID(ctx, client.ID, create.ExternalID)
+		id, found, lookupErr := h.store.FindNotificationID(ctx, client.ID, create.ExternalID)
 		if lookupErr != nil {
 			return internalErrorResponse(requestID), nil
 		}
@@ -60,7 +61,7 @@ func (h *Handler) CreateNotification(ctx context.Context, req *codegen.Notificat
 		return validationResponse(requestID, validationErr.Fields), nil
 	}
 
-	id, err := h.notifications.CreateNotification(ctx, notification)
+	id, err := h.store.CreateNotification(ctx, notification)
 	if err != nil {
 		var existsErr *core.AlreadyExistsError
 		if errors.As(err, &existsErr) {

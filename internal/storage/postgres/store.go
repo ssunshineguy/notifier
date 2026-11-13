@@ -19,6 +19,12 @@ func NewStore(pool *pgxpool.Pool, operationTimeout time.Duration) *Store {
 	return &Store{pool: pool, operationTimeout: operationTimeout}
 }
 
+// CheckConnection verifies that PostgreSQL can execute SQL within the store's operation budget.
+func (s *Store) CheckConnection(ctx context.Context) error {
+	var result int
+	return s.scanRow(ctx, "SELECT 1", nil, &result)
+}
+
 func (s *Store) scanRow(ctx context.Context, query string, args []any, dest ...any) error {
 	dbCtx, cancel := context.WithTimeout(ctx, s.operationTimeout)
 	defer cancel()

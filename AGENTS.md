@@ -9,7 +9,7 @@ The service is a single `notifier` binary that runs in different modes:
 
 | Mode | Purpose | Lifecycle |
 | --- | --- | --- |
-| `api` | HTTP notification API (currently supports creation) | long-running process |
+| `api` | HTTP notification creation and health probes | long-running process |
 | `worker` | checks conditions and delivers events to clients | long-running process |
 | `collector` | removes stopped notifications in batches | runs once and exits, started on a schedule |
 | `migrate` | applies database migrations | one-off run before the services start |
@@ -62,9 +62,13 @@ list of changed files.
 | Guard | When |
 | --- | --- |
 | `comment-guard` | After any change that adds or edits comments. |
+| `readme-guard` | After editing `README.md`. |
 | `migration-guard` | After adding or changing a file in `db/migrations` or `db/init`, before `make migrate`. |
 
 ## Keeping docs up to date
 
-After every task update this file, the "Структура репозитория" section of `README.md` and `ai/rules/`
-if the folder structure, layer boundaries, run modes or development commands have changed.
+Update this file and the relevant `ai/rules/` when the folder structure, layer boundaries, run modes, or development commands change.
+
+When a project change affects information in `README.md`, propose the specific update to the PR author and wait for approval before editing.
+
+Agree on the scope of every `README.md` edit with the PR author before editing. Add new content only when the PR author explicitly asks for it. An explicit request for a specific README change is approval for that scope.
