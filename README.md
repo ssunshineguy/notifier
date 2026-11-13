@@ -122,8 +122,8 @@ sequenceDiagram
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Delete notification_id<br/>X-Client-ID, X-Request-ID
-    N->>DB: UPDATE t_notification<br/>SET stop_dt = now(), stop_reason = 'deleted'<br/>WHERE id = notification_id<br/>AND client_id = X-Client-ID AND stop_dt IS NULL
-    DB-->>N: Остановка нотификации зафиксирована
+    N->>DB: DELETE FROM t_notification<br/>WHERE id = notification_id AND client_id = X-Client-ID<br/>RETURNING id
+    DB-->>N: ID удалённой записи
     N-->>G: 200 OK
     G-->>C: 200 OK
 ```
@@ -227,7 +227,7 @@ sequenceDiagram
 
 </details>
 
-Пока остановленная нотификация хранится в базе, владелец может прочитать её через `GET`. Попытка обновить её через `PUT` возвращает `400` с заголовком ошибки `Incorrect notification status`. Её `external_id` остаётся занят до удаления записи Collector’ом. Повторный `POST` с тем же `external_id` возвращает `409` с ID существующей нотификации.
+Пока остановленная нотификация хранится в базе, владелец может прочитать её через `GET`. Попытка обновить её через `PUT` возвращает `400` с заголовком ошибки `Incorrect notification status`. Для клиента `external_id` занят, пока запись хранится в базе. В этот период повторный `POST` с тем же `external_id` возвращает `409` с ID существующей нотификации. После удаления записи через API или Collector тот же `external_id` можно сразу использовать снова.
 
 ## Ограничения прототипа
 

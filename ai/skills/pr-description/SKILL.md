@@ -15,7 +15,7 @@ Start the English title with an action verb and name the outcome. Write the desc
 
 ## Test coverage
 
-Report the percentage under the separate `## Test coverage` heading. Use the `total:` value from `go tool cover`, which is the percentage of statements executed at least once across the selected packages. Include packages with no tests. Exclude the generated ogen package at `internal/server/codegen`. Run the unit suite and PostgreSQL integration tests in a single coverage run across the whole repository. Report manual smoke checks separately. Use this same command on both branches when comparing coverage.
+Report the percentage under the separate `## Test coverage` heading. Use the `total:` value from `go tool cover`, which is the percentage of statements executed at least once across the selected packages. Include packages with no tests. Exclude generated packages under `codegen` directories. Run the unit suite and PostgreSQL integration tests in a single coverage run across the whole repository. Report manual smoke checks separately. Use this same command on both branches when comparing coverage.
 
 Run from the repository root with the Go version specified by `go.mod` and a running Docker daemon. Tests with the `integration` build tag start and clean up their own PostgreSQL containers. If that run fails, report the failure. A unit-only percentage measures a different suite.
 
@@ -25,8 +25,7 @@ Run from the repository root with the Go version specified by `go.mod` and a run
   export GOFLAGS= GOWORK=off
   coverage_dir=$(mktemp -d)
   trap 'rm -rf "$coverage_dir"' EXIT
-  module=$(go list -m)
-  packages=$(go list -tags=integration ./... | awk -v generated="$module/internal/server/codegen" '$0 != generated' | paste -sd , -)
+  packages=$(go list -tags=integration ./... | awk '$0 !~ /(^|\/)codegen(\/|$)/' | paste -sd , -)
   go test -tags=integration -count=1 -covermode=set -coverpkg="$packages" -coverprofile="$coverage_dir/coverage.out" ./...
   go tool cover -func="$coverage_dir/coverage.out" | awk '$1 == "total:" {print $NF; found = 1} END {if (!found) exit 1}'
 )
@@ -39,6 +38,6 @@ Put a colored circle next to the measured percentage in the GitHub PR:
 - 🟢 At least 75% and below 90% (good)
 - 🔵 90% or higher (excellent)
 
-For example, `🟢 Go statement coverage: **78.2%** (excluding generated ogen code).` If coverage could not be measured, report the reason in this section.
+For example, `🟢 Go statement coverage: **78.2%**.` If coverage could not be measured, report the reason in this section.
 
 See `ai/rules/migrations.mdc` for manual index builds on existing tables.

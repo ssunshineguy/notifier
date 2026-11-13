@@ -125,6 +125,7 @@ func (s *BadRequestHeaders) SetResponse(val Problem) {
 }
 
 func (*BadRequestHeaders) createNotificationRes() {}
+func (*BadRequestHeaders) deleteNotificationRes() {}
 func (*BadRequestHeaders) getNotificationRes()    {}
 func (*BadRequestHeaders) updateNotificationRes() {}
 
