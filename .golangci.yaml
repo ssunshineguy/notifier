@@ -6,12 +6,12 @@ run:
 linters:
   default: standard # errcheck, govet, ineffassign, staticcheck, unused
   enable:
-    - bodyclose # незакрытые тела HTTP-ответов: доставка клиенту, Information Services
-    - rowserrcheck # непроверенный rows.Err()
-    - sqlclosecheck # незакрытые rows/statements
-    - contextcheck # потеря контекста при вызовах
-    - noctx # HTTP-запросы без context
-    - errorlint # сравнение ошибок без errors.Is/As
+    - bodyclose # unclosed HTTP response bodies: client delivery, Information Services
+    - rowserrcheck # unchecked rows.Err()
+    - sqlclosecheck # unclosed rows/statements
+    - contextcheck # context not propagated to calls
+    - noctx # HTTP requests without context
+    - errorlint # error comparison without errors.Is/As
     - gosec
     - revive
     - misspell
