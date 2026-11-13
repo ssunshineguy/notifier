@@ -1,0 +1,28 @@
+title: NotificationCreate
+description: Parameters of a new notification.
+type: object
+additionalProperties: false
+required:
+  - external_id
+  - notification_params
+properties:
+  external_id:
+    $ref: ./ExternalId.yaml
+  notification_params:
+    $ref: ../conditions/NotificationParams.yaml
+  deadline_dt:
+    description: |
+      Moment after which Notifier stops waiting for the conditions and sends
+      a `deadline_exceeded` event. Optional: when omitted, it is set to the
+      creation moment plus the maximum notification lifetime. The maximum
+      lifetime is 180 days by default and can be overridden in the client
+      settings. When set, `deadline_dt` must be:
+
+      - in the future;
+      - not earlier than the moment the conditions can be met;
+      - not later than the creation moment plus the maximum notification
+        lifetime configured for the client. The limit keeps notifications
+        from living forever.
+    type: string
+    format: date-time
+    example: "2026-12-01T18:00:00Z"

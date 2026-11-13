@@ -1,0 +1,24 @@
+title: NotificationEvent
+description: |
+  Event that Notifier sends to the client. Delivery is at-least-once:
+  the same event may arrive more than once, use `notification_id` to
+  deduplicate.
+type: object
+additionalProperties: false
+required:
+  - notification_id
+  - external_id
+  - notification_status
+  - sent_dt
+properties:
+  notification_id:
+    $ref: ../notifications/NotificationId.yaml
+  external_id:
+    $ref: ../notifications/ExternalId.yaml
+  notification_status:
+    $ref: ./EventStatus.yaml
+  sent_dt:
+    description: Moment of this delivery attempt.
+    type: string
+    format: date-time
+    example: "2026-12-01T09:00:01Z"

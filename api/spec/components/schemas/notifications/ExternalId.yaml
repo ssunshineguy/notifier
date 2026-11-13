@@ -1,0 +1,11 @@
+title: ExternalId
+description: |
+  Client-side identifier of the notification. Unique per client: a repeated
+  create with the same `external_id` returns `409` with the identifier of
+  the existing notification, which makes creation safe to retry. The
+  parameters of the repeated request are not applied.
+type: string
+minLength: 1
+maxLength: 128
+pattern: '^[A-Za-z0-9._:-]+$'
+example: order-42-reminder

@@ -1,0 +1,8 @@
+title: NotificationCreated
+type: object
+additionalProperties: false
+required:
+  - notification_id
+properties:
+  notification_id:
+    $ref: ./NotificationId.yaml

@@ -1,0 +1,18 @@
+title: AndCondition
+description: Met when all nested conditions are met.
+type: object
+additionalProperties: false
+required:
+  - type
+  - conditions
+properties:
+  type:
+    type: string
+    enum:
+      - and
+  conditions:
+    type: array
+    minItems: 2
+    maxItems: 10
+    items:
+      $ref: ./Condition.yaml

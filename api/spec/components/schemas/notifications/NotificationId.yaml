@@ -1,0 +1,5 @@
+title: NotificationId
+description: Identifier of the notification assigned by Notifier.
+type: string
+format: uuid
+example: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
