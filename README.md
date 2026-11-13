@@ -241,65 +241,20 @@ sequenceDiagram
 
 ## Локальный запуск
 
-Нужны Docker и Go 1.27.
-
-В `configs/config.yaml` адрес API задаёт `api.listen_addr`, целевой минимум и предел соединений PostgreSQL на процесс API задают `database.min_conns` и `database.max_conns`, а число одновременно обрабатываемых HTTP-запросов задаёт `api.max_in_flight`. Когда все места заняты, до `api.max_queued` запросов могут ждать свободного места до `api.slot_wait_timeout_ms` миллисекунд (по умолчанию 100). Если очередь заполнена или время ожидания истекло, API отвечает `429`. Значение `0` у `api.max_queued` или `api.slot_wait_timeout_ms` отключает ожидание. Запросы к `/health/live` и `/health/ready` проходят независимо от этого лимита.
-
-`api.request_timeout_ms` задаёт общий бюджет запроса после чтения заголовков. По умолчанию это 2000 мс на очередь, чтение тела и обработку. По истечении общего бюджета API отвечает `503`. Если раньше сработал отдельный лимит ожидания места, API отвечает `429`.
-
-`database.operation_timeout_sec` задаёт общий таймаут на одну SQL-операцию API, включая ожидание соединения и чтение результата. По умолчанию это 1 секунда.
+Нужны Docker Compose и `make`. `make up` запускает PostgreSQL, применяет миграции и ждёт готовности API. Адрес API — `http://127.0.0.1:8080`.
 
 ```bash
-make migrate   # поднять PostgreSQL, применить миграции и обновить db/schema
-make psql      # открыть psql в локальной базе
-make down      # остановить стенд, данные остаются в volume
-make reset     # удалить базу целиком; db/init выполнится заново при следующем старте
+make up
+make down      # остановить стенд, сохранив данные
 ```
 
-После `make migrate` добавь клиента для локальной проверки через `make psql`:
-
-```sql
-INSERT INTO notifier.t_client (client_id, callback_url, max_lifetime_sec)
-VALUES ('curl-demo', 'http://example.test/callback', 86400)
-ON CONFLICT (client_id) DO NOTHING;
-```
-
-Выйди из `psql` командой `\q`. При запуске с хоста сделай временную копию конфига с адресом опубликованного порта PostgreSQL:
-
-```bash
-notifier_local_config=$(mktemp)
-sed 's/@postgres:5432/@127.0.0.1:5432/g' configs/config.yaml > "$notifier_local_config"
-go run ./cmd/notifier -config "$notifier_local_config" api
-rm "$notifier_local_config"
-```
-
-В другом терминале отправь запрос на сервер:
-
-```bash
-curl -i http://127.0.0.1:8080/v1/notifications \
-  -H 'Content-Type: application/json' \
-  -H 'X-Client-ID: curl-demo' \
-  -H 'X-Request-ID: curl-demo-1' \
-  --data '{"external_id":"curl-demo-order","notification_params":[{"type":"time","operation":"after","value":"2026-12-01T09:00:00Z"}]}'
-```
-
-При первом запросе с этим `external_id` сервер отвечает `200 OK` с `notification_id`. Останови сервер через `Ctrl+C`.
-
-Для работы с AI-агентами один раз после клонирования и после изменений в `ai/`:
-
-```bash
-make ai-setup  # подключить правила, guards и скиллы из ai/ в .claude/
-```
+Для работы с локальной базой используй `make psql`. `make migrate` применяет миграции и обновляет дамп схемы, а `make reset` удаляет локальную базу.
 
 ## Тестирование
 
-| Уровень | Что покрывает | База | Где лежит и как запускается |
-| --- | --- | --- | --- |
-| Unit | `core` (ретраи, дедлайн, статусы), handlers и worker с фейковым репозиторием и часами | нет | рядом с кодом, `go test ./...` |
-| Интеграционные | `storage/postgres`: запросы, lease, `SKIP LOCKED` с параллельными горутинами, collector | Postgres в testcontainers, чистый на каждый прогон | `internal/storage/postgres/`, build tag `integration` |
-| E2E | Сценарии целиком: CRUD, доставка, ретраи, дедлайн | весь стенд в docker compose | `tests/e2e/`, Playwright |
+Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
 
-Корректность Worker держится на семантике SQL, которую нельзя проверить ни моками, ни снаружи через API, поэтому слой хранилища тестируется на настоящем Postgres.
+Интеграционные тесты хранилища на PostgreSQL и сквозные сценарии Playwright запланированы.
 
 ## Структура репозитория
 
@@ -335,19 +290,19 @@ make ai-setup  # подключить правила, guards и скиллы и�
 │   │   ├── infoservice/               # Клиенты источников условий
 │   │   └── callback/                  # Доставка уведомления клиенту
 │   └── storage/
-│       └── postgres/                  # Репозиторий и SQL, интеграционные тесты на testcontainers
+│       └── postgres/                  # Репозиторий и SQL
 ├── db/
 │   ├── init/                          # Бутстрап локальной базы: схема notifier, роли migrator, api, worker, collector
 │   ├── migrations/                    # Миграции goose, пишутся руками: {nnn}__{name}.sql, только вперёд
 │   └── schema/                        # Схема каждой таблицы, генерируется make migrate; руками не правится
 ├── tests/
-│   └── e2e/                           # Playwright (TypeScript), тестирование API
+│   └── e2e/                           # Заготовка тестов API на Playwright (TypeScript)
 │       ├── fixtures/                  # Клиенты API и эмулятора, генераторы данных
 │       └── specs/                     # Сценарии
 ├── build/                             # Dockerfile (multi-stage; сейчас таргет notifier, позже emulator)
 ├── scripts/                           # Скрипты разработки; Makefile вызывает их (gen.sh — lint, bundle, ogen)
 ├── docs/                              # Схемы и ADR
-├── docker-compose.yaml                # Локальный стенд: сейчас postgres и migrate
+├── docker-compose.yaml                # Локальный стенд: postgres, migrate и api
 ├── Makefile                           # Команды разработки: gen, up, down, reset, migrate, psql, ai-setup
 ├── .golangci.yaml                     # Конфигурация golangci-lint
 ├── go.mod

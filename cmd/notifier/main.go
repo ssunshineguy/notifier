@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	notifier [-config path] <mode>
+//	notifier [-config path] [-listen-addr address] <mode>
 //
 // Modes: api, worker, collector, migrate.
 package main
@@ -30,10 +30,11 @@ func main() {
 
 func run() error {
 	configPath := flag.String("config", "configs/config.yaml", "path to the config file")
+	listenAddr := flag.String("listen-addr", "", "override the API listen address")
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
 		// Nothing to recover from if usage cannot be printed.
-		_, _ = fmt.Fprintln(out, "Usage: notifier [-config path] <api|worker|collector|migrate>")
+		_, _ = fmt.Fprintln(out, "Usage: notifier [-config path] [-listen-addr address] <api|worker|collector|migrate>")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -56,6 +57,9 @@ func run() error {
 	case "migrate":
 		return application.Migrate(ctx, cfg)
 	case "api":
+		if *listenAddr != "" {
+			cfg.API.ListenAddr = *listenAddr
+		}
 		return application.RunAPI(ctx, cfg)
 	case "worker", "collector":
 		return fmt.Errorf("mode %q is not implemented yet", mode)

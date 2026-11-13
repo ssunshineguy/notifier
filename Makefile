@@ -4,7 +4,7 @@ gen:
 	./scripts/gen.sh
 
 up:
-	docker compose up -d --build
+	docker compose up --build --wait
 
 down:
 	docker compose down
