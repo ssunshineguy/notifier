@@ -1,7 +1,7 @@
-# Сборка
+# Build
 /bin/
 
-# AI-окружение: генерируется из ai/ через scripts/ai-setup.sh
+# AI environment: generated from ai/ by scripts/ai-setup.sh
 /.claude/
 
 # Playwright
@@ -10,11 +10,11 @@ tests/e2e/test-results/
 tests/e2e/playwright-report/
 tests/e2e/blob-report/
 
-# Локальное окружение
+# Local environment
 .env
 *.local.yaml
 
-# IDE и ОС
+# IDE and OS
 .idea/
 .vscode/
 .DS_Store

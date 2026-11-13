@@ -262,7 +262,8 @@ sequenceDiagram
 │   │   ├── paths/                     # Ручки, по файлу на путь; callback клиенту описан в createNotification
 │   │   └── components/                # schemas, parameters, headers, responses
 │   ├── bundle/                        # Собранная спецификация, вход для кодогенерации
-│   └── redocly.yaml                   # Настройки lint и bundle
+│   ├── redocly.yaml                   # Настройки lint и bundle
+│   └── ogen.yaml                      # Настройки кодогенерации: только сервер, без OpenTelemetry
 ├── cmd/
 │   ├── notifier/                      # Точка входа: режимы api | worker | collector | migrate
 │   └── emulator/                      # Эмулятор Information Service и приёмник callback'ов
@@ -289,10 +290,10 @@ sequenceDiagram
 │       ├── fixtures/                  # Клиенты API и эмулятора, генераторы данных
 │       └── specs/                     # Сценарии
 ├── build/                             # Dockerfile (multi-stage: notifier, emulator)
-├── scripts/                           # Скрипты разработки; Makefile вызывает их
+├── scripts/                           # Скрипты разработки; Makefile вызывает их (gen.sh — lint, bundle, ogen)
 ├── docs/                              # Схемы и ADR
 ├── docker-compose.yaml                # Локальный стенд (пока не создан)
-├── Makefile                           # Точка входа для команд разработки (пока не создан)
+├── Makefile                           # Точка входа для команд разработки: make gen
 ├── .golangci.yaml                     # Конфигурация golangci-lint
 ├── go.mod
 ├── AGENTS.md                          # Контекст для ИИ-агентов
