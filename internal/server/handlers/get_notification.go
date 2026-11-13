@@ -22,23 +22,35 @@ func (h *Handler) GetNotification(ctx context.Context, params codegen.GetNotific
 
 	notification, err := h.store.GetNotification(ctx, uuid.UUID(params.NotificationID), client.ID)
 	if errors.Is(err, core.ErrNotificationNotFound) {
-		return &codegen.NotFoundHeaders{
-			XRequestID: requestID,
-			Response: codegen.Problem{
-				Type:      "/problems/not-found",
-				Title:     "Notification not found",
-				Status:    http.StatusNotFound,
-				RequestID: requestID,
-			},
-		}, nil
+		return notificationNotFoundResponse(requestID), nil
 	}
 	if err != nil {
 		return internalErrorResponse(requestID), nil
 	}
 
+	response := notificationResponse(requestID, notification)
+	if response == nil {
+		return internalErrorResponse(requestID), nil
+	}
+	return response, nil
+}
+
+func notificationNotFoundResponse(requestID codegen.OptString) *codegen.NotFoundHeaders {
+	return &codegen.NotFoundHeaders{
+		XRequestID: requestID,
+		Response: codegen.Problem{
+			Type:      "/problems/not-found",
+			Title:     "Notification not found",
+			Status:    http.StatusNotFound,
+			RequestID: requestID,
+		},
+	}
+}
+
+func notificationResponse(requestID codegen.OptString, notification core.NotificationDetails) *codegen.NotificationHeaders {
 	conditions, ok := toAPIConditions(notification.Params)
 	if !ok {
-		return internalErrorResponse(requestID), nil
+		return nil
 	}
 	return &codegen.NotificationHeaders{
 		XRequestID: requestID,
@@ -50,7 +62,7 @@ func (h *Handler) GetNotification(ctx context.Context, params codegen.GetNotific
 			DeadlineDt:         notification.Deadline,
 			StartDt:            notification.Start,
 		},
-	}, nil
+	}
 }
 
 func toAPIConditions(conditions []core.Condition) ([]codegen.Condition, bool) {

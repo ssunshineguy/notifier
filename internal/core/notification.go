@@ -38,6 +38,9 @@ type NotificationDetails struct {
 // ErrNotificationNotFound means no notification matched the lookup.
 var ErrNotificationNotFound = errors.New("notification not found")
 
+// ErrNotificationStopped means the notification no longer accepts condition changes.
+var ErrNotificationStopped = errors.New("notification stopped")
+
 // AlreadyExistsError reports that the client already has a notification with the same external ID.
 type AlreadyExistsError struct {
 	ID uuid.UUID
@@ -50,7 +53,7 @@ func (e *AlreadyExistsError) Error() string {
 // NewNotification validates the request against the rules the API schema cannot express and
 // builds the notification that starts at now and is first checked after scheduledTime.
 func NewNotification(client Client, req CreateRequest, now time.Time, scheduledTime time.Duration) (Notification, error) {
-	fieldErrs := checkTree(req.Params)
+	fieldErrs := ValidateNotificationConditions(req.Params)
 
 	maxDeadline := now.Add(client.MaxLifetime)
 	var deadline time.Time

@@ -35,7 +35,8 @@ func (c Condition) isGroup() bool {
 	return c.Type == ConditionAnd || c.Type == ConditionOr
 }
 
-func checkTree(conds []Condition) []FieldError {
+// ValidateNotificationConditions checks the depth and total leaf count of the condition tree.
+func ValidateNotificationConditions(conds []Condition) []FieldError {
 	errs := checkDepth(conds, "/notification_params", 0)
 	if n := countLeaves(conds); n > maxLeafCount {
 		errs = append(errs, FieldError{
