@@ -4,8 +4,10 @@ package codegen
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/go-faster/errors"
+	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -284,6 +286,580 @@ func decodeGetTimeParams(args [0]string, argsEscaped bool, r *http.Request) (par
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "X-Client-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ResetCallbackOverrideParams is parameters of resetCallbackOverride operation.
+type ResetCallbackOverrideParams struct {
+	// Identifier of the notification.
+	NotificationID NotificationId
+	// Identifier of the request for tracing. Returned in the response header and in error bodies.
+	XRequestID string
+}
+
+func unpackResetCallbackOverrideParams(packed middleware.Parameters) (params ResetCallbackOverrideParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "notification_id",
+			In:   "path",
+		}
+		params.NotificationID = packed[key].(NotificationId)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Request-ID",
+			In:   "header",
+		}
+		params.XRequestID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeResetCallbackOverrideParams(args [1]string, argsEscaped bool, r *http.Request) (params ResetCallbackOverrideParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: notification_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "notification_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				var paramsDotNotificationIDVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotNotificationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.NotificationID = NotificationId(paramsDotNotificationIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "notification_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Request-ID.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Request-ID",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.XRequestID = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.XRequestID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Request-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ResetClientOverridesParams is parameters of resetClientOverrides operation.
+type ResetClientOverridesParams struct {
+	// Value of `X-Client-ID` used by the Information Service requests.
+	ClientID string
+	// Identifier of the request for tracing. Returned in the response header and in error bodies.
+	XRequestID string
+}
+
+func unpackResetClientOverridesParams(packed middleware.Parameters) (params ResetClientOverridesParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "client_id",
+			In:   "path",
+		}
+		params.ClientID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Request-ID",
+			In:   "header",
+		}
+		params.XRequestID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeResetClientOverridesParams(args [1]string, argsEscaped bool, r *http.Request) (params ResetClientOverridesParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: client_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "client_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ClientID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.ClientID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "client_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Request-ID.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Request-ID",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.XRequestID = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.XRequestID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Request-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// SetCallbackOverrideParams is parameters of setCallbackOverride operation.
+type SetCallbackOverrideParams struct {
+	// Identifier of the notification.
+	NotificationID NotificationId
+	// Identifier of the request for tracing. Returned in the response header and in error bodies.
+	XRequestID string
+}
+
+func unpackSetCallbackOverrideParams(packed middleware.Parameters) (params SetCallbackOverrideParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "notification_id",
+			In:   "path",
+		}
+		params.NotificationID = packed[key].(NotificationId)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Request-ID",
+			In:   "header",
+		}
+		params.XRequestID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeSetCallbackOverrideParams(args [1]string, argsEscaped bool, r *http.Request) (params SetCallbackOverrideParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: notification_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "notification_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				var paramsDotNotificationIDVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotNotificationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.NotificationID = NotificationId(paramsDotNotificationIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "notification_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Request-ID.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Request-ID",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.XRequestID = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.XRequestID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Request-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// SetClientOverrideParams is parameters of setClientOverride operation.
+type SetClientOverrideParams struct {
+	// Value of `X-Client-ID` used by the Information Service requests.
+	ClientID string
+	// Identifier of the request for tracing. Returned in the response header and in error bodies.
+	XRequestID string
+}
+
+func unpackSetClientOverrideParams(packed middleware.Parameters) (params SetClientOverrideParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "client_id",
+			In:   "path",
+		}
+		params.ClientID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Request-ID",
+			In:   "header",
+		}
+		params.XRequestID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeSetClientOverrideParams(args [1]string, argsEscaped bool, r *http.Request) (params SetClientOverrideParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: client_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "client_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ClientID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.ClientID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "client_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Request-ID.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Request-ID",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.XRequestID = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.XRequestID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Request-ID",
 			In:   "header",
 			Err:  err,
 		}

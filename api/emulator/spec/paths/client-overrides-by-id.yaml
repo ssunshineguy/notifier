@@ -1,0 +1,42 @@
+parameters:
+  - $ref: ../components/parameters/ClientOverrideId.yaml
+  - $ref: ../../../spec/components/parameters/RequestId.yaml
+post:
+  operationId: setClientOverride
+  tags:
+    - test-presets
+  summary: Set an Information Service value for a client
+  description: Sets or replaces the selected parameter. The client's other parameter keeps its value.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/test-controls/ClientOverride.yaml
+        examples:
+          time:
+            value:
+              parameter: time
+              value: "2026-12-01T09:00:00Z"
+          price:
+            value:
+              parameter: price
+              value: 19990
+  responses:
+    "200":
+      $ref: ../components/responses/OverrideApplied.yaml
+    "400":
+      $ref: ../components/responses/BadOverrideRequest.yaml
+    "415":
+      $ref: ../components/responses/UnsupportedMediaType.yaml
+delete:
+  operationId: resetClientOverrides
+  tags:
+    - test-presets
+  summary: Reset a client's Information Service values
+  description: Clears both parameters for the client. Returns 200 even if no override exists.
+  responses:
+    "200":
+      $ref: ../components/responses/OverrideApplied.yaml
+    "400":
+      $ref: ../components/responses/BadOverrideRequest.yaml

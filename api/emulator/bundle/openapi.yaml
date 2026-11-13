@@ -7,6 +7,9 @@ info:
     local Notifier tests. Information Service requests carry a client identifier
     and a request identifier. The callback follows the event contract in the
     Notifier API.
+
+    Test controls store overrides in the emulator process. Restarting the
+    process clears all overrides.
 servers:
   - url: http://localhost:8081
     description: Local emulator
@@ -16,20 +19,22 @@ tags:
     description: Emulated sources for notification conditions.
   - name: callbacks
     description: Delivery of events by Notifier.
+  - name: test-presets
+    description: Configure and reset emulator overrides.
 paths:
   /time:
     get:
       operationId: getTime
       tags:
         - information-services
-      summary: Get the current time
-      description: Returns the current time in UTC from Information Service 1.
+      summary: Get the emulated time
+      description: Returns the client's configured time or the current time in UTC.
       parameters:
         - $ref: '#/components/parameters/RequestId'
         - $ref: '#/components/parameters/ClientId'
       responses:
         '200':
-          description: Current time in UTC.
+          description: Emulated time in UTC.
           headers:
             X-Request-ID:
               $ref: '#/components/headers/RequestId'
@@ -47,7 +52,7 @@ paths:
       tags:
         - information-services
       summary: Get the emulated price
-      description: Returns the price from Information Service 2 in minor units.
+      description: Returns the client's configured price in minor units or zero.
       parameters:
         - $ref: '#/components/parameters/RequestId'
         - $ref: '#/components/parameters/ClientId'
@@ -75,6 +80,12 @@ paths:
         Receives the notification event sent by Notifier Worker when the conditions
         are met or the deadline is reached. Delivery is at least once, so the same
         notification identifier may be received more than once.
+
+        Uses the response status and delay configured for the notification
+        identifier. The default is 200 with no delay. An override applies to every
+        attempt until it is replaced or deleted.
+        If the emulator shuts down during a delay, it returns 503 when the
+        connection is still open.
       requestBody:
         required: true
         content:
@@ -89,8 +100,98 @@ paths:
       responses:
         '200':
           description: The event is accepted.
+        '201':
+          description: The event is accepted with the configured 201 status.
         '400':
           $ref: '#/components/responses/BadEvent'
+        '404':
+          $ref: '#/components/responses/SimulatedCallbackFailure'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/SimulatedCallbackFailure'
+        '503':
+          $ref: '#/components/responses/SimulatedCallbackFailure'
+  /v1/client-overrides/{client_id}:
+    parameters:
+      - $ref: '#/components/parameters/ClientOverrideId'
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      operationId: setClientOverride
+      tags:
+        - test-presets
+      summary: Set an Information Service value for a client
+      description: Sets or replaces the selected parameter. The client's other parameter keeps its value.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientOverride'
+            examples:
+              time:
+                value:
+                  parameter: time
+                  value: '2026-12-01T09:00:00Z'
+              price:
+                value:
+                  parameter: price
+                  value: 19990
+      responses:
+        '200':
+          $ref: '#/components/responses/OverrideApplied'
+        '400':
+          $ref: '#/components/responses/BadOverrideRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+    delete:
+      operationId: resetClientOverrides
+      tags:
+        - test-presets
+      summary: Reset a client's Information Service values
+      description: Clears both parameters for the client. Returns 200 even if no override exists.
+      responses:
+        '200':
+          $ref: '#/components/responses/OverrideApplied'
+        '400':
+          $ref: '#/components/responses/BadOverrideRequest'
+  /v1/callback-overrides/{notification_id}:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      operationId: setCallbackOverride
+      tags:
+        - test-presets
+      summary: Set the callback response for a notification
+      description: Creates or replaces the response status and delay for the notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallbackOverride'
+            example:
+              status_code: 503
+              response_timeout: 1500
+      responses:
+        '200':
+          $ref: '#/components/responses/OverrideApplied'
+        '400':
+          $ref: '#/components/responses/BadOverrideRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+    delete:
+      operationId: resetCallbackOverride
+      tags:
+        - test-presets
+      summary: Reset a notification's callback response
+      description: Restores 200 with no delay. Returns 200 even if no override exists.
+      responses:
+        '200':
+          $ref: '#/components/responses/OverrideApplied'
+        '400':
+          $ref: '#/components/responses/BadOverrideRequest'
 components:
   parameters:
     RequestId:
@@ -114,6 +215,22 @@ components:
         type: string
         minLength: 1
         example: emulator-test-client
+    ClientOverrideId:
+      name: client_id
+      in: path
+      required: true
+      description: Value of `X-Client-ID` used by the Information Service requests.
+      schema:
+        type: string
+        minLength: 1
+        example: emulator-test-client
+    NotificationId:
+      name: notification_id
+      in: path
+      required: true
+      description: Identifier of the notification.
+      schema:
+        $ref: '#/components/schemas/NotificationId'
   headers:
     RequestId:
       description: Echo of the `X-Request-ID` request header.
@@ -128,9 +245,10 @@ components:
         - time
       properties:
         time:
-          description: Current UTC timestamp in ISO 8601 (RFC 3339) format.
+          description: Emulated UTC timestamp in ISO 8601 (RFC 3339) format.
           type: string
           format: date-time
+          x-ogen-time-format: 2006-01-02T15:04:05.999999999Z07:00
           example: '2026-12-01T09:00:00Z'
     FieldError:
       title: FieldError
@@ -248,6 +366,76 @@ components:
           type: string
           format: date-time
           example: '2026-12-01T09:00:01Z'
+    ClientTimeOverride:
+      title: ClientTimeOverride
+      type: object
+      additionalProperties: false
+      required:
+        - parameter
+        - value
+      properties:
+        parameter:
+          type: string
+          enum:
+            - time
+        value:
+          description: RFC 3339 timestamp whose UTC year is between 0000 and 9999, returned as UTC by GET /time.
+          type: string
+          format: date-time
+          example: '2026-12-01T09:00:00Z'
+    ClientPriceOverride:
+      title: ClientPriceOverride
+      type: object
+      additionalProperties: false
+      required:
+        - parameter
+        - value
+      properties:
+        parameter:
+          type: string
+          enum:
+            - price
+        value:
+          description: Price in minor units, where 19990 represents 199.90 major units.
+          type: integer
+          format: int64
+          example: 19990
+    ClientOverride:
+      title: ClientOverride
+      oneOf:
+        - $ref: '#/components/schemas/ClientTimeOverride'
+        - $ref: '#/components/schemas/ClientPriceOverride'
+      discriminator:
+        propertyName: parameter
+        mapping:
+          time: '#/components/schemas/ClientTimeOverride'
+          price: '#/components/schemas/ClientPriceOverride'
+    CallbackOverride:
+      title: CallbackOverride
+      type: object
+      additionalProperties: false
+      required:
+        - status_code
+        - response_timeout
+      properties:
+        status_code:
+          description: HTTP status returned by POST /callback.
+          type: integer
+          enum:
+            - 200
+            - 201
+            - 400
+            - 404
+            - 500
+            - 503
+          example: 503
+        response_timeout:
+          description: Delay in milliseconds before returning the configured status. Zero returns immediately.
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 2147483647
+          example: 1500
   responses:
     BadInformationRequest:
       description: A required request header is missing or invalid.
@@ -265,7 +453,7 @@ components:
             detail: X-Client-ID is required
             request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
     BadEvent:
-      description: The notification event is malformed or fails validation.
+      description: The notification event fails validation or a 400 response was configured.
       content:
         application/problem+json:
           schema:
@@ -275,3 +463,37 @@ components:
             title: Request validation failed
             status: 400
             detail: notification_status is invalid
+    SimulatedCallbackFailure:
+      description: A configured callback failure, or 503 if the emulator is shutting down.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnsupportedMediaType:
+      description: The request body must use application/json.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    OverrideApplied:
+      description: The override was saved or cleared. The response body is empty.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+    BadOverrideRequest:
+      description: The identifier, request header, or override payload fails validation.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/validation-error
+            title: Request validation failed
+            status: 400
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20

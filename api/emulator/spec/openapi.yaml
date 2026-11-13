@@ -9,6 +9,9 @@ info:
     and a request identifier. The callback follows the event contract in the
     Notifier API.
 
+    Test controls store overrides in the emulator process. Restarting the
+    process clears all overrides.
+
 servers:
   - url: http://localhost:8081
     description: Local emulator
@@ -20,6 +23,8 @@ tags:
     description: Emulated sources for notification conditions.
   - name: callbacks
     description: Delivery of events by Notifier.
+  - name: test-presets
+    description: Configure and reset emulator overrides.
 
 paths:
   /time:
@@ -28,3 +33,7 @@ paths:
     $ref: ./paths/price.yaml
   /callback:
     $ref: ./paths/callback.yaml
+  /v1/client-overrides/{client_id}:
+    $ref: ./paths/client-overrides-by-id.yaml
+  /v1/callback-overrides/{notification_id}:
+    $ref: ./paths/callback-overrides-by-id.yaml

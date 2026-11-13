@@ -1,4 +1,4 @@
-description: The notification event is malformed or fails validation.
+description: The notification event fails validation or a 400 response was configured.
 content:
   application/problem+json:
     schema:

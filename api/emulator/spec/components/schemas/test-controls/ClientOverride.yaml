@@ -1,0 +1,9 @@
+title: ClientOverride
+oneOf:
+  - $ref: ./ClientTimeOverride.yaml
+  - $ref: ./ClientPriceOverride.yaml
+discriminator:
+  propertyName: parameter
+  mapping:
+    time: ./ClientTimeOverride.yaml
+    price: ./ClientPriceOverride.yaml

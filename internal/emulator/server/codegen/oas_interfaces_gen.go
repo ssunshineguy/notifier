@@ -12,3 +12,19 @@ type GetTimeRes interface {
 type ReceiveNotificationEventRes interface {
 	receiveNotificationEventRes()
 }
+
+type ResetCallbackOverrideRes interface {
+	resetCallbackOverrideRes()
+}
+
+type ResetClientOverridesRes interface {
+	resetClientOverridesRes()
+}
+
+type SetCallbackOverrideRes interface {
+	setCallbackOverrideRes()
+}
+
+type SetClientOverrideRes interface {
+	setClientOverrideRes()
+}

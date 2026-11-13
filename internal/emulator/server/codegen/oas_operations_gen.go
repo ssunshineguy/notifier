@@ -9,4 +9,8 @@ const (
 	GetPriceOperation                 OperationName = "GetPrice"
 	GetTimeOperation                  OperationName = "GetTime"
 	ReceiveNotificationEventOperation OperationName = "ReceiveNotificationEvent"
+	ResetCallbackOverrideOperation    OperationName = "ResetCallbackOverride"
+	ResetClientOverridesOperation     OperationName = "ResetClientOverrides"
+	SetCallbackOverrideOperation      OperationName = "SetCallbackOverride"
+	SetClientOverrideOperation        OperationName = "SetClientOverride"
 )

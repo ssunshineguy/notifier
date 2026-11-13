@@ -10,13 +10,13 @@ import (
 type Handler interface {
 	// GetPrice implements getPrice operation.
 	//
-	// Returns the price from Information Service 2 in minor units.
+	// Returns the client's configured price in minor units or zero.
 	//
 	// GET /price
 	GetPrice(ctx context.Context, params GetPriceParams) (GetPriceRes, error)
 	// GetTime implements getTime operation.
 	//
-	// Returns the current time in UTC from Information Service 1.
+	// Returns the client's configured time or the current time in UTC.
 	//
 	// GET /time
 	GetTime(ctx context.Context, params GetTimeParams) (GetTimeRes, error)
@@ -26,8 +26,36 @@ type Handler interface {
 	// is reached. Delivery is at least once, so the same notification identifier may be received more than
 	// once.
 	//
+	// Uses the response status and delay configured for the notification identifier. The default is 200
+	// with no delay. An override applies to every attempt until it is replaced or deleted. If the emulator
+	// shuts down during a delay, it returns 503 when the connection is still open.
+	//
 	// POST /callback
 	ReceiveNotificationEvent(ctx context.Context, req *NotificationEvent) (ReceiveNotificationEventRes, error)
+	// ResetCallbackOverride implements resetCallbackOverride operation.
+	//
+	// Restores 200 with no delay. Returns 200 even if no override exists.
+	//
+	// DELETE /v1/callback-overrides/{notification_id}
+	ResetCallbackOverride(ctx context.Context, params ResetCallbackOverrideParams) (ResetCallbackOverrideRes, error)
+	// ResetClientOverrides implements resetClientOverrides operation.
+	//
+	// Clears both parameters for the client. Returns 200 even if no override exists.
+	//
+	// DELETE /v1/client-overrides/{client_id}
+	ResetClientOverrides(ctx context.Context, params ResetClientOverridesParams) (ResetClientOverridesRes, error)
+	// SetCallbackOverride implements setCallbackOverride operation.
+	//
+	// Creates or replaces the response status and delay for the notification.
+	//
+	// POST /v1/callback-overrides/{notification_id}
+	SetCallbackOverride(ctx context.Context, req *CallbackOverride, params SetCallbackOverrideParams) (SetCallbackOverrideRes, error)
+	// SetClientOverride implements setClientOverride operation.
+	//
+	// Sets or replaces the selected parameter. The client's other parameter keeps its value.
+	//
+	// POST /v1/client-overrides/{client_id}
+	SetClientOverride(ctx context.Context, req ClientOverride, params SetClientOverrideParams) (SetClientOverrideRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

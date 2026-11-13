@@ -1,8 +1,9 @@
 ---
 description: Go package boundaries, dependency wiring and runtime I/O
-globs: cmd/notifier/**,internal/**
+globs: cmd/notifier/**,cmd/emulator/**,internal/**
 paths:
   - cmd/notifier/**
+  - cmd/emulator/**
   - internal/**
 alwaysApply: false
 ---
@@ -19,6 +20,10 @@ alwaysApply: false
 | `internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |
 | `internal/storage/postgres` | Own SQL, PostgreSQL transactions, row mapping and database error translation. |
 | `internal/interactions` | Own outbound transport. Keep domain policy in the caller or in core. |
+| `cmd/emulator` | Parse listen flags and handle process signals. |
+| `internal/emulator/application` | Wire the emulator's router and own the HTTP server lifecycle. |
+| `internal/emulator/server/handlers` | Map ogen inputs and responses and apply configured callback delays. |
+| `internal/emulator/storage/memory` | Own concurrent, process-local overrides. |
 
 - Define storage interfaces where they are consumed. Server code depends on these interfaces and domain types. Application supplies the concrete store.
 - Keep storage and outbound adapters independent of server, worker and collector packages. Keep ogen types at the HTTP boundary.

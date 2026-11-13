@@ -3,7 +3,7 @@ get:
   tags:
     - information-services
   summary: Get the emulated price
-  description: Returns the price from Information Service 2 in minor units.
+  description: Returns the client's configured price in minor units or zero.
   parameters:
     - $ref: ../../../spec/components/parameters/RequestId.yaml
     - $ref: ../components/parameters/ClientId.yaml

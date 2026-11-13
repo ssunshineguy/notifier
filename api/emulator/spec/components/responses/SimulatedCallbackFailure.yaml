@@ -1,0 +1,5 @@
+description: A configured callback failure, or 503 if the emulator is shutting down.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../../../../spec/components/schemas/common/Problem.yaml
