@@ -1,0 +1,17 @@
+description: |
+  A notification with this `external_id` already exists for the client.
+  This is not an error: creation is idempotent, and the body carries the
+  identifier of the existing notification.
+
+  The parameters of the repeated request are neither compared nor applied:
+  the existing notification keeps its original parameters even if the
+  request carries different ones.
+headers:
+  X-Request-ID:
+    $ref: ../headers/RequestId.yaml
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/notifications/NotificationCreated.yaml
+    example:
+      notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71

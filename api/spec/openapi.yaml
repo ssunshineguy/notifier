@@ -1,0 +1,64 @@
+openapi: 3.0.3
+
+info:
+  title: Notifier API
+  version: 0.1.0
+  description: |
+    Notifier sends an HTTP event to the client when conditions set by the
+    client are met. The client registers a notification with conditions and
+    a deadline; Notifier checks the conditions in the background and delivers
+    a `NotificationEvent` to the client's endpoint (see the `notificationEvent`
+    callback of `createNotification`).
+
+    ## Authentication
+
+    In the target setup the API Gateway authenticates the client and passes
+    the internal client identifier in the `X-Client-ID` header. In the
+    prototype the header is sent directly.
+
+    ## Request tracing
+
+    Every request carries `X-Request-ID`. The value is echoed in the response
+    header and in error bodies.
+
+    ## Errors
+
+    Errors use the RFC 9457 Problem Details format
+    (`application/problem+json`).
+
+    ## Delivery guarantees
+
+    Events are delivered at least once. The client must deduplicate them by
+    `notification_id`.
+
+servers:
+  - url: http://localhost:8080
+    description: Local docker compose
+
+security:
+  - clientId: []
+
+tags:
+  - name: notifications
+    description: Managing notifications.
+  - name: health
+    description: Service health probes.
+
+paths:
+  /v1/notifications:
+    $ref: ./paths/notifications.yaml
+  /v1/notifications/{notification_id}:
+    $ref: ./paths/notification-by-id.yaml
+  /health/live:
+    $ref: ./paths/health-live.yaml
+  /health/ready:
+    $ref: ./paths/health-ready.yaml
+
+components:
+  securitySchemes:
+    clientId:
+      type: apiKey
+      in: header
+      name: X-Client-ID
+      description: Internal client identifier set by the API Gateway.
+

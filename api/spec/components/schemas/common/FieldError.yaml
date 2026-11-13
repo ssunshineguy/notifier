@@ -1,0 +1,14 @@
+title: FieldError
+type: object
+additionalProperties: false
+required:
+  - field
+  - message
+properties:
+  field:
+    description: JSON Pointer to the invalid field.
+    type: string
+    example: /deadline_dt
+  message:
+    type: string
+    example: must be in the future

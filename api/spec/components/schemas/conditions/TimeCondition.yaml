@@ -1,0 +1,24 @@
+title: TimeCondition
+description: Condition on the current time.
+type: object
+additionalProperties: false
+required:
+  - type
+  - operation
+  - value
+properties:
+  type:
+    type: string
+    enum:
+      - time
+  operation:
+    description: |
+      - `after` — met when the current time is later than `value`.
+    type: string
+    enum:
+      - after
+  value:
+    description: Moment to compare the current time with, ISO 8601.
+    type: string
+    format: date-time
+    example: "2026-12-01T09:00:00Z"

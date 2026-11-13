@@ -1,31 +1,38 @@
-# Контекст для ИИ-агентов
+# Context for AI agents
 
-## Описание сервиса
+## Service
 
-Notifier отправляет клиенту HTTP-уведомление, когда выполняется заданное клиентом условие.
-Архитектура, диаграммы последовательности и ограничения прототипа описаны в [README.md](README.md).
+Notifier sends an HTTP event to the client when a condition set by the client is met.
+Architecture, sequence diagrams and prototype limitations are described in [README.md](README.md).
 
-Сервис — один бинарь `notifier`, запускаемый в разных режимах:
+The service is a single `notifier` binary that runs in different modes:
 
-| Режим | Назначение | Как живёт |
+| Mode | Purpose | Lifecycle |
 | --- | --- | --- |
-| `api` | CRUD нотификаций по HTTP | долгоживущий процесс |
-| `worker` | проверка условий и доставка клиенту | долгоживущий процесс |
-| `collector` | пакетное удаление остановленных нотификаций | отрабатывает и завершается, запускается по расписанию |
-| `migrate` | применение миграций БД | одноразовый запуск перед стартом сервисов |
+| `api` | CRUD of notifications over HTTP | long-running process |
+| `worker` | checks conditions and delivers events to clients | long-running process |
+| `collector` | removes stopped notifications in batches | runs once and exits, started on a schedule |
+| `migrate` | applies database migrations | one-off run before the services start |
 
-## Структура файлов
+## Language
 
-Описана в [README.md](README.md#структура-репозитория).
+- English: commit messages, PR titles and descriptions, branch names, code comments,
+  OpenAPI descriptions, and everything written for AI agents (`AGENTS.md`, `ai/**`).
+- Russian is allowed only in `README.md`.
 
-## Границы слоёв
+## Repository structure
 
-- `core` не импортирует ничего из `internal/`, кроме самого себя, и не делает I/O.
-- `server/handlers` — тонкий слой: разбор запроса → вызов логики → ответ. SQL и HTTP-клиенты здесь запрещены.
-- `storage` и `interactions` не импортируют `server`, `worker` и `collector`.
-- `server/codegen` генерируется из `api/bundle/openapi.yaml`; правки — только через спецификацию в `api/spec/`.
-- Связывание зависимостей — только в `application`.
+Described in [README.md](README.md#структура-репозитория).
 
-## Поддержка документации
+## Layer boundaries
 
-После каждой задачи обнови этот файл, раздел «Структура репозитория» в `README.md` и `ai/rules/`, если изменились структура папок, границы слоёв, режимы запуска или команды разработки.
+- `core` imports nothing from `internal/` and performs no I/O.
+- `server/handlers` is a thin layer: parse the request → call the logic → write the response. No SQL or HTTP clients here.
+- `storage` and `interactions` do not import `server`, `worker` or `collector`.
+- `server/codegen` is generated from `api/bundle/openapi.yaml`; change it only through the spec in `api/spec/`.
+- Dependencies are wired only in `application`.
+
+## Keeping docs up to date
+
+After every task update this file, the "Структура репозитория" section of `README.md` and `ai/rules/`
+if the folder structure, layer boundaries, run modes or development commands have changed.

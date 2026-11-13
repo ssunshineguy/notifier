@@ -1,0 +1,10 @@
+title: Health
+type: object
+additionalProperties: false
+required:
+  - status
+properties:
+  status:
+    type: string
+    enum:
+      - ok

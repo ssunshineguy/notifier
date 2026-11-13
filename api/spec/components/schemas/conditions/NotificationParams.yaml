@@ -1,0 +1,27 @@
+title: NotificationParams
+description: |
+  Trigger conditions of the notification. Top-level items are combined with
+  AND: the notification fires when all of them are met at the same time.
+  Use `or` and `and` groups for other combinations.
+
+  Limits checked by the server (`400` when exceeded):
+
+  - nesting depth of groups — at most 3;
+  - leaf conditions in the whole tree — at most 20.
+type: array
+minItems: 1
+maxItems: 10
+items:
+  $ref: ./Condition.yaml
+example:
+  - type: time
+    operation: after
+    value: "2026-12-01T09:00:00Z"
+  - type: or
+    conditions:
+      - type: time
+        operation: after
+        value: "2026-12-01T12:00:00Z"
+      - type: time
+        operation: after
+        value: "2026-12-01T15:00:00Z"

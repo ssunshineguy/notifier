@@ -1,0 +1,161 @@
+post:
+  operationId: createNotification
+  tags:
+    - notifications
+  summary: Create a notification
+  description: |
+    Registers a notification. Notifier starts checking the conditions and
+    sends a `NotificationEvent` to the client when they are met or when
+    `deadline_dt` passes.
+
+    ## Idempotency
+
+    Creation is idempotent by `external_id`: a repeated request with the
+    same `external_id` returns `409` with the identifier of the existing
+    notification in a regular body, so retries are safe.
+
+    **The parameters of a repeated request are neither compared nor
+    applied.** If the client sends different `notification_params` or
+    `deadline_dt` with an `external_id` that is already taken, the request
+    still returns `409`, and the existing notification keeps its original
+    parameters. Use a new `external_id` for a new notification, or
+    `PUT /v1/notifications/{notification_id}` to change the conditions.
+
+    An `external_id` stays taken while the notification is stored,
+    including after it is stopped and no longer visible to `GET`, `PUT`
+    and `DELETE`.
+  parameters:
+    - $ref: ../components/parameters/RequestId.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/notifications/NotificationCreate.yaml
+        examples:
+          simple:
+            summary: One condition
+            value:
+              external_id: order-42-reminder
+              notification_params:
+                - type: time
+                  operation: after
+                  value: "2026-12-01T09:00:00Z"
+              deadline_dt: "2026-12-01T18:00:00Z"
+          nested:
+            summary: Condition tree with the maximum three levels of groups
+            description: |
+              Fires when A AND (B OR (C AND (D OR E))) is met. Top-level items
+              are combined with AND without a group; then come the `or` group
+              (level 1), the `and` group (level 2) and the `or` group (level 3),
+              which is the deepest allowed. `deadline_dt` is omitted, so the
+              client's maximum notification lifetime applies.
+            value:
+              external_id: order-43-reminder
+              notification_params:
+                - type: time                         # A
+                  operation: after
+                  value: "2026-12-01T09:00:00Z"
+                - type: or                           # level 1
+                  conditions:
+                    - type: time                     # B
+                      operation: after
+                      value: "2026-12-01T12:00:00Z"
+                    - type: and                      # level 2
+                      conditions:
+                        - type: time                 # C
+                          operation: after
+                          value: "2026-12-01T10:00:00Z"
+                        - type: or                   # level 3
+                          conditions:
+                            - type: time             # D
+                              operation: after
+                              value: "2026-12-01T10:30:00Z"
+                            - type: time             # E
+                              operation: after
+                              value: "2026-12-01T11:00:00Z"
+  responses:
+    "200":
+      description: The notification is created.
+      headers:
+        X-Request-ID:
+          $ref: ../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/notifications/NotificationCreated.yaml
+    "400":
+      $ref: ../components/responses/BadRequest.yaml
+    "401":
+      $ref: ../components/responses/Unauthorized.yaml
+    "409":
+      $ref: ../components/responses/AlreadyExists.yaml
+    "500":
+      $ref: ../components/responses/InternalError.yaml
+  callbacks:
+    notificationEvent:
+      "{client endpoint from client settings}":
+        post:
+          operationId: receiveNotificationEvent
+          summary: Notification event
+          description: |
+            Notifier sends this request to the client's endpoint when the
+            conditions are met or `deadline_dt` passes. The endpoint is taken
+            from the client settings, not from the request.
+
+            Any `2xx` response confirms delivery. Any other response, a timeout
+            or a network error counts as a failed attempt.
+
+            ## Timeout
+
+            Notifier waits for the response at most 1 second by default. The
+            timeout can be overridden in the client settings.
+
+            ## Retries
+
+            Delivery goes in steps, each step is up to 3 attempts in a row.
+            The first step runs right away. If it fails, Notifier waits
+            `2^(2+N)` seconds before retry step `N` (`N` = 0…12), 13 retry
+            steps in total:
+
+            | Retry step N | Delay before the step | Time since the first step |
+            | --- | --- | --- |
+            | 0 | 4 s | 4 s |
+            | 1 | 8 s | 12 s |
+            | 2 | 16 s | 28 s |
+            | 3 | 32 s | 1 min |
+            | 4 | 64 s | 2 min 4 s |
+            | 5 | 128 s | 4 min 12 s |
+            | 6 | 256 s | 8 min 28 s |
+            | 7 | 512 s | 17 min |
+            | 8 | 1,024 s | 34 min 4 s |
+            | 9 | 2,048 s | 1 h 8 min 12 s |
+            | 10 | 4,096 s | 2 h 16 min 28 s |
+            | 11 | 8,192 s | 4 h 33 min |
+            | 12 | 16,384 s | 9 h 6 min 4 s |
+
+            In total Notifier makes up to 42 attempts (14 steps × 3) over about
+            9 h 6 min: 9 h 6 min 4 s of delays plus up to 42 s of waiting for
+            responses with the default timeout. After the last failed step
+            the notification is stopped and no more events are sent.
+
+            ## Deduplication
+
+            Delivery is at-least-once: deduplicate events by `notification_id`.
+          security: []
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: ../components/schemas/events/NotificationEvent.yaml
+                example:
+                  notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                  external_id: order-42-reminder
+                  notification_status: success
+                  sent_dt: "2026-12-01T09:00:01Z"
+          responses:
+            "2XX":
+              description: The event is accepted. The response body is ignored.
+            default:
+              description: The event is not accepted and will be retried.

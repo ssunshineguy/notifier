@@ -1,0 +1,800 @@
+openapi: 3.0.3
+info:
+  title: Notifier API
+  version: 0.1.0
+  description: |
+    Notifier sends an HTTP event to the client when conditions set by the
+    client are met. The client registers a notification with conditions and
+    a deadline; Notifier checks the conditions in the background and delivers
+    a `NotificationEvent` to the client's endpoint (see the `notificationEvent`
+    callback of `createNotification`).
+
+    ## Authentication
+
+    In the target setup the API Gateway authenticates the client and passes
+    the internal client identifier in the `X-Client-ID` header. In the
+    prototype the header is sent directly.
+
+    ## Request tracing
+
+    Every request carries `X-Request-ID`. The value is echoed in the response
+    header and in error bodies.
+
+    ## Errors
+
+    Errors use the RFC 9457 Problem Details format
+    (`application/problem+json`).
+
+    ## Delivery guarantees
+
+    Events are delivered at least once. The client must deduplicate them by
+    `notification_id`.
+servers:
+  - url: http://localhost:8080
+    description: Local docker compose
+security:
+  - clientId: []
+tags:
+  - name: notifications
+    description: Managing notifications.
+  - name: health
+    description: Service health probes.
+paths:
+  /v1/notifications:
+    post:
+      operationId: createNotification
+      tags:
+        - notifications
+      summary: Create a notification
+      description: |
+        Registers a notification. Notifier starts checking the conditions and
+        sends a `NotificationEvent` to the client when they are met or when
+        `deadline_dt` passes.
+
+        ## Idempotency
+
+        Creation is idempotent by `external_id`: a repeated request with the
+        same `external_id` returns `409` with the identifier of the existing
+        notification in a regular body, so retries are safe.
+
+        **The parameters of a repeated request are neither compared nor
+        applied.** If the client sends different `notification_params` or
+        `deadline_dt` with an `external_id` that is already taken, the request
+        still returns `409`, and the existing notification keeps its original
+        parameters. Use a new `external_id` for a new notification, or
+        `PUT /v1/notifications/{notification_id}` to change the conditions.
+
+        An `external_id` stays taken while the notification is stored,
+        including after it is stopped and no longer visible to `GET`, `PUT`
+        and `DELETE`.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationCreate'
+            examples:
+              simple:
+                summary: One condition
+                value:
+                  external_id: order-42-reminder
+                  notification_params:
+                    - type: time
+                      operation: after
+                      value: '2026-12-01T09:00:00Z'
+                  deadline_dt: '2026-12-01T18:00:00Z'
+              nested:
+                summary: Condition tree with the maximum three levels of groups
+                description: |
+                  Fires when A AND (B OR (C AND (D OR E))) is met. Top-level items
+                  are combined with AND without a group; then come the `or` group
+                  (level 1), the `and` group (level 2) and the `or` group (level 3),
+                  which is the deepest allowed. `deadline_dt` is omitted, so the
+                  client's maximum notification lifetime applies.
+                value:
+                  external_id: order-43-reminder
+                  notification_params:
+                    - type: time
+                      operation: after
+                      value: '2026-12-01T09:00:00Z'
+                    - type: or
+                      conditions:
+                        - type: time
+                          operation: after
+                          value: '2026-12-01T12:00:00Z'
+                        - type: and
+                          conditions:
+                            - type: time
+                              operation: after
+                              value: '2026-12-01T10:00:00Z'
+                            - type: or
+                              conditions:
+                                - type: time
+                                  operation: after
+                                  value: '2026-12-01T10:30:00Z'
+                                - type: time
+                                  operation: after
+                                  value: '2026-12-01T11:00:00Z'
+      responses:
+        '200':
+          description: The notification is created.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      callbacks:
+        notificationEvent:
+          '{client endpoint from client settings}':
+            post:
+              operationId: receiveNotificationEvent
+              summary: Notification event
+              description: |
+                Notifier sends this request to the client's endpoint when the
+                conditions are met or `deadline_dt` passes. The endpoint is taken
+                from the client settings, not from the request.
+
+                Any `2xx` response confirms delivery. Any other response, a timeout
+                or a network error counts as a failed attempt.
+
+                ## Timeout
+
+                Notifier waits for the response at most 1 second by default. The
+                timeout can be overridden in the client settings.
+
+                ## Retries
+
+                Delivery goes in steps, each step is up to 3 attempts in a row.
+                The first step runs right away. If it fails, Notifier waits
+                `2^(2+N)` seconds before retry step `N` (`N` = 0…12), 13 retry
+                steps in total:
+
+                | Retry step N | Delay before the step | Time since the first step |
+                | --- | --- | --- |
+                | 0 | 4 s | 4 s |
+                | 1 | 8 s | 12 s |
+                | 2 | 16 s | 28 s |
+                | 3 | 32 s | 1 min |
+                | 4 | 64 s | 2 min 4 s |
+                | 5 | 128 s | 4 min 12 s |
+                | 6 | 256 s | 8 min 28 s |
+                | 7 | 512 s | 17 min |
+                | 8 | 1,024 s | 34 min 4 s |
+                | 9 | 2,048 s | 1 h 8 min 12 s |
+                | 10 | 4,096 s | 2 h 16 min 28 s |
+                | 11 | 8,192 s | 4 h 33 min |
+                | 12 | 16,384 s | 9 h 6 min 4 s |
+
+                In total Notifier makes up to 42 attempts (14 steps × 3) over about
+                9 h 6 min: 9 h 6 min 4 s of delays plus up to 42 s of waiting for
+                responses with the default timeout. After the last failed step
+                the notification is stopped and no more events are sent.
+
+                ## Deduplication
+
+                Delivery is at-least-once: deduplicate events by `notification_id`.
+              security: []
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/NotificationEvent'
+                    example:
+                      notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                      external_id: order-42-reminder
+                      notification_status: success
+                      sent_dt: '2026-12-01T09:00:01Z'
+              responses:
+                2XX:
+                  description: The event is accepted. The response body is ignored.
+                default:
+                  description: The event is not accepted and will be retried.
+  /v1/notifications/{notification_id}:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      operationId: getNotification
+      tags:
+        - notifications
+      summary: Get a notification
+      description: |
+        Returns the parameters of an active notification. A stopped
+        notification is not visible: the request returns `404`.
+      responses:
+        '200':
+          description: The notification.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+              example:
+                notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                external_id: order-42-reminder
+                notification_params:
+                  - type: time
+                    operation: after
+                    value: '2026-12-01T09:00:00Z'
+                deadline_dt: '2026-12-01T18:00:00Z'
+                start_dt: '2026-11-13T10:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateNotification
+      tags:
+        - notifications
+      summary: Replace the notification conditions
+      description: |
+        Replaces the trigger conditions of an active notification. The deadline
+        and other parameters cannot be changed. A stopped notification is not
+        visible: the request returns `404`.
+
+        The change applies from the next check: an event that is already being
+        delivered is not cancelled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationUpdate'
+            examples:
+              simple:
+                summary: One condition
+                value:
+                  notification_params:
+                    - type: time
+                      operation: after
+                      value: '2026-12-02T09:00:00Z'
+              nested:
+                summary: Condition tree with the maximum three levels of groups
+                description: |
+                  Replaces the conditions with A AND (B OR (C AND (D OR E))).
+                  Top-level items are combined with AND without a group; then come
+                  the `or` group (level 1), the `and` group (level 2) and the `or`
+                  group (level 3), which is the deepest allowed.
+                value:
+                  notification_params:
+                    - type: time
+                      operation: after
+                      value: '2026-12-02T09:00:00Z'
+                    - type: or
+                      conditions:
+                        - type: time
+                          operation: after
+                          value: '2026-12-02T12:00:00Z'
+                        - type: and
+                          conditions:
+                            - type: time
+                              operation: after
+                              value: '2026-12-02T10:00:00Z'
+                            - type: or
+                              conditions:
+                                - type: time
+                                  operation: after
+                                  value: '2026-12-02T10:30:00Z'
+                                - type: time
+                                  operation: after
+                                  value: '2026-12-02T11:00:00Z'
+      responses:
+        '200':
+          description: The notification with the new conditions.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteNotification
+      tags:
+        - notifications
+      summary: Delete a notification
+      description: |
+        Stops an active notification. A stopped notification is not visible,
+        so a repeated delete returns `404`. An event that is already being
+        delivered may still arrive.
+      responses:
+        '200':
+          description: The notification is stopped.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags:
+        - health
+      summary: Liveness probe
+      description: |
+        Returns `200` while the process is running. Does not check
+        dependencies, so an unavailable database does not cause restarts.
+      security: []
+      responses:
+        '200':
+          description: The process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags:
+        - health
+      summary: Readiness probe
+      description: |
+        Returns `200` when the service can handle requests: the database is
+        reachable. Returns `503` otherwise, so traffic is not routed here.
+      security: []
+      responses:
+        '200':
+          description: The service is ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: A dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: /problems/not-ready
+                title: Service is not ready
+                status: 503
+                detail: database is unreachable
+components:
+  securitySchemes:
+    clientId:
+      type: apiKey
+      in: header
+      name: X-Client-ID
+      description: Internal client identifier set by the API Gateway.
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: true
+      description: |
+        Identifier of the request for tracing. Returned in the response header
+        and in error bodies.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+        example: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+    NotificationId:
+      name: notification_id
+      in: path
+      required: true
+      description: Identifier of the notification.
+      schema:
+        $ref: '#/components/schemas/NotificationId'
+  schemas:
+    ExternalId:
+      title: ExternalId
+      description: |
+        Client-side identifier of the notification. Unique per client: a repeated
+        create with the same `external_id` returns `409` with the identifier of
+        the existing notification, which makes creation safe to retry. The
+        parameters of the repeated request are not applied.
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: ^[A-Za-z0-9._:-]+$
+      example: order-42-reminder
+    TimeCondition:
+      title: TimeCondition
+      description: Condition on the current time.
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - operation
+        - value
+      properties:
+        type:
+          type: string
+          enum:
+            - time
+        operation:
+          description: |
+            - `after` — met when the current time is later than `value`.
+          type: string
+          enum:
+            - after
+        value:
+          description: Moment to compare the current time with, ISO 8601.
+          type: string
+          format: date-time
+          example: '2026-12-01T09:00:00Z'
+    Condition:
+      title: Condition
+      description: |
+        Node of the condition tree. The `type` field selects the node kind:
+
+        - leaf conditions (`time`) check one fact;
+        - groups (`and`, `or`) combine nested conditions, which can be leaves or
+          other groups.
+
+        New leaf kinds are added as new variants.
+      oneOf:
+        - $ref: '#/components/schemas/TimeCondition'
+        - $ref: '#/components/schemas/AndCondition'
+        - $ref: '#/components/schemas/OrCondition'
+      discriminator:
+        propertyName: type
+        mapping:
+          time: '#/components/schemas/TimeCondition'
+          and: '#/components/schemas/AndCondition'
+          or: '#/components/schemas/OrCondition'
+    AndCondition:
+      title: AndCondition
+      description: Met when all nested conditions are met.
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - conditions
+      properties:
+        type:
+          type: string
+          enum:
+            - and
+        conditions:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Condition'
+    OrCondition:
+      title: OrCondition
+      description: Met when at least one nested condition is met.
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - conditions
+      properties:
+        type:
+          type: string
+          enum:
+            - or
+        conditions:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Condition'
+    NotificationParams:
+      title: NotificationParams
+      description: |
+        Trigger conditions of the notification. Top-level items are combined with
+        AND: the notification fires when all of them are met at the same time.
+        Use `or` and `and` groups for other combinations.
+
+        Limits checked by the server (`400` when exceeded):
+
+        - nesting depth of groups — at most 3;
+        - leaf conditions in the whole tree — at most 20.
+      type: array
+      minItems: 1
+      maxItems: 10
+      items:
+        $ref: '#/components/schemas/Condition'
+      example:
+        - type: time
+          operation: after
+          value: '2026-12-01T09:00:00Z'
+        - type: or
+          conditions:
+            - type: time
+              operation: after
+              value: '2026-12-01T12:00:00Z'
+            - type: time
+              operation: after
+              value: '2026-12-01T15:00:00Z'
+    NotificationCreate:
+      title: NotificationCreate
+      description: Parameters of a new notification.
+      type: object
+      additionalProperties: false
+      required:
+        - external_id
+        - notification_params
+      properties:
+        external_id:
+          $ref: '#/components/schemas/ExternalId'
+        notification_params:
+          $ref: '#/components/schemas/NotificationParams'
+        deadline_dt:
+          description: |
+            Moment after which Notifier stops waiting for the conditions and sends
+            a `deadline_exceeded` event. Optional: when omitted, it is set to the
+            creation moment plus the maximum notification lifetime. The maximum
+            lifetime is 180 days by default and can be overridden in the client
+            settings. When set, `deadline_dt` must be:
+
+            - in the future;
+            - not earlier than the moment the conditions can be met;
+            - not later than the creation moment plus the maximum notification
+              lifetime configured for the client. The limit keeps notifications
+              from living forever.
+          type: string
+          format: date-time
+          example: '2026-12-01T18:00:00Z'
+    NotificationId:
+      title: NotificationId
+      description: Identifier of the notification assigned by Notifier.
+      type: string
+      format: uuid
+      example: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+    NotificationCreated:
+      title: NotificationCreated
+      type: object
+      additionalProperties: false
+      required:
+        - notification_id
+      properties:
+        notification_id:
+          $ref: '#/components/schemas/NotificationId'
+    FieldError:
+      title: FieldError
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - message
+      properties:
+        field:
+          description: JSON Pointer to the invalid field.
+          type: string
+          example: /deadline_dt
+        message:
+          type: string
+          example: must be in the future
+    Problem:
+      title: Problem
+      description: Error in the RFC 9457 Problem Details format.
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          description: URI identifying the error kind.
+          type: string
+          format: uri-reference
+          example: /problems/validation-error
+        title:
+          description: Short summary of the error kind, the same for all occurrences.
+          type: string
+          example: Request validation failed
+        status:
+          description: HTTP status code.
+          type: integer
+          example: 400
+        detail:
+          description: Explanation specific to this occurrence.
+          type: string
+          example: deadline_dt must be in the future
+        request_id:
+          description: Value of `X-Request-ID` of the failed request.
+          type: string
+          example: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+        errors:
+          description: Field-level errors, present for validation failures.
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+    EventStatus:
+      title: EventStatus
+      description: |
+        - `success` — the conditions were met.
+        - `deadline_exceeded` — the conditions were not met before `deadline_dt`.
+      type: string
+      enum:
+        - success
+        - deadline_exceeded
+      example: success
+    NotificationEvent:
+      title: NotificationEvent
+      description: |
+        Event that Notifier sends to the client. Delivery is at-least-once:
+        the same event may arrive more than once, use `notification_id` to
+        deduplicate.
+      type: object
+      additionalProperties: false
+      required:
+        - notification_id
+        - external_id
+        - notification_status
+        - sent_dt
+      properties:
+        notification_id:
+          $ref: '#/components/schemas/NotificationId'
+        external_id:
+          $ref: '#/components/schemas/ExternalId'
+        notification_status:
+          $ref: '#/components/schemas/EventStatus'
+        sent_dt:
+          description: Moment of this delivery attempt.
+          type: string
+          format: date-time
+          example: '2026-12-01T09:00:01Z'
+    Notification:
+      title: Notification
+      description: Notification parameters.
+      type: object
+      additionalProperties: false
+      required:
+        - notification_id
+        - external_id
+        - notification_params
+        - deadline_dt
+        - start_dt
+      properties:
+        notification_id:
+          $ref: '#/components/schemas/NotificationId'
+        external_id:
+          $ref: '#/components/schemas/ExternalId'
+        notification_params:
+          $ref: '#/components/schemas/NotificationParams'
+        deadline_dt:
+          type: string
+          format: date-time
+          example: '2026-12-01T18:00:00Z'
+        start_dt:
+          description: Moment when the notification was created.
+          type: string
+          format: date-time
+          example: '2026-11-13T10:00:00Z'
+    NotificationUpdate:
+      title: NotificationUpdate
+      description: |
+        New trigger conditions of an existing notification. They replace the
+        current ones entirely. Other parameters (`external_id`, `deadline_dt`) cannot be
+        changed.
+      type: object
+      additionalProperties: false
+      required:
+        - notification_params
+      properties:
+        notification_params:
+          $ref: '#/components/schemas/NotificationParams'
+    Health:
+      title: Health
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+  headers:
+    RequestId:
+      description: Echo of the `X-Request-ID` request header.
+      schema:
+        type: string
+        example: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+  responses:
+    BadRequest:
+      description: The request is malformed or fails validation.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/validation-error
+            title: Request validation failed
+            status: 400
+            detail: One or more fields are invalid
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+            errors:
+              - field: /deadline_dt
+                message: exceeds the maximum notification lifetime for the client
+    Unauthorized:
+      description: The `X-Client-ID` header is missing or the client is unknown.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/unauthorized
+            title: Unknown client
+            status: 401
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+    AlreadyExists:
+      description: |
+        A notification with this `external_id` already exists for the client.
+        This is not an error: creation is idempotent, and the body carries the
+        identifier of the existing notification.
+
+        The parameters of the repeated request are neither compared nor applied:
+        the existing notification keeps its original parameters even if the
+        request carries different ones.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotificationCreated'
+          example:
+            notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+    InternalError:
+      description: Unexpected server error. The request may be retried.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/internal-error
+            title: Internal server error
+            status: 500
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+    NotFound:
+      description: |
+        The notification does not exist, is stopped, or belongs to another
+        client. All cases look the same: stopped notifications are not visible,
+        and clients cannot probe foreign identifiers.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/not-found
+            title: Notification not found
+            status: 404
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20

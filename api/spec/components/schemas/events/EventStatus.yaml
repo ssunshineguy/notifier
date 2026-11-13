@@ -1,0 +1,9 @@
+title: EventStatus
+description: |
+  - `success` — the conditions were met.
+  - `deadline_exceeded` — the conditions were not met before `deadline_dt`.
+type: string
+enum:
+  - success
+  - deadline_exceeded
+example: success

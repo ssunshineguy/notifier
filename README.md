@@ -1,6 +1,6 @@
 # Notifier
 
-Notifier отправляет клиенту HTTP-уведомление, когда выполняется заданное клиентом условие. API сохраняет параметры, а Worker проверяет условие и доставляет результат асинхронно. В прототипе условие одно — наступление времени `time_of_onset`.
+Notifier отправляет клиенту HTTP-уведомление, когда выполняются заданные клиентом условия (`notification_params`): элементы верхнего уровня объединяются по «И», для других комбинаций есть группы `and` и `or` с вложенностью до трёх уровней. API сохраняет параметры, а Worker проверяет условия и доставляет результат асинхронно. В прототипе тип условия один — по времени: `{"type": "time", "operation": "after", "value": <ISO 8601>}`.
 
 ## Целевая архитектура
 
@@ -50,7 +50,7 @@ sequenceDiagram
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Create<br/>X-Client-ID, X-Request-ID<br/>Тело params
     N->>N: Сгенерировать notification_id
-    N->>DB: INSERT INTO t_notification<br/>external_id, id = notification_id, data = params (JSONB)<br/>client_id = X-Client-ID, deadline_dt, start_dt = now()<br/>next_scheduled_dt = now() + sheduled_time
+    N->>DB: INSERT INTO t_notification<br/>external_id, id = notification_id, data = params (JSONB)<br/>client_id = X-Client-ID, deadline_dt, start_dt = now()<br/>next_scheduled_dt = now() + scheduled_time
     DB-->>N: Запись создана
     N-->>G: 200 OK, {notification_id}
     G-->>C: 200 OK, {notification_id}
@@ -74,10 +74,10 @@ sequenceDiagram
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Read notification_id<br/>X-Client-ID, X-Request-ID
-    N->>DB: SELECT data, deadline_dt, external_id<br/>FROM t_notification WHERE id = notification_id
-    DB-->>N: data (JSONB), deadline_dt, external_id
-    N-->>G: 200 OK, {data, deadline_dt, external_id}
-    G-->>C: 200 OK, {data, deadline_dt, external_id}
+    N->>DB: SELECT data, deadline_dt, external_id, start_dt<br/>FROM t_notification WHERE id = notification_id<br/>AND client_id = X-Client-ID AND stop_dt IS NULL
+    DB-->>N: data (JSONB), deadline_dt, external_id, start_dt
+    N-->>G: 200 OK, {data, deadline_dt, external_id, start_dt}
+    G-->>C: 200 OK, {data, deadline_dt, external_id, start_dt}
 ```
 
 </details>
@@ -93,12 +93,12 @@ sequenceDiagram
     participant N as Notifier API
     participant DB as PostgreSQL
 
-    C->>G: Update notification_id<br/>OAuth, X-Request-ID<br/>Тело params с обязательным external_id
+    C->>G: Update notification_id<br/>OAuth, X-Request-ID<br/>Тело: только новые notification_params
     G->>A: Проверить OAuth<br/>X-Request-ID
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Update notification_id<br/>X-Client-ID, X-Request-ID<br/>Тело params
-    N->>DB: UPDATE t_notification SET data = params (JSONB)<br/>WHERE id = notification_id
+    N->>DB: UPDATE t_notification SET data = params (JSONB)<br/>WHERE id = notification_id<br/>AND client_id = X-Client-ID AND stop_dt IS NULL
     DB-->>N: Запись обновлена
     N-->>G: 200 OK
     G-->>C: 200 OK
@@ -122,7 +122,7 @@ sequenceDiagram
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Delete notification_id<br/>X-Client-ID, X-Request-ID
-    N->>DB: UPDATE t_notification<br/>SET stop_dt = now(), stop_reason = 'user_delete'<br/>WHERE id = notification_id
+    N->>DB: UPDATE t_notification<br/>SET stop_dt = now(), stop_reason = 'deleted'<br/>WHERE id = notification_id<br/>AND client_id = X-Client-ID AND stop_dt IS NULL
     DB-->>N: Остановка нотификации зафиксирована
     N-->>G: 200 OK
     G-->>C: 200 OK
@@ -161,7 +161,7 @@ sequenceDiagram
 
         Note over G: Обработка одной записи в отдельной горутине
         alt Повтор отправки, notification_attempts > 0
-            G->>G: Если deadline_dt <= now(), notification_status = 'notification_stoped'<br/>Иначе notification_status = 'success'
+            G->>G: Если deadline_dt <= now(), notification_status = 'deadline_exceeded'<br/>Иначе notification_status = 'success'
             G->>C: Повторный Notify<br/>notification_id, notification_status
             C-->>G: HTTP-ответ, если получен
         else Проверка условия отправки
@@ -177,18 +177,18 @@ sequenceDiagram
             else Условие не выполнено, deadline_dt ещё впереди
                 G->>G: Подготовить итог<br/>next_scheduled_dt = now() + scheduled_time
             else Условие не выполнено, deadline_dt наступил
-                G->>C: Notify о дедлайне<br/>notification_id, notification_status = 'notification_stoped'
+                G->>C: Notify о дедлайне<br/>notification_id, notification_status = 'deadline_exceeded'
                 C-->>G: HTTP-ответ, если получен
             end
         end
 
         opt Выполнена попытка отправки
             alt 2xx
-                G->>G: Подготовить итог<br/>next_scheduled_dt = NULL, stop_dt = now()<br/>stop_reason = 'notification_seanded' для success<br/>stop_reason = 'deadline_exeeded' для notification_stoped
+                G->>G: Подготовить итог<br/>next_scheduled_dt = NULL, stop_dt = now()<br/>stop_reason = 'delivered' для success<br/>stop_reason = 'deadline_exceeded' для deadline_exceeded
             else 4xx, 5xx или Timeout
                 G->>G: Увеличить счётчик неудачных попыток<br/>notification_attempts = notification_attempts + 1<br/>Сохранить новое значение в итоговом UPDATE
-                alt notification_attempts < 1 + max_delivery_retries
-                    G->>G: Запланировать повтор после задержки<br/>next_scheduled_dt = now() + retry_delay × 2^(notification_attempts - 1)
+                alt Шагов повтора было меньше 13
+                    G->>G: Запланировать повтор после задержки<br/>next_scheduled_dt = now() + 2^(2+N) с, N — номер шага повтора (0…12)<br/>Каждый шаг — до 3 попыток подряд
                 else Лимит попыток исчерпан
                     G->>G: Подготовить итог<br/>next_scheduled_dt = NULL, stop_dt = now()<br/>stop_reason = 'delivery_failed'
                 end
@@ -227,12 +227,14 @@ sequenceDiagram
 
 </details>
 
+Остановленная нотификация клиенту не видна: `GET`, `PUT` и `DELETE` отвечают `404`. При этом её `external_id` остаётся занятым, пока Collector не удалит запись: повторный create отвечает `409` с id существующей нотификации, а параметры нового запроса не сравниваются и не применяются.
+
 ## Ограничения прототипа
 
 | Область | Допущение прототипа |
 | --- | --- |
 | Входящие запросы | Вызов идёт напрямую в Notifier API с заголовком `X-Client-ID`. OAuth сервиса и API Gateway нет |
-| Справочные данные | Directory за рамками прототипа, поэтому используется таблица `t_client` внутри сервиса. |
+| Справочные данные | Directory за рамками прототипа, поэтому используется таблица `t_client` внутри сервиса. В ней для клиента можно переопределить настройки по умолчанию: максимальный срок жизни нотификации (по умолчанию 180 дней; `deadline_dt` не может быть позже `start_dt` плюс этот срок, чтобы нотификации не жили вечно) и таймаут ответа клиента при доставке (по умолчанию 1 с). |
 | Проверка условия | Вместо Information Services используется эмулятор. |
 | Эксплуатация | За рамками прототипа остались трассировка, мониторинг, Sentry, Vault, динамическая конфигурация и эксперименты. |
 | Сборка и поставка | Предусмотрена локальная сборка Docker-образа. CI/CD за рамками прототипа. |
@@ -256,11 +258,11 @@ sequenceDiagram
 │   └── agents/                        # Guards: read-only подагенты-ревьюеры
 ├── api/                               # Контракт API
 │   ├── spec/                          # Исходник OpenAPI-спецификации, разбитый по файлам
-│   │   ├── openapi.yaml               # Точка входа: info, servers, $ref на paths и webhooks
-│   │   ├── paths/                     # Ручки, по файлу на ресурс
-│   │   ├── webhooks/                  # Контракт callback'а клиенту
-│   │   └── components/                # schemas, parameters, responses
-│   └── bundle/                        # Собранная спецификация, вход для кодогенерации
+│   │   ├── openapi.yaml               # Точка входа: info, servers, $ref на paths и components
+│   │   ├── paths/                     # Ручки, по файлу на путь; callback клиенту описан в createNotification
+│   │   └── components/                # schemas, parameters, headers, responses
+│   ├── bundle/                        # Собранная спецификация, вход для кодогенерации
+│   └── redocly.yaml                   # Настройки lint и bundle
 ├── cmd/
 │   ├── notifier/                      # Точка входа: режимы api | worker | collector | migrate
 │   └── emulator/                      # Эмулятор Information Service и приёмник callback'ов

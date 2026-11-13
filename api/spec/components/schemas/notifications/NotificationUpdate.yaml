@@ -1,0 +1,12 @@
+title: NotificationUpdate
+description: |
+  New trigger conditions of an existing notification. They replace the
+  current ones entirely. Other parameters (`external_id`, `deadline_dt`) cannot be
+  changed.
+type: object
+additionalProperties: false
+required:
+  - notification_params
+properties:
+  notification_params:
+    $ref: ../conditions/NotificationParams.yaml
