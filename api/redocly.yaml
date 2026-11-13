@@ -2,6 +2,9 @@ apis:
   notifier:
     root: ./spec/openapi.yaml
     output: ./bundle/openapi.yaml
+  emulator:
+    root: ./emulator/spec/openapi.yaml
+    output: ./emulator/bundle/openapi.yaml
 
 extends:
   - recommended

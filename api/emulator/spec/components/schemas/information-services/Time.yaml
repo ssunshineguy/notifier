@@ -1,0 +1,10 @@
+title: Time
+type: object
+required:
+  - time
+properties:
+  time:
+    description: Current UTC timestamp in ISO 8601 (RFC 3339) format.
+    type: string
+    format: date-time
+    example: "2026-12-01T09:00:00Z"
