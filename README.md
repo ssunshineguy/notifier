@@ -74,7 +74,7 @@ sequenceDiagram
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Read notification_id<br/>X-Client-ID, X-Request-ID
-    N->>DB: SELECT data, deadline_dt, external_id, start_dt<br/>FROM t_notification WHERE id = notification_id<br/>AND client_id = X-Client-ID AND stop_dt IS NULL
+    N->>DB: SELECT data, deadline_dt, external_id, start_dt<br/>FROM t_notification WHERE id = notification_id<br/>AND client_id = X-Client-ID
     DB-->>N: data (JSONB), deadline_dt, external_id, start_dt
     N-->>G: 200 OK, {data, deadline_dt, external_id, start_dt}
     G-->>C: 200 OK, {data, deadline_dt, external_id, start_dt}
@@ -227,7 +227,7 @@ sequenceDiagram
 
 </details>
 
-Остановленная нотификация клиенту не видна: `GET`, `PUT` и `DELETE` отвечают `404`. При этом её `external_id` остаётся занятым, пока Collector не удалит запись: повторный create отвечает `409` с id существующей нотификации, а параметры нового запроса не сравниваются и не применяются.
+Пока остановленная нотификация хранится в базе, владелец может прочитать её через `GET`. Попытка обновить её через `PUT` возвращает `400` с заголовком ошибки `Incorrect notification status`. Её `external_id` остаётся занят до удаления записи Collector’ом. Повторный `POST` с тем же `external_id` возвращает `409` с ID существующей нотификации.
 
 ## Ограничения прототипа
 
