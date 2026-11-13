@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/ssunshineguy/notifier/internal/core"
+	"github.com/ssunshineguy/notifier/internal/logging"
 )
 
 const selectClient = `
@@ -21,7 +23,11 @@ func (s *Store) GetClient(ctx context.Context, clientID string) (core.Client, er
 	var client core.Client
 	var maxLifetimeSec int32
 	var callbackTimeoutMS *int32
-	err := s.scanRow(ctx, selectClient, []any{clientID},
+	err := s.scanRow(ctx, "select_client", selectClient, []any{clientID}, func() slog.Attr {
+		return slog.Group("client",
+			logging.Redacted("client_id"), logging.Redacted("callback_url"),
+			slog.Int64("max_lifetime_sec", int64(maxLifetimeSec)), slog.Any("callback_timeout_ms", callbackTimeoutMS))
+	},
 		&client.ID,
 		&client.CallbackURL,
 		&maxLifetimeSec,

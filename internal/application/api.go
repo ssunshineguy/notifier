@@ -48,7 +48,7 @@ func RunAPI(ctx context.Context, cfg config.Config) error {
 	requestTimeout := time.Duration(cfg.API.RequestTimeoutMS) * time.Millisecond
 	server := &http.Server{
 		Addr:              cfg.API.ListenAddr,
-		Handler:           middleware.RequestTimeout(requestTimeout, limited),
+		Handler:           middleware.LogAPIRequests(slog.Default(), middleware.RequestTimeout(requestTimeout, limited)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serverErr := make(chan error, 1)

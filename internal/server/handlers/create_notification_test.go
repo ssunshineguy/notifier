@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -212,7 +214,37 @@ func TestCreateNotification(t *testing.T) {
 			req.Header.Set("X-Request-ID", requestID)
 			req.Header.Set("X-Client-ID", client.ID)
 			resp := httptest.NewRecorder()
-			server.ServeHTTP(resp, req)
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewJSONHandler(&logs, nil))
+			middleware.LogAPIRequests(logger, server).ServeHTTP(resp, req)
+
+			var checks struct {
+				Message           string `json:"msg"`
+				Outcome           string `json:"outcome"`
+				InvalidFieldCount int    `json:"invalid_field_count"`
+			}
+			var foundChecks bool
+			for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {
+				checks.Message, checks.Outcome, checks.InvalidFieldCount = "", "", 0
+				if err := json.Unmarshal([]byte(line), &checks); err != nil {
+					t.Fatal(err)
+				}
+				if checks.Message == "Notification Condition Checks" {
+					foundChecks = true
+					break
+				}
+			}
+			wantOutcome := "passed"
+			if tt.wantStatus == http.StatusBadRequest {
+				wantOutcome = "failed"
+			}
+			logText := logs.String()
+			hasConditionTree := strings.Contains(logText, `"notification_params":[{"type":"time"`)
+			if !foundChecks || checks.Outcome != wantOutcome || checks.InvalidFieldCount != len(tt.wantFields) ||
+				!strings.Contains(logText, `"external_id":"[redacted]"`) ||
+				hasConditionTree != (tt.wantStatus == http.StatusOK) || strings.Contains(logText, "order-42") {
+				t.Errorf("unexpected condition or request logs: %s", logText)
+			}
 
 			if resp.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d, body = %s", resp.Code, tt.wantStatus, resp.Body)

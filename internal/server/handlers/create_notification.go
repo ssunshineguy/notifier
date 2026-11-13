@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/ssunshineguy/notifier/internal/core"
+	"github.com/ssunshineguy/notifier/internal/logging"
 	"github.com/ssunshineguy/notifier/internal/server/codegen"
 	"github.com/ssunshineguy/notifier/internal/server/middleware"
 )
@@ -44,13 +46,19 @@ func (h *Handler) CreateNotification(ctx context.Context, req *codegen.Notificat
 		return nil, err
 	}
 
+	logger := logging.FromContext(ctx)
 	requestID := codegen.NewOptString(params.XRequestID)
 	notification, err := core.NewNotification(client, create, time.Now(), h.scheduledTime)
 	if err != nil {
+		logger.LogAttrs(ctx, slog.LevelInfo, "API Request Parameters",
+			logging.Redacted("external_id"), slog.Int("top_level_condition_count", len(req.NotificationParams)), slog.Any("deadline_dt", create.Deadline))
+
 		var validationErr *core.ValidationError
 		if !errors.As(err, &validationErr) {
 			return nil, err
 		}
+		logger.InfoContext(ctx, "Notification Condition Checks", "outcome", "failed",
+			"invalid_field_count", len(validationErr.Fields))
 
 		id, found, lookupErr := h.store.FindNotificationID(ctx, client.ID, create.ExternalID)
 		if lookupErr != nil {
@@ -61,6 +69,10 @@ func (h *Handler) CreateNotification(ctx context.Context, req *codegen.Notificat
 		}
 		return validationResponse(requestID, validationErr.Fields), nil
 	}
+
+	logger.LogAttrs(ctx, slog.LevelInfo, "API Request Parameters",
+		logging.Redacted("external_id"), slog.Any("notification_params", req.NotificationParams), slog.Any("deadline_dt", create.Deadline))
+	logger.InfoContext(ctx, "Notification Condition Checks", "outcome", "passed")
 
 	id, err := h.store.CreateNotification(ctx, notification)
 	if err != nil {

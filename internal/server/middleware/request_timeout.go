@@ -4,24 +4,29 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"log/slog"
+	"fmt"
 	"maps"
 	"net/http"
 	"time"
 
+	"github.com/ssunshineguy/notifier/internal/logging"
 	"github.com/ssunshineguy/notifier/internal/server/codegen"
 )
 
 // RequestTimeout sets a shared deadline for admission and processing.
 func RequestTimeout(timeout time.Duration, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		started, ok := r.Context().Value(requestStartedKey{}).(time.Time)
+		if !ok {
+			started = time.Now()
+		}
+		ctx, cancel := context.WithDeadline(r.Context(), started.Add(timeout))
 		defer cancel()
 
 		deadline, _ := ctx.Deadline()
 		controller := http.NewResponseController(w)
 		if err := controller.SetReadDeadline(deadline); err != nil && !errors.Is(err, http.ErrNotSupported) {
-			slog.DebugContext(ctx, "set request body read deadline", "error", err)
+			logging.FromContext(ctx).DebugContext(ctx, "set request body read deadline", "error_type", fmt.Sprintf("%T", err))
 		}
 
 		response := &bufferedResponse{header: make(http.Header)}
@@ -83,6 +88,6 @@ func (r *bufferedResponse) send(ctx context.Context, w http.ResponseWriter) {
 		w.WriteHeader(r.status)
 	}
 	if _, err := r.body.WriteTo(w); err != nil {
-		slog.DebugContext(ctx, "write HTTP response", "error", err)
+		logging.FromContext(ctx).DebugContext(ctx, "write HTTP response", "error_type", fmt.Sprintf("%T", err))
 	}
 }
