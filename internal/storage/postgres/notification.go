@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,8 +43,9 @@ func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uu
 	}
 
 	var inserted uuid.UUID
-	err = s.scanRow(ctx, insertNotification,
-		[]any{id, n.ClientID, n.ExternalID, data, n.Deadline, n.Start, n.NextScheduled}, &inserted)
+	err = s.scanRow(ctx, "insert_notification", insertNotification,
+		[]any{id, n.ClientID, n.ExternalID, data, n.Deadline, n.Start, n.NextScheduled},
+		func() slog.Attr { return slog.String("notification_id", inserted.String()) }, &inserted)
 	if err == nil {
 		return inserted, nil
 	}
@@ -52,7 +54,8 @@ func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uu
 	}
 
 	var existing uuid.UUID
-	err = s.scanRow(ctx, selectNotificationID, []any{n.ClientID, n.ExternalID}, &existing)
+	err = s.scanRow(ctx, "select_notification_id", selectNotificationID, []any{n.ClientID, n.ExternalID},
+		func() slog.Attr { return slog.String("notification_id", existing.String()) }, &existing)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("read existing notification: %w", err)
 	}
@@ -63,7 +66,11 @@ func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uu
 func (s *Store) GetNotification(ctx context.Context, notificationID uuid.UUID, clientID string) (core.NotificationDetails, error) {
 	var notification core.NotificationDetails
 	var data []byte
-	err := s.scanRow(ctx, selectNotification, []any{notificationID, clientID},
+	err := s.scanRow(ctx, "select_notification", selectNotification, []any{notificationID, clientID}, func() slog.Attr {
+		return slog.Group("notification",
+			slog.String("notification_id", notification.ID.String()),
+			slog.String("notification_status", notification.Status))
+	},
 		&notification.ID,
 		&notification.ExternalID,
 		&data,
@@ -92,7 +99,8 @@ func (s *Store) GetNotification(ctx context.Context, notificationID uuid.UUID, c
 // FindNotificationID includes stopped notifications while they remain in storage.
 func (s *Store) FindNotificationID(ctx context.Context, clientID, externalID string) (uuid.UUID, bool, error) {
 	var id uuid.UUID
-	err := s.scanRow(ctx, selectNotificationID, []any{clientID, externalID}, &id)
+	err := s.scanRow(ctx, "select_notification_id", selectNotificationID, []any{clientID, externalID},
+		func() slog.Attr { return slog.String("notification_id", id.String()) }, &id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, false, nil
 	}

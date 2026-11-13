@@ -1,0 +1,31 @@
+---
+description: Structured request and SQL logging with slog
+globs: cmd/notifier/**,internal/**
+paths:
+  - cmd/notifier/**
+  - internal/**
+alwaysApply: false
+---
+
+# Logging
+
+- Use standard `log/slog`. The CLI writes JSON directly to stderr. Set `NOTIFIER_LOG_LEVEL=DEBUG` to include successful GET response parameters.
+- Keep request logging outside timeout and admission middleware. Attach the validated `request_id` to the logger once at the HTTP boundary and pass it through the request context. Use `logging.FromContext` downstream to reuse those fields.
+- Log HTTP probe starts and successful outcomes for `/health/live` and `/health/ready` at DEBUG. Keep probe failures at INFO.
+- Include elapsed milliseconds in HTTP completion messages and as a numeric `duration_ms` field.
+- Report condition validation in the handlers. Keep domain rules independent of logging.
+- Use direct slog calls with existing values and cheap summaries in handlers. Keep level checks and expensive log preparation at shared logging boundaries.
+
+## Sensitive data
+
+- Log explicitly selected attributes. Use `logging.Redacted` when a sensitive field name is useful. It retains the key and writes `[redacted]`.
+- Keep credentials, tokens, authorization and cookie values, DSNs, client IDs, external IDs and callback URLs out of log values at every level. This applies to messages, structured fields, nested data and error strings.
+- Apply the HTTP header allowlist before logging. Keep raw URLs, query strings, bodies, whole request or response objects and untrusted free-form text out of logs. Treat `X-Request-ID` as an opaque correlation ID and validate its bounded format before logging it.
+- Log a safe error classification and selected metadata when an error can contain sensitive values. Inspect wrapped errors and structured objects before passing them to the logger.
+
+## PostgreSQL
+
+- Use the shared `Store.scanRow` path for single-row queries. Give each SQL statement a static snake_case name, such as `select_client`, and carry it as `query_name` in both records. Reuse the request logger for correlation.
+- Emit `Start SQL <query_name>` with `argument_count`. Emit `End SQL <query_name> duration <n> ms` with numeric `duration_ms` and `outcome` set to `ok`, `no_rows`, or `error`. The duration covers waiting for a pool connection and scanning the result.
+- Keep business SQL at INFO. For the readiness `SELECT 1` (`check_connection`), log the start and successful result at DEBUG. Keep failures at INFO.
+- For `ok` and `no_rows`, include `row_count`. For `ok`, include only explicitly selected safe result fields and redact sensitive fields. For `error`, use `sqlstate` when available, otherwise `error_type`. Keep SQL text, argument values, full rows, connection strings and raw driver errors out of the logs.

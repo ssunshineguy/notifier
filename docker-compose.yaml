@@ -34,6 +34,12 @@ services:
   api:
     image: notifier:local
     pull_policy: never
+    logging:
+      options:
+        mode: non-blocking
+        max-buffer-size: '1m'
+    environment:
+      NOTIFIER_LOG_LEVEL: ${NOTIFIER_LOG_LEVEL:-INFO}
     command: ["-listen-addr", "0.0.0.0:8080", "api"]
     depends_on:
       migrate:

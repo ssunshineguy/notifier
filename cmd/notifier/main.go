@@ -22,10 +22,27 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
-		slog.Error("notifier failed", "error", err)
+	if err := runWithLogging(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func runWithLogging() error {
+	level := slog.LevelInfo
+	if value := os.Getenv("NOTIFIER_LOG_LEVEL"); value != "" {
+		if err := level.UnmarshalText([]byte(value)); err != nil {
+			err := errors.New("invalid NOTIFIER_LOG_LEVEL")
+			slog.Error("configure logging", "error", err)
+			return err
+		}
+	}
+	defer slog.SetDefault(slog.Default())
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	err := run()
+	if err != nil {
+		slog.Error("notifier failed", "error_type", fmt.Sprintf("%T", err))
+	}
+	return err
 }
 
 func run() error {

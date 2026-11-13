@@ -28,10 +28,12 @@ Described in [README.md](README.md#структура-репозитория).
 
 | Area | Paths and rules |
 | --- | --- |
-| Go package boundaries | `cmd/notifier/`, `internal/`, [architecture rules](ai/rules/architecture.mdc) |
+| Go package boundaries and runtime I/O | `cmd/notifier/`, `internal/`, [architecture rules](ai/rules/architecture.mdc) |
 | HTTP contract | `api/spec/`, [OpenAPI rules](ai/rules/openapi.mdc) |
 | HTTP implementation | `internal/server/`, `internal/application/api.go`, [HTTP rules](ai/rules/http-api.mdc) |
-| SQL and migrations | `internal/storage/postgres/`, `db/`, [migration rules](ai/rules/migrations.mdc) |
+| PostgreSQL runtime | `internal/storage/postgres/`, [architecture rules](ai/rules/architecture.mdc#postgresql-runtime) |
+| Migrations and bootstrap | `db/`, [migration rules](ai/rules/migrations.mdc) |
+| Request and SQL logging | `internal/logging/`, [logging rules](ai/rules/logging.mdc) |
 | Tests and verification | Colocated `*_test.go`, [test rules](ai/rules/tests.mdc) |
 
 ## Database
@@ -78,7 +80,7 @@ use the named agent or give a reviewer the corresponding Markdown instructions.
 
 | Guard | When |
 | --- | --- |
-| `architecture-guard` | After production Go changes in `cmd/notifier/` or `internal/`. |
+| `architecture-guard` | After production Go changes in `cmd/notifier/` or `internal/`. Checks package boundaries, runtime I/O, PostgreSQL and safe logging. |
 | `api-contract-guard` | After OpenAPI, generated API, or observable HTTP behavior changes. |
 | `test-coverage-guard` | After Go behavior, SQL, or Compose startup changes. |
 | `migration-guard` | After changes to `db/migrations` or `db/init`, before applying them. |

@@ -1,5 +1,5 @@
 ---
-description: Go package boundaries and dependency wiring
+description: Go package boundaries, dependency wiring and runtime I/O
 globs: cmd/notifier/**,internal/**
 paths:
   - cmd/notifier/**
@@ -13,6 +13,7 @@ alwaysApply: false
 | --- | --- |
 | `cmd/notifier` | Parse flags, load configuration, handle process signals and select the mode. |
 | `internal/application` | Wire dependencies and own their lifecycle. See `api.go` for the pool, ogen server, middleware and shutdown. |
+| `internal/logging` | Carry request loggers in context and provide redaction attributes. |
 | `internal/core` | Domain types and rules. Keep them independent of other internal packages and I/O. Pass in time when a rule depends on it. |
 | `internal/server/handlers` | Map ogen requests to domain inputs, call domain logic and storage interfaces, map outcomes to typed responses. |
 | `internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |
@@ -21,5 +22,16 @@ alwaysApply: false
 
 - Define storage interfaces where they are consumed. Server code depends on these interfaces and domain types. Application supplies the concrete store.
 - Keep storage and outbound adapters independent of server, worker and collector packages. Keep ogen types at the HTTP boundary.
-- Pass the request or job context into I/O. In PostgreSQL, the operation budget covers waiting for a pool connection and reading the result. Reuse `Store.scanRow` for single-row operations.
+
+## Go runtime
+
+- Pass the request or job context into I/O. Derive operation deadlines from that context and release them with the corresponding cancel function.
+- Give long-lived resources an owner. Tie background work to shutdown and bound concurrent work and wait queues using the existing limits.
+- Release acquired resources on every exit path. Check errors that affect the response, persisted state or cleanup. Keep error classification with `errors.Is` or `errors.As` across wrapping.
+
+## PostgreSQL runtime
+
+- The mode wires a shared pool with configured limits and its own service role. Keep SQL, transactions and row mapping in `internal/storage/postgres`.
+- Use parameterized queries and qualify tables with `notifier`. Reuse the `Store.scanRow` path for single-row operations. The database operation budget covers pool wait, execution and scanning.
+- Close result sets and check iteration errors. Release explicitly acquired connections. For multi-step writes that must be atomic, use a transaction with commit and rollback paths.
 - Scope client-owned lookups and mutations by the client ID resolved from the request. For notification creation, the database unique constraint on `(client_id, external_id)` arbitrates concurrent requests. The duplicate lookup uses the same key.

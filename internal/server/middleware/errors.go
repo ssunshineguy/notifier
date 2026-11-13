@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
+	"fmt"
 	"net/http"
 
 	"github.com/ogen-go/ogen/ogenerrors"
 
 	"github.com/ssunshineguy/notifier/internal/core"
+	"github.com/ssunshineguy/notifier/internal/logging"
 	"github.com/ssunshineguy/notifier/internal/server/codegen"
 )
 
@@ -51,6 +52,6 @@ func writeProblem(ctx context.Context, w http.ResponseWriter, r *http.Request, p
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(problem.Status)
 	if err := json.NewEncoder(w).Encode(&problem); err != nil {
-		slog.WarnContext(ctx, "write problem response", "error", err)
+		logging.FromContext(ctx).WarnContext(ctx, "write problem response", "error_type", fmt.Sprintf("%T", err))
 	}
 }
