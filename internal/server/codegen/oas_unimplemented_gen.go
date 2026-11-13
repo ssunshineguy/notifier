@@ -53,7 +53,7 @@ func (UnimplementedHandler) DeleteNotification(ctx context.Context, params Delet
 // does not cause restarts.
 //
 // GET /health/live
-func (UnimplementedHandler) GetLiveness(ctx context.Context) (r *Health, _ error) {
+func (UnimplementedHandler) GetLiveness(ctx context.Context) (r GetLivenessRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

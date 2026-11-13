@@ -33,8 +33,12 @@ get:
       $ref: ../components/responses/Unauthorized.yaml
     "404":
       $ref: ../components/responses/NotFound.yaml
+    "429":
+      $ref: ../components/responses/TooManyRequests.yaml
     "500":
       $ref: ../components/responses/InternalError.yaml
+    "503":
+      $ref: ../components/responses/RequestTimeout.yaml
 
 put:
   operationId: updateNotification
@@ -108,8 +112,12 @@ put:
       $ref: ../components/responses/Unauthorized.yaml
     "404":
       $ref: ../components/responses/NotFound.yaml
+    "429":
+      $ref: ../components/responses/TooManyRequests.yaml
     "500":
       $ref: ../components/responses/InternalError.yaml
+    "503":
+      $ref: ../components/responses/RequestTimeout.yaml
 
 delete:
   operationId: deleteNotification
@@ -130,5 +138,9 @@ delete:
       $ref: ../components/responses/Unauthorized.yaml
     "404":
       $ref: ../components/responses/NotFound.yaml
+    "429":
+      $ref: ../components/responses/TooManyRequests.yaml
     "500":
       $ref: ../components/responses/InternalError.yaml
+    "503":
+      $ref: ../components/responses/RequestTimeout.yaml

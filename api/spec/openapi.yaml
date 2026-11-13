@@ -26,6 +26,17 @@ info:
     Errors use the RFC 9457 Problem Details format
     (`application/problem+json`).
 
+    ## Overload
+
+    When all processing slots are busy, notification requests may wait for
+    a slot. They receive `429` if the wait expires or the queue is full.
+
+    ## Request timeout
+
+    The request time limit starts after the headers are read and includes
+    queueing, body reads, and processing. The API returns `503` if the
+    overall budget expires.
+
     ## Delivery guarantees
 
     Events are delivered at least once. The client must deduplicate them by
@@ -36,7 +47,7 @@ servers:
     description: Local docker compose
 
 security:
-  - clientId: []
+  - clientID: []
 
 tags:
   - name: notifications
@@ -56,7 +67,7 @@ paths:
 
 components:
   securitySchemes:
-    clientId:
+    clientID:
       type: apiKey
       in: header
       name: X-Client-ID

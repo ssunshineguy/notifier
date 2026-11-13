@@ -127,28 +127,28 @@ func (s *BadRequestHeaders) SetResponse(val Problem) {
 func (*BadRequestHeaders) createNotificationRes() {}
 func (*BadRequestHeaders) updateNotificationRes() {}
 
-type ClientId struct {
+type ClientID struct {
 	APIKey string
 	Roles  []string
 }
 
 // GetAPIKey returns the value of APIKey.
-func (s *ClientId) GetAPIKey() string {
+func (s *ClientID) GetAPIKey() string {
 	return s.APIKey
 }
 
 // GetRoles returns the value of Roles.
-func (s *ClientId) GetRoles() []string {
+func (s *ClientID) GetRoles() []string {
 	return s.Roles
 }
 
 // SetAPIKey sets the value of APIKey.
-func (s *ClientId) SetAPIKey(val string) {
+func (s *ClientID) SetAPIKey(val string) {
 	s.APIKey = val
 }
 
 // SetRoles sets the value of Roles.
-func (s *ClientId) SetRoles(val []string) {
+func (s *ClientID) SetRoles(val []string) {
 	s.Roles = val
 }
 
@@ -311,6 +311,7 @@ func (s *Health) SetStatus(val HealthStatus) {
 	s.Status = val
 }
 
+func (*Health) getLivenessRes()  {}
 func (*Health) getReadinessRes() {}
 
 type HealthStatus string
@@ -475,12 +476,11 @@ type NotificationCreate struct {
 	ExternalID         ExternalId         `json:"external_id"`
 	NotificationParams NotificationParams `json:"notification_params"`
 	// Moment after which Notifier stops waiting for the conditions and sends a `deadline_exceeded` event.
-	// Optional: when omitted, it is set to the creation moment plus the maximum notification lifetime. The
-	// maximum lifetime is 180 days by default and can be overridden in the client settings. When set,
-	// `deadline_dt` must be:
+	// Optional: when omitted, it is set to the creation moment plus the maximum notification lifetime set
+	// in the client settings. When set, `deadline_dt` must be:
 	//
 	//  - in the future;
-	//  - not earlier than the moment the conditions can be met;
+	//  - later than the moment the `time` conditions can be met, when they bound the condition tree;
 	//  - not later than the creation moment plus the maximum notification lifetime configured for the
 	//    client. The limit keeps notifications from living forever.
 	DeadlineDt OptDateTime `json:"deadline_dt"`
@@ -839,7 +839,65 @@ func (s *Problem) SetErrors(val []FieldError) {
 	s.Errors = val
 }
 
-func (*Problem) getReadinessRes() {}
+// ProblemHeaders wraps Problem with response headers.
+type ProblemHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *ProblemHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *ProblemHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *ProblemHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ProblemHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*ProblemHeaders) getReadinessRes() {}
+
+// RequestTimeoutHeaders wraps Problem with response headers.
+type RequestTimeoutHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *RequestTimeoutHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *RequestTimeoutHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *RequestTimeoutHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *RequestTimeoutHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*RequestTimeoutHeaders) createNotificationRes() {}
+func (*RequestTimeoutHeaders) deleteNotificationRes() {}
+func (*RequestTimeoutHeaders) getLivenessRes()        {}
+func (*RequestTimeoutHeaders) getNotificationRes()    {}
+func (*RequestTimeoutHeaders) updateNotificationRes() {}
 
 // Condition on the current time.
 // Ref: #/components/schemas/TimeCondition
@@ -949,6 +1007,37 @@ func (s *TimeConditionType) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// TooManyRequestsHeaders wraps Problem with response headers.
+type TooManyRequestsHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *TooManyRequestsHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *TooManyRequestsHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *TooManyRequestsHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *TooManyRequestsHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*TooManyRequestsHeaders) createNotificationRes() {}
+func (*TooManyRequestsHeaders) deleteNotificationRes() {}
+func (*TooManyRequestsHeaders) getNotificationRes()    {}
+func (*TooManyRequestsHeaders) updateNotificationRes() {}
 
 // UnauthorizedHeaders wraps Problem with response headers.
 type UnauthorizedHeaders struct {

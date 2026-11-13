@@ -14,12 +14,12 @@ properties:
     description: |
       Moment after which Notifier stops waiting for the conditions and sends
       a `deadline_exceeded` event. Optional: when omitted, it is set to the
-      creation moment plus the maximum notification lifetime. The maximum
-      lifetime is 180 days by default and can be overridden in the client
-      settings. When set, `deadline_dt` must be:
+      creation moment plus the maximum notification lifetime set in the
+      client settings. When set, `deadline_dt` must be:
 
       - in the future;
-      - not earlier than the moment the conditions can be met;
+      - later than the moment the `time` conditions can be met, when they
+        bound the condition tree;
       - not later than the creation moment plus the maximum notification
         lifetime configured for the client. The limit keeps notifications
         from living forever.

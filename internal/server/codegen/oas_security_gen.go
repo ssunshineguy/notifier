@@ -13,9 +13,9 @@ import (
 
 // SecurityHandler is handler for security parameters.
 type SecurityHandler interface {
-	// HandleClientId handles clientId security.
+	// HandleClientID handles clientID security.
 	// Internal client identifier set by the API Gateway.
-	HandleClientId(ctx context.Context, operationName OperationName, t ClientId) (context.Context, error)
+	HandleClientID(ctx context.Context, operationName OperationName, t ClientID) (context.Context, error)
 }
 
 func findAuthorization(h http.Header, prefix string) (string, bool) {
@@ -33,26 +33,26 @@ func findAuthorization(h http.Header, prefix string) (string, bool) {
 	return "", false
 }
 
-// operationRolesClientId is a private map storing roles per operation.
-var operationRolesClientId = map[string][]string{
+// operationRolesClientID is a private map storing roles per operation.
+var operationRolesClientID = map[string][]string{
 	CreateNotificationOperation: []string{},
 	DeleteNotificationOperation: []string{},
 	GetNotificationOperation:    []string{},
 	UpdateNotificationOperation: []string{},
 }
 
-// GetRolesForClientId returns the required roles for the given operation.
+// GetRolesForClientID returns the required roles for the given operation.
 //
 // This is useful for authorization scenarios where you need to know which roles
 // are required for an operation.
 //
 // Example:
 //
-//	requiredRoles := GetRolesForClientId(AddPetOperation)
+//	requiredRoles := GetRolesForClientID(AddPetOperation)
 //
 // Returns nil if the operation has no role requirements or if the operation is unknown.
-func GetRolesForClientId(operation string) []string {
-	roles, ok := operationRolesClientId[operation]
+func GetRolesForClientID(operation string) []string {
+	roles, ok := operationRolesClientID[operation]
 	if !ok {
 		return nil
 	}
@@ -62,16 +62,16 @@ func GetRolesForClientId(operation string) []string {
 	return result
 }
 
-func (s *Server) securityClientId(ctx context.Context, operationName OperationName, req *http.Request) (context.Context, bool, error) {
-	var t ClientId
+func (s *Server) securityClientID(ctx context.Context, operationName OperationName, req *http.Request) (context.Context, bool, error) {
+	var t ClientID
 	const parameterName = "X-Client-ID"
 	value := req.Header.Get(parameterName)
 	if value == "" {
 		return ctx, false, nil
 	}
 	t.APIKey = value
-	t.Roles = operationRolesClientId[operationName]
-	rctx, err := s.sec.HandleClientId(ctx, operationName, t)
+	t.Roles = operationRolesClientID[operationName]
+	rctx, err := s.sec.HandleClientID(ctx, operationName, t)
 	if errors.Is(err, ogenerrors.ErrSkipServerSecurity) {
 		return nil, false, nil
 	} else if err != nil {

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS notifier.t_client (
     client_id           text        NOT NULL,
     callback_url        text        NOT NULL,
-    max_lifetime_sec    integer     NULL,
+    max_lifetime_sec    integer     NOT NULL,
     callback_timeout_ms integer     NULL,
     created_dt          timestamptz NOT NULL DEFAULT now(),
 

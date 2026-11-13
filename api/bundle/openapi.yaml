@@ -25,6 +25,17 @@ info:
     Errors use the RFC 9457 Problem Details format
     (`application/problem+json`).
 
+    ## Overload
+
+    When all processing slots are busy, notification requests may wait for
+    a slot. They receive `429` if the wait expires or the queue is full.
+
+    ## Request timeout
+
+    The request time limit starts after the headers are read and includes
+    queueing, body reads, and processing. The API returns `503` if the
+    overall budget expires.
+
     ## Delivery guarantees
 
     Events are delivered at least once. The client must deduplicate them by
@@ -33,7 +44,7 @@ servers:
   - url: http://localhost:8080
     description: Local docker compose
 security:
-  - clientId: []
+  - clientID: []
 tags:
   - name: notifications
     description: Managing notifications.
@@ -133,8 +144,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '409':
           $ref: '#/components/responses/AlreadyExists'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/RequestTimeout'
       callbacks:
         notificationEvent:
           '{client endpoint from client settings}':
@@ -237,8 +252,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       operationId: updateNotification
       tags:
@@ -311,8 +330,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       operationId: deleteNotification
       tags:
@@ -332,8 +355,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/RequestTimeout'
   /health/live:
     get:
       operationId: getLiveness
@@ -351,6 +378,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+        '503':
+          $ref: '#/components/responses/RequestTimeout'
   /health/ready:
     get:
       operationId: getReadiness
@@ -369,7 +398,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
         '503':
-          description: A dependency is unavailable.
+          description: A dependency is unavailable or the request time limit expired.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
           content:
             application/problem+json:
               schema:
@@ -381,7 +413,7 @@ paths:
                 detail: database is unreachable
 components:
   securitySchemes:
-    clientId:
+    clientID:
       type: apiKey
       in: header
       name: X-Client-ID
@@ -547,12 +579,12 @@ components:
           description: |
             Moment after which Notifier stops waiting for the conditions and sends
             a `deadline_exceeded` event. Optional: when omitted, it is set to the
-            creation moment plus the maximum notification lifetime. The maximum
-            lifetime is 180 days by default and can be overridden in the client
-            settings. When set, `deadline_dt` must be:
+            creation moment plus the maximum notification lifetime set in the
+            client settings. When set, `deadline_dt` must be:
 
             - in the future;
-            - not earlier than the moment the conditions can be met;
+            - later than the moment the `time` conditions can be met, when they
+              bound the condition tree;
             - not later than the creation moment plus the maximum notification
               lifetime configured for the client. The limit keeps notifications
               from living forever.
@@ -767,6 +799,20 @@ components:
             $ref: '#/components/schemas/NotificationCreated'
           example:
             notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+    TooManyRequests:
+      description: The request queue is full or the wait for a processing slot expired.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/too-many-requests
+            title: Too many requests
+            status: 429
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
     InternalError:
       description: Unexpected server error. The request may be retried.
       headers:
@@ -780,6 +826,20 @@ components:
             type: /problems/internal-error
             title: Internal server error
             status: 500
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+    RequestTimeout:
+      description: The overall request time limit expired.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/request-timeout
+            title: Request timed out
+            status: 503
             request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
     NotFound:
       description: |

@@ -1,6 +1,19 @@
 # Credentials of the local stand only, see db/init.
+api:
+  listen_addr: 127.0.0.1:8080
+  max_in_flight: 16
+  max_queued: 16
+  slot_wait_timeout_ms: 100
+  request_timeout_ms: 2000
+
 database:
+  min_conns: 4
+  max_conns: 8
+  operation_timeout_sec: 1
   migrator_dsn: postgres://notifier_migrator:notifier_migrator@postgres:5432/notifier?sslmode=disable
   api_dsn: postgres://notifier_api:notifier_api@postgres:5432/notifier?sslmode=disable
   worker_dsn: postgres://notifier_worker:notifier_worker@postgres:5432/notifier?sslmode=disable
   collector_dsn: postgres://notifier_collector:notifier_collector@postgres:5432/notifier?sslmode=disable
+
+notification:
+  scheduled_time_sec: 10

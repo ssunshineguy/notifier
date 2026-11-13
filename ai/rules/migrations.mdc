@@ -130,8 +130,8 @@ A migration must succeed even if its changes were already applied by hand.
 - Inserted data uses `ON CONFLICT DO NOTHING`:
 
   ```sql
-  INSERT INTO notifier.t_client (client_id, callback_url)
-  VALUES ('emulator', 'http://emulator:8081/notification')
+  INSERT INTO notifier.t_client (client_id, callback_url, max_lifetime_sec)
+  VALUES ('emulator', 'http://emulator:8081/notification', 15552000)
   ON CONFLICT DO NOTHING;
   ```
 

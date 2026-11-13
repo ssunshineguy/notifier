@@ -90,8 +90,12 @@ post:
       $ref: ../components/responses/Unauthorized.yaml
     "409":
       $ref: ../components/responses/AlreadyExists.yaml
+    "429":
+      $ref: ../components/responses/TooManyRequests.yaml
     "500":
       $ref: ../components/responses/InternalError.yaml
+    "503":
+      $ref: ../components/responses/RequestTimeout.yaml
   callbacks:
     notificationEvent:
       "{client endpoint from client settings}":

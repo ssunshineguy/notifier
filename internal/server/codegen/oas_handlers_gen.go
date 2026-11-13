@@ -64,14 +64,14 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityClientId(ctx, CreateNotificationOperation, r)
+			sctx, ok, err := s.securityClientID(ctx, CreateNotificationOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
-					Security:         "ClientId",
+					Security:         "ClientID",
 					Err:              err,
 				}
-				defer recordError("Security:ClientId", err)
+				defer recordError("Security:ClientID", err)
 				s.cfg.ErrorHandler(ctx, w, r, err)
 				return
 			}
@@ -208,14 +208,14 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityClientId(ctx, DeleteNotificationOperation, r)
+			sctx, ok, err := s.securityClientID(ctx, DeleteNotificationOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
-					Security:         "ClientId",
+					Security:         "ClientID",
 					Err:              err,
 				}
-				defer recordError("Security:ClientId", err)
+				defer recordError("Security:ClientID", err)
 				s.cfg.ErrorHandler(ctx, w, r, err)
 				return
 			}
@@ -336,7 +336,7 @@ func (s *Server) handleGetLivenessRequest(args [0]string, argsEscaped bool, w ht
 
 	var rawBody []byte
 
-	var response *Health
+	var response GetLivenessRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -352,7 +352,7 @@ func (s *Server) handleGetLivenessRequest(args [0]string, argsEscaped bool, w ht
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *Health
+			Response = GetLivenessRes
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -407,14 +407,14 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityClientId(ctx, GetNotificationOperation, r)
+			sctx, ok, err := s.securityClientID(ctx, GetNotificationOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
-					Security:         "ClientId",
+					Security:         "ClientID",
 					Err:              err,
 				}
-				defer recordError("Security:ClientId", err)
+				defer recordError("Security:ClientID", err)
 				s.cfg.ErrorHandler(ctx, w, r, err)
 				return
 			}
@@ -608,14 +608,14 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityClientId(ctx, UpdateNotificationOperation, r)
+			sctx, ok, err := s.securityClientID(ctx, UpdateNotificationOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
-					Security:         "ClientId",
+					Security:         "ClientID",
 					Err:              err,
 				}
-				defer recordError("Security:ClientId", err)
+				defer recordError("Security:ClientID", err)
 				s.cfg.ErrorHandler(ctx, w, r, err)
 				return
 			}
