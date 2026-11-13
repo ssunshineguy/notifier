@@ -20,6 +20,14 @@ The service is a single `notifier` binary that runs in different modes:
   OpenAPI descriptions, and everything written for AI agents (`AGENTS.md`, `ai/**`).
 - Russian is allowed only in `README.md`.
 
+## Task scope
+
+- Keep the diff limited to the requested outcome and the changes needed to deliver it.
+- Refactor existing code only when the user explicitly requests or approves the refactoring
+  for this task. This applies even to code you already need to edit.
+- Leave incidental cleanup and unrelated pre-existing issues for a separate task. If the
+  request requires a refactor outside the approved scope, explain the dependency and ask first.
+
 ## Repository structure
 
 Described in [README.md](README.md#структура-репозитория).
@@ -75,11 +83,13 @@ Use the rules linked above for the layer you touch.
 ## Guards
 
 Delegate to the applicable read-only reviewers from `ai/agents/` after each logical unit.
-Pass the changed files, comparison base, and relevant test evidence. For an independent check,
-use the named agent or give a reviewer the corresponding Markdown instructions.
+Pass the user's task scope and explicit approvals, changed files, comparison base, and
+relevant test evidence. Use the named agent or give a reviewer the corresponding Markdown
+instructions.
 
 | Guard | When |
 | --- | --- |
+| [`scope-guard`](ai/agents/scope-guard.md) | For every task diff. Checks that each change serves the requested outcome and any refactoring was explicitly authorized. |
 | `architecture-guard` | After production Go changes in `cmd/notifier/` or `internal/`. Checks package boundaries, runtime I/O, PostgreSQL and safe logging. |
 | `api-contract-guard` | After OpenAPI, generated API, or observable HTTP behavior changes. |
 | `test-coverage-guard` | After Go behavior, SQL, or Compose startup changes. |
