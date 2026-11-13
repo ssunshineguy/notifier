@@ -76,8 +76,7 @@ paths:
         `PUT /v1/notifications/{notification_id}` to change the conditions.
 
         An `external_id` stays taken while the notification is stored,
-        including after it is stopped and no longer visible to `GET`, `PUT`
-        and `DELETE`.
+        including after it is stopped.
       parameters:
         - $ref: '#/components/parameters/RequestId'
       requestBody:
@@ -227,8 +226,11 @@ paths:
         - notifications
       summary: Get a notification
       description: |
-        Returns the parameters of an active notification. A stopped
-        notification is not visible: the request returns `404`.
+        Returns the parameters of a notification owned by the client,
+        including a stopped notification while its record is retained.
+        The response includes its current notification status. An invalid
+        `notification_id` returns `400`.
+        A missing notification or one owned by another client returns `404`.
       responses:
         '200':
           description: The notification.
@@ -242,12 +244,15 @@ paths:
               example:
                 notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
                 external_id: order-42-reminder
+                notification_status: active
                 notification_params:
                   - type: time
                     operation: after
                     value: '2026-12-01T09:00:00Z'
                 deadline_dt: '2026-12-01T18:00:00Z'
                 start_dt: '2026-11-13T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -265,8 +270,9 @@ paths:
       summary: Replace the notification conditions
       description: |
         Replaces the trigger conditions of an active notification. The deadline
-        and other parameters cannot be changed. A stopped notification is not
-        visible: the request returns `404`.
+        and other parameters cannot be changed. If the client's notification is
+        stopped, the request returns `400` with the problem title
+        "Incorrect notification status".
 
         The change applies from the next check: an event that is already being
         delivered is not cancelled.
@@ -324,6 +330,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Notification'
+              example:
+                notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                external_id: order-42-reminder
+                notification_params:
+                  - type: time
+                    operation: after
+                    value: '2026-12-02T09:00:00Z'
+                deadline_dt: '2026-12-02T18:00:00Z'
+                start_dt: '2026-11-13T10:00:00Z'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -342,12 +357,12 @@ paths:
         - notifications
       summary: Delete a notification
       description: |
-        Stops an active notification. A stopped notification is not visible,
-        so a repeated delete returns `404`. An event that is already being
-        delivered may still arrive.
+        Stops an active notification. A delete request for an already stopped
+        notification owned by the client also returns `200`. An event that is
+        already being delivered may still arrive.
       responses:
         '200':
-          description: The notification is stopped.
+          description: The deletion request succeeded.
           headers:
             X-Request-ID:
               $ref: '#/components/headers/RequestId'
@@ -691,6 +706,24 @@ components:
           type: string
           format: date-time
           example: '2026-12-01T09:00:01Z'
+    NotificationStatus:
+      title: NotificationStatus
+      description: |
+        Current lifecycle status of the stored notification.
+
+        - `active` — the notification has not stopped.
+        - `delivered` — the condition event was delivered.
+        - `deadline_exceeded` — the deadline event was delivered.
+        - `delivery_failed` — delivery attempts were exhausted.
+        - `deleted` — the notification was stopped by a delete request.
+      type: string
+      enum:
+        - active
+        - delivered
+        - deadline_exceeded
+        - delivery_failed
+        - deleted
+      example: active
     Notification:
       title: Notification
       description: Notification parameters.
@@ -707,6 +740,8 @@ components:
           $ref: '#/components/schemas/NotificationId'
         external_id:
           $ref: '#/components/schemas/ExternalId'
+        notification_status:
+          $ref: '#/components/schemas/NotificationStatus'
         notification_params:
           $ref: '#/components/schemas/NotificationParams'
         deadline_dt:
@@ -843,9 +878,8 @@ components:
             request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
     NotFound:
       description: |
-        The notification does not exist, is stopped, or belongs to another
-        client. All cases look the same: stopped notifications are not visible,
-        and clients cannot probe foreign identifiers.
+        No notification matches the operation for this client. Missing
+        notifications and those owned by another client return the same response.
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestId'

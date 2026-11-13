@@ -254,7 +254,7 @@ make down      # остановить стенд, сохранив данные
 
 Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
 
-Интеграционные тесты хранилища на PostgreSQL и сквозные сценарии Playwright запланированы.
+Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./internal/storage/postgres`. Сквозные сценарии Playwright запланированы.
 
 ## Структура репозитория
 

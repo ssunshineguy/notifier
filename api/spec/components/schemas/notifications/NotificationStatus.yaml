@@ -1,0 +1,17 @@
+title: NotificationStatus
+description: |
+  Current lifecycle status of the stored notification.
+
+  - `active` — the notification has not stopped.
+  - `delivered` — the condition event was delivered.
+  - `deadline_exceeded` — the deadline event was delivered.
+  - `delivery_failed` — delivery attempts were exhausted.
+  - `deleted` — the notification was stopped by a delete request.
+type: string
+enum:
+  - active
+  - delivered
+  - deadline_exceeded
+  - delivery_failed
+  - deleted
+example: active

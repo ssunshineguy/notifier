@@ -44,8 +44,7 @@ func recordError(string, error) {}
 // `external_id` for a new notification, or `PUT /v1/notifications/{notification_id}` to change the
 // conditions.
 //
-// An `external_id` stays taken while the notification is stored, including after it is stopped and no
-// longer visible to `GET`, `PUT` and `DELETE`.
+// An `external_id` stays taken while the notification is stored, including after it is stopped.
 //
 // POST /v1/notifications
 func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -188,8 +187,8 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 
 // handleDeleteNotificationRequest handles deleteNotification operation.
 //
-// Stops an active notification. A stopped notification is not visible, so a repeated delete returns
-// `404`. An event that is already being delivered may still arrive.
+// Stops an active notification. A delete request for an already stopped notification owned by the
+// client also returns `200`. An event that is already being delivered may still arrive.
 //
 // DELETE /v1/notifications/{notification_id}
 func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -387,8 +386,10 @@ func (s *Server) handleGetLivenessRequest(args [0]string, argsEscaped bool, w ht
 
 // handleGetNotificationRequest handles getNotification operation.
 //
-// Returns the parameters of an active notification. A stopped notification is not visible: the request
-// returns `404`.
+// Returns the parameters of a notification owned by the client, including a stopped notification while
+// its record is retained. The response includes its current notification status. An invalid
+// `notification_id` returns `400`. A missing notification or one owned by another client returns
+// `404`.
 //
 // GET /v1/notifications/{notification_id}
 func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -587,7 +588,8 @@ func (s *Server) handleGetReadinessRequest(args [0]string, argsEscaped bool, w h
 // handleUpdateNotificationRequest handles updateNotification operation.
 //
 // Replaces the trigger conditions of an active notification. The deadline and other parameters cannot
-// be changed. A stopped notification is not visible: the request returns `404`.
+// be changed. If the client's notification is stopped, the request returns `400` with the problem
+// title "Incorrect notification status".
 //
 // The change applies from the next check: an event that is already being delivered is not cancelled.
 //

@@ -15,11 +15,12 @@ import (
 	"github.com/ssunshineguy/notifier/internal/server/middleware"
 )
 
-// Store persists notifications and checks database connectivity for the API.
+// Store reads and writes notifications and checks database connectivity for the API.
 type Store interface {
 	CheckConnection(ctx context.Context) error
 	CreateNotification(ctx context.Context, notification core.Notification) (uuid.UUID, error)
 	FindNotificationID(ctx context.Context, clientID, externalID string) (uuid.UUID, bool, error)
+	GetNotification(ctx context.Context, notificationID uuid.UUID, clientID string) (core.NotificationDetails, error)
 }
 
 // Handler implements the Notifier operations defined in OpenAPI.

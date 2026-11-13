@@ -1,7 +1,6 @@
 description: |
-  The notification does not exist, is stopped, or belongs to another
-  client. All cases look the same: stopped notifications are not visible,
-  and clients cannot probe foreign identifiers.
+  No notification matches the operation for this client. Missing
+  notifications and those owned by another client return the same response.
 headers:
   X-Request-ID:
     $ref: ../headers/RequestId.yaml
