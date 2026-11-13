@@ -607,6 +607,12 @@ func (s *Notification) encodeFields(e *jx.Encoder) {
 		s.ExternalID.Encode(e)
 	}
 	{
+		if s.NotificationStatus.Set {
+			e.FieldStart("notification_status")
+			s.NotificationStatus.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("notification_params")
 		s.NotificationParams.Encode(e)
 	}
@@ -620,12 +626,13 @@ func (s *Notification) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotification = [5]string{
+var jsonFieldsNameOfNotification = [6]string{
 	0: "notification_id",
 	1: "external_id",
-	2: "notification_params",
-	3: "deadline_dt",
-	4: "start_dt",
+	2: "notification_status",
+	3: "notification_params",
+	4: "deadline_dt",
+	5: "start_dt",
 }
 
 // Decode decodes Notification from json.
@@ -657,8 +664,18 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"external_id\"")
 			}
+		case "notification_status":
+			if err := func() error {
+				s.NotificationStatus.Reset()
+				if err := s.NotificationStatus.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"notification_status\"")
+			}
 		case "notification_params":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.NotificationParams.Decode(d); err != nil {
 					return err
@@ -668,7 +685,7 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"notification_params\"")
 			}
 		case "deadline_dt":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.DeadlineDt = v
@@ -680,7 +697,7 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"deadline_dt\"")
 			}
 		case "start_dt":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartDt = v
@@ -701,7 +718,7 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1057,6 +1074,52 @@ func (s *NotificationParams) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes NotificationStatus as json.
+func (s NotificationStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotificationStatus from json.
+func (s *NotificationStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotificationStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotificationStatus(v) {
+	case NotificationStatusActive:
+		*s = NotificationStatusActive
+	case NotificationStatusDelivered:
+		*s = NotificationStatusDelivered
+	case NotificationStatusDeadlineExceeded:
+		*s = NotificationStatusDeadlineExceeded
+	case NotificationStatusDeliveryFailed:
+		*s = NotificationStatusDeliveryFailed
+	case NotificationStatusDeleted:
+		*s = NotificationStatusDeleted
+	default:
+		*s = NotificationStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotificationStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotificationStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *NotificationUpdate) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -1184,6 +1247,39 @@ func (s OptDateTime) MarshalJSON() ([]byte, error) {
 func (s *OptDateTime) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d, json.DecodeDateTime)
+}
+
+// Encode encodes NotificationStatus as json.
+func (o OptNotificationStatus) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes NotificationStatus from json.
+func (o *OptNotificationStatus) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNotificationStatus to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNotificationStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNotificationStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
 }
 
 // Encode encodes string as json.

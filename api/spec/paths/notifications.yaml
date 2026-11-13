@@ -22,8 +22,7 @@ post:
     `PUT /v1/notifications/{notification_id}` to change the conditions.
 
     An `external_id` stays taken while the notification is stored,
-    including after it is stopped and no longer visible to `GET`, `PUT`
-    and `DELETE`.
+    including after it is stopped.
   parameters:
     - $ref: ../components/parameters/RequestId.yaml
   requestBody:

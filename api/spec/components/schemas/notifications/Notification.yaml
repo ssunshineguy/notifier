@@ -13,6 +13,8 @@ properties:
     $ref: ./NotificationId.yaml
   external_id:
     $ref: ./ExternalId.yaml
+  notification_status:
+    $ref: ./NotificationStatus.yaml
   notification_params:
     $ref: ../conditions/NotificationParams.yaml
   deadline_dt:

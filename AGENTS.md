@@ -63,7 +63,7 @@ Use the rules linked above for the layer you touch.
 
 | Task | Skill |
 | --- | --- |
-| Add or change an API operation | [change-api](ai/skills/change-api/SKILL.md) |
+| Add or change an API operation | [add-endpoint](ai/skills/add-endpoint/SKILL.md) |
 | Regenerate the API bundle and ogen | [generate-api](ai/skills/generate-api/SKILL.md) |
 | Verify API behavior on a local Compose stack | [verify-local-api](ai/skills/verify-local-api/SKILL.md) |
 | Run guards and checks | [review-changes](ai/skills/review-changes/SKILL.md) |

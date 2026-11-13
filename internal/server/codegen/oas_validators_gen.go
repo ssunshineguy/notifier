@@ -169,6 +169,24 @@ func (s *Notification) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.NotificationStatus.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "notification_status",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.NotificationParams.Validate(); err != nil {
 			return err
 		}
@@ -273,6 +291,23 @@ func (s NotificationParams) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s NotificationStatus) Validate() error {
+	switch s {
+	case "active":
+		return nil
+	case "delivered":
+		return nil
+	case "deadline_exceeded":
+		return nil
+	case "delivery_failed":
+		return nil
+	case "deleted":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *NotificationUpdate) Validate() error {

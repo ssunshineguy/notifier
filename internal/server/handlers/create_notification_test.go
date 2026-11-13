@@ -129,11 +129,12 @@ func timeCondition(after time.Time) codegen.Condition {
 }
 
 type notificationStoreStub struct {
-	id            uuid.UUID
-	saved         []core.Notification
-	saveErr       error
-	lookupErr     error
-	connectionErr error
+	id              uuid.UUID
+	saved           []core.Notification
+	saveErr         error
+	lookupErr       error
+	connectionErr   error
+	getNotification func(context.Context, uuid.UUID, string) (core.NotificationDetails, error)
 }
 
 func (s *notificationStoreStub) CheckConnection(context.Context) error {

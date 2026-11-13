@@ -125,6 +125,7 @@ func (s *BadRequestHeaders) SetResponse(val Problem) {
 }
 
 func (*BadRequestHeaders) createNotificationRes() {}
+func (*BadRequestHeaders) getNotificationRes()    {}
 func (*BadRequestHeaders) updateNotificationRes() {}
 
 type ClientID struct {
@@ -412,10 +413,11 @@ func (*NotFoundHeaders) updateNotificationRes() {}
 // Notification parameters.
 // Ref: #/components/schemas/Notification
 type Notification struct {
-	NotificationID     NotificationId     `json:"notification_id"`
-	ExternalID         ExternalId         `json:"external_id"`
-	NotificationParams NotificationParams `json:"notification_params"`
-	DeadlineDt         time.Time          `json:"deadline_dt"`
+	NotificationID     NotificationId        `json:"notification_id"`
+	ExternalID         ExternalId            `json:"external_id"`
+	NotificationStatus OptNotificationStatus `json:"notification_status"`
+	NotificationParams NotificationParams    `json:"notification_params"`
+	DeadlineDt         time.Time             `json:"deadline_dt"`
 	// Moment when the notification was created.
 	StartDt time.Time `json:"start_dt"`
 }
@@ -428,6 +430,11 @@ func (s *Notification) GetNotificationID() NotificationId {
 // GetExternalID returns the value of ExternalID.
 func (s *Notification) GetExternalID() ExternalId {
 	return s.ExternalID
+}
+
+// GetNotificationStatus returns the value of NotificationStatus.
+func (s *Notification) GetNotificationStatus() OptNotificationStatus {
+	return s.NotificationStatus
 }
 
 // GetNotificationParams returns the value of NotificationParams.
@@ -453,6 +460,11 @@ func (s *Notification) SetNotificationID(val NotificationId) {
 // SetExternalID sets the value of ExternalID.
 func (s *Notification) SetExternalID(val ExternalId) {
 	s.ExternalID = val
+}
+
+// SetNotificationStatus sets the value of NotificationStatus.
+func (s *Notification) SetNotificationStatus(val OptNotificationStatus) {
+	s.NotificationStatus = val
 }
 
 // SetNotificationParams sets the value of NotificationParams.
@@ -592,6 +604,77 @@ type NotificationId uuid.UUID
 
 type NotificationParams []Condition
 
+// Current lifecycle status of the stored notification.
+//
+//   - `active` — the notification has not stopped.
+//   - `delivered` — the condition event was delivered.
+//   - `deadline_exceeded` — the deadline event was delivered.
+//   - `delivery_failed` — delivery attempts were exhausted.
+//   - `deleted` — the notification was stopped by a delete request.
+//
+// Ref: #/components/schemas/NotificationStatus
+type NotificationStatus string
+
+const (
+	NotificationStatusActive           NotificationStatus = "active"
+	NotificationStatusDelivered        NotificationStatus = "delivered"
+	NotificationStatusDeadlineExceeded NotificationStatus = "deadline_exceeded"
+	NotificationStatusDeliveryFailed   NotificationStatus = "delivery_failed"
+	NotificationStatusDeleted          NotificationStatus = "deleted"
+)
+
+// AllValues returns all NotificationStatus values.
+func (NotificationStatus) AllValues() []NotificationStatus {
+	return []NotificationStatus{
+		NotificationStatusActive,
+		NotificationStatusDelivered,
+		NotificationStatusDeadlineExceeded,
+		NotificationStatusDeliveryFailed,
+		NotificationStatusDeleted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotificationStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case NotificationStatusActive:
+		return []byte(s), nil
+	case NotificationStatusDelivered:
+		return []byte(s), nil
+	case NotificationStatusDeadlineExceeded:
+		return []byte(s), nil
+	case NotificationStatusDeliveryFailed:
+		return []byte(s), nil
+	case NotificationStatusDeleted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotificationStatus) UnmarshalText(data []byte) error {
+	switch NotificationStatus(data) {
+	case NotificationStatusActive:
+		*s = NotificationStatusActive
+		return nil
+	case NotificationStatusDelivered:
+		*s = NotificationStatusDelivered
+		return nil
+	case NotificationStatusDeadlineExceeded:
+		*s = NotificationStatusDeadlineExceeded
+		return nil
+	case NotificationStatusDeliveryFailed:
+		*s = NotificationStatusDeliveryFailed
+		return nil
+	case NotificationStatusDeleted:
+		*s = NotificationStatusDeleted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // New trigger conditions of an existing notification. They replace the current ones entirely. Other
 // parameters (`external_id`, `deadline_dt`) cannot be changed.
 // Ref: #/components/schemas/NotificationUpdate
@@ -649,6 +732,52 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotificationStatus returns new OptNotificationStatus with value set to v.
+func NewOptNotificationStatus(v NotificationStatus) OptNotificationStatus {
+	return OptNotificationStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotificationStatus is optional NotificationStatus.
+type OptNotificationStatus struct {
+	Value NotificationStatus
+	Set   bool
+}
+
+// IsSet returns true if OptNotificationStatus was set.
+func (o OptNotificationStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotificationStatus) Reset() {
+	var v NotificationStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotificationStatus) SetTo(v NotificationStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotificationStatus) Get() (v NotificationStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotificationStatus) Or(d NotificationStatus) NotificationStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -2,6 +2,7 @@
 package core
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,19 @@ type Notification struct {
 	Start         time.Time
 	NextScheduled time.Time
 }
+
+// NotificationDetails holds a stored notification's parameters and lifecycle status.
+type NotificationDetails struct {
+	ID         uuid.UUID
+	ExternalID string
+	Params     []Condition
+	Deadline   time.Time
+	Start      time.Time
+	Status     string
+}
+
+// ErrNotificationNotFound means no notification matched the lookup.
+var ErrNotificationNotFound = errors.New("notification not found")
 
 // AlreadyExistsError reports that the client already has a notification with the same external ID.
 type AlreadyExistsError struct {
