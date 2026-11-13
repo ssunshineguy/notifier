@@ -1,0 +1,10 @@
+description: The notification event is malformed or fails validation.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../../../../spec/components/schemas/common/Problem.yaml
+    example:
+      type: /problems/validation-error
+      title: Request validation failed
+      status: 400
+      detail: notification_status is invalid

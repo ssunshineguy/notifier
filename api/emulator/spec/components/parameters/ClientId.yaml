@@ -1,0 +1,8 @@
+name: X-Client-ID
+in: header
+required: true
+description: Identifier of the Notifier client associated with the request.
+schema:
+  type: string
+  minLength: 1
+  example: emulator-test-client

@@ -1,0 +1,25 @@
+post:
+  operationId: receiveNotificationEvent
+  tags:
+    - callbacks
+  summary: Receive a Notifier event
+  description: |
+    Receives the notification event sent by Notifier Worker when the conditions
+    are met or the deadline is reached. Delivery is at least once, so the same
+    notification identifier may be received more than once.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../../spec/components/schemas/events/NotificationEvent.yaml
+        example:
+          notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+          external_id: order-42-reminder
+          notification_status: success
+          sent_dt: "2026-12-01T09:00:01Z"
+  responses:
+    "200":
+      description: The event is accepted.
+    "400":
+      $ref: ../components/responses/BadEvent.yaml

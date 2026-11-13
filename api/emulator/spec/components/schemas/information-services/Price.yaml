@@ -1,0 +1,12 @@
+title: Price
+type: object
+required:
+  - price
+properties:
+  price:
+    description: |
+      Price as an integer count of minor units. One major unit equals 100
+      minor units. For example, 19990 represents 199.90 major units.
+    type: integer
+    format: int64
+    example: 19990

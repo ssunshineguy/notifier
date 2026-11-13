@@ -1,0 +1,30 @@
+openapi: 3.0.3
+
+info:
+  title: Notifier Emulator API
+  version: 0.1.0
+  description: |
+    Emulates two Information Services and the client's callback endpoint for
+    local Notifier tests. Information Service requests carry a client identifier
+    and a request identifier. The callback follows the event contract in the
+    Notifier API.
+
+servers:
+  - url: http://localhost:8081
+    description: Local emulator
+
+security: []
+
+tags:
+  - name: information-services
+    description: Emulated sources for notification conditions.
+  - name: callbacks
+    description: Delivery of events by Notifier.
+
+paths:
+  /time:
+    $ref: ./paths/time.yaml
+  /price:
+    $ref: ./paths/price.yaml
+  /callback:
+    $ref: ./paths/callback.yaml
