@@ -1,0 +1,60 @@
+---
+description: When and how to write comments in code, SQL, configs and scripts
+globs: "**"
+alwaysApply: true
+---
+
+# Comments
+
+Default to no comment. Names, types and small functions explain *what* the code does; the docs
+(README, OpenAPI spec, `AGENTS.md`, `ai/rules/`) explain *how the system works*. A comment is the
+last resort.
+
+## The only reason to comment
+
+A comment protects a **deliberate decision that looks like a mistake** — something a reviewer or
+an agent would otherwise "fix" and break. It says what was decided and why, in one line, at the
+exact place.
+
+Examples that pass:
+
+- `COMMENT ON COLUMN t_notification.client_id IS 'No foreign key to t_client: clients will move to
+  the Directory service.'` — the missing foreign key looks like an oversight.
+- `//nolint:gosec // The path comes from the -config flag.` — a silenced linter looks like a hack.
+- `_, _ = fmt.Fprintln(...) // Nothing to recover from if usage cannot be printed.` — an ignored
+  error looks like a bug.
+- `_ "github.com/jackc/pgx/v5/stdlib" // Registers the "pgx" driver.` — a blank import looks unused.
+
+## Do not write
+
+- Comments that restate the code, the identifier name or the type (`// Load loads the config`
+  followed by nothing new, `-- Collector index` above an index named `..._stopped_idx`).
+- Narration of the change or its history (`now uses`, `changed to`, `new`, `added for`).
+- Section banners and decorative separators.
+- Commented-out code.
+- Semantics and contracts (units, `NULL` meaning, mapping to an API field, what a counter counts):
+  put them into the name (`_sec`, `_ms`) or the docs, not into a comment.
+- Instructions for other code (`this index is used only if the query filters X`): put them into the
+  rules or docs for that code, where its author will read them.
+- Several lines where one is enough.
+
+## Go
+
+- Exported identifiers and packages get a doc comment because Go tooling expects it. Keep it to one
+  sentence that starts with the name and adds information beyond the name.
+- Unexported code gets a comment only for the reason above.
+- `//nolint` always carries the reason: `//nolint:gosec // The path comes from the -config flag.`
+
+## Scripts and configs
+
+- A script starts with a one-line summary, like a Go package doc. Nothing else by default.
+
+## SQL
+
+- `-- +goose Up` is a directive, not a comment.
+- No `-- ` comments and no `COMMENT ON` except for a deliberate decision that looks like a mistake
+  (see above). Tables, columns, constraints and indexes are explained by their names.
+
+## Language
+
+- English only (see `AGENTS.md`).

@@ -160,7 +160,7 @@ sequenceDiagram
         end
 
         Note over G: Обработка одной записи в отдельной горутине
-        alt Повтор отправки, notification_attempts > 0
+        alt Повтор отправки, failed_attempt_count > 0
             G->>G: Если deadline_dt <= now(), notification_status = 'deadline_exceeded'<br/>Иначе notification_status = 'success'
             G->>C: Повторный Notify<br/>notification_id, notification_status
             C-->>G: HTTP-ответ, если получен
@@ -186,7 +186,7 @@ sequenceDiagram
             alt 2xx
                 G->>G: Подготовить итог<br/>next_scheduled_dt = NULL, stop_dt = now()<br/>stop_reason = 'delivered' для success<br/>stop_reason = 'deadline_exceeded' для deadline_exceeded
             else 4xx, 5xx или Timeout
-                G->>G: Увеличить счётчик неудачных попыток<br/>notification_attempts = notification_attempts + 1<br/>Сохранить новое значение в итоговом UPDATE
+                G->>G: Увеличить счётчик неудачных попыток<br/>failed_attempt_count = failed_attempt_count + 1<br/>Сохранить новое значение в итоговом UPDATE
                 alt Шагов повтора было меньше 13
                     G->>G: Запланировать повтор после задержки<br/>next_scheduled_dt = now() + 2^(2+N) с, N — номер шага повтора (0…12)<br/>Каждый шаг — до 3 попыток подряд
                 else Лимит попыток исчерпан
@@ -239,6 +239,23 @@ sequenceDiagram
 | Эксплуатация | За рамками прототипа остались трассировка, мониторинг, Sentry, Vault, динамическая конфигурация и эксперименты. |
 | Сборка и поставка | Предусмотрена локальная сборка Docker-образа. CI/CD за рамками прототипа. |
 
+## Локальный запуск
+
+Нужны Docker и Go 1.27.
+
+```bash
+make migrate   # поднять PostgreSQL, применить миграции и обновить db/schema
+make psql      # открыть psql в локальной базе
+make down      # остановить стенд, данные остаются в volume
+make reset     # удалить базу целиком; db/init выполнится заново при следующем старте
+```
+
+Для работы с AI-агентами один раз после клонирования и после изменений в `ai/`:
+
+```bash
+make ai-setup  # подключить правила, guards и скиллы из ai/ в .claude/
+```
+
 ## Тестирование
 
 | Уровень | Что покрывает | База | Где лежит и как запускается |
@@ -268,7 +285,7 @@ sequenceDiagram
 │   ├── notifier/                      # Точка входа: режимы api | worker | collector | migrate
 │   └── emulator/                      # Эмулятор Information Service и приёмник callback'ов
 ├── configs/
-│   └── config.yaml                    # Единственный конфиг, монтируется в compose (пока не создан)
+│   └── config.yaml                    # Единственный конфиг, кладётся в образ
 ├── internal/
 │   ├── application/                   # Сборка зависимостей и жизненный цикл каждого режима
 │   ├── config/                        # Структура конфига и загрузка
@@ -284,16 +301,19 @@ sequenceDiagram
 │   │   └── callback/                  # Доставка уведомления клиенту
 │   └── storage/
 │       └── postgres/                  # Репозиторий и SQL, интеграционные тесты на testcontainers
-├── migrations/                        # SQL-миграции goose: {nnn}__{name}.sql
+├── db/
+│   ├── init/                          # Бутстрап локальной базы: схема notifier, роли migrator, api, worker, collector
+│   ├── migrations/                    # Миграции goose, пишутся руками: {nnn}__{name}.sql, только вперёд
+│   └── schema/                        # Схема каждой таблицы, генерируется make migrate; руками не правится
 ├── tests/
 │   └── e2e/                           # Playwright (TypeScript), тестирование API
 │       ├── fixtures/                  # Клиенты API и эмулятора, генераторы данных
 │       └── specs/                     # Сценарии
-├── build/                             # Dockerfile (multi-stage: notifier, emulator)
+├── build/                             # Dockerfile (multi-stage; сейчас таргет notifier, позже emulator)
 ├── scripts/                           # Скрипты разработки; Makefile вызывает их (gen.sh — lint, bundle, ogen)
 ├── docs/                              # Схемы и ADR
-├── docker-compose.yaml                # Локальный стенд (пока не создан)
-├── Makefile                           # Точка входа для команд разработки: make gen
+├── docker-compose.yaml                # Локальный стенд: сейчас postgres и migrate
+├── Makefile                           # Команды разработки: gen, up, down, reset, migrate, psql, ai-setup
 ├── .golangci.yaml                     # Конфигурация golangci-lint
 ├── go.mod
 ├── AGENTS.md                          # Контекст для ИИ-агентов

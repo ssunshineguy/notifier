@@ -4,14 +4,14 @@ run:
   timeout: 5m
 
 linters:
-  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
   enable:
-    - bodyclose # unclosed HTTP response bodies: client delivery, Information Services
-    - rowserrcheck # unchecked rows.Err()
-    - sqlclosecheck # unclosed rows/statements
-    - contextcheck # context not propagated to calls
-    - noctx # HTTP requests without context
-    - errorlint # error comparison without errors.Is/As
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - contextcheck
+    - noctx
+    - errorlint
     - gosec
     - revive
     - misspell
