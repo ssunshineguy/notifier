@@ -39,7 +39,7 @@ alwaysApply: false
 - Every operation has `tags`, `summary`, `description` and an example for its request body and success response.
 - Success is always `200`; do not use `201`, `204` or other `2xx`.
 - Every business operation takes the `X-Request-ID` parameter and returns it as a response header.
-- Authentication is the `clientId` security scheme, applied globally. Public endpoints (health probes) set `security: []`.
+- Authentication is the `clientID` security scheme, applied globally. Public endpoints (health probes) set `security: []`.
 - Errors use `application/problem+json` through the shared responses in `components/responses/`.
 - Non-error outcomes are never `problem+json`, even with a `4xx` code. Example: a repeated create
   returns `409` with a regular `application/json` body carrying the existing `notification_id`.

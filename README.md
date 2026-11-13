@@ -259,7 +259,7 @@ make down      # остановить стенд, сохранив данные
 ## Структура репозитория
 
 ```
-├── ai/                                # Источник AI-окружения, в .claude/ доставляет scripts/ai-setup.sh
+├── ai/                                # Исходники AI-окружения для Claude Code и Codex, установка через make ai-setup
 │   ├── rules/                         # Правила по слоям, подгружаются по paths: во frontmatter
 │   ├── skills/                        # Workflow'ы для частых задач
 │   └── agents/                        # Guards: read-only подагенты-ревьюеры
