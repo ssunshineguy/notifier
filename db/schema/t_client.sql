@@ -4,7 +4,7 @@
 CREATE TABLE notifier.t_client (
     client_id text NOT NULL,
     callback_url text NOT NULL,
-    max_lifetime_sec integer,
+    max_lifetime_sec integer NOT NULL,
     callback_timeout_ms integer,
     created_dt timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT ck_client_callback_timeout_ms CHECK ((callback_timeout_ms > 0)),

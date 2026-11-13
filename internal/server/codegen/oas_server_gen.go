@@ -42,7 +42,7 @@ type Handler interface {
 	// does not cause restarts.
 	//
 	// GET /health/live
-	GetLiveness(ctx context.Context) (*Health, error)
+	GetLiveness(ctx context.Context) (GetLivenessRes, error)
 	// GetNotification implements getNotification operation.
 	//
 	// Returns the parameters of an active notification. A stopped notification is not visible: the request

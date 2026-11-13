@@ -9,6 +9,10 @@ type DeleteNotificationRes interface {
 	deleteNotificationRes()
 }
 
+type GetLivenessRes interface {
+	getLivenessRes()
+}
+
 type GetNotificationRes interface {
 	getNotificationRes()
 }

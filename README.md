@@ -234,7 +234,7 @@ sequenceDiagram
 | Область | Допущение прототипа |
 | --- | --- |
 | Входящие запросы | Вызов идёт напрямую в Notifier API с заголовком `X-Client-ID`. OAuth сервиса и API Gateway нет |
-| Справочные данные | Directory за рамками прототипа, поэтому используется таблица `t_client` внутри сервиса. В ней для клиента можно переопределить настройки по умолчанию: максимальный срок жизни нотификации (по умолчанию 180 дней; `deadline_dt` не может быть позже `start_dt` плюс этот срок, чтобы нотификации не жили вечно) и таймаут ответа клиента при доставке (по умолчанию 1 с). |
+| Справочные данные | Directory за рамками прототипа, поэтому используется таблица `t_client` внутри сервиса. В ней у каждого клиента задан максимальный срок жизни нотификации (обязателен; `deadline_dt` не может быть позже `start_dt` плюс этот срок, чтобы нотификации не жили вечно), а также можно переопределить таймаут ответа клиента при доставке (по умолчанию 1 с). |
 | Проверка условия | Вместо Information Services используется эмулятор. |
 | Эксплуатация | За рамками прототипа остались трассировка, мониторинг, Sentry, Vault, динамическая конфигурация и эксперименты. |
 | Сборка и поставка | Предусмотрена локальная сборка Docker-образа. CI/CD за рамками прототипа. |
@@ -243,12 +243,47 @@ sequenceDiagram
 
 Нужны Docker и Go 1.27.
 
+В `configs/config.yaml` адрес API задаёт `api.listen_addr`, целевой минимум и предел соединений PostgreSQL на процесс API задают `database.min_conns` и `database.max_conns`, а число одновременно обрабатываемых HTTP-запросов задаёт `api.max_in_flight`. Когда все места заняты, до `api.max_queued` запросов могут ждать свободного места до `api.slot_wait_timeout_ms` миллисекунд (по умолчанию 100). Если очередь заполнена или время ожидания истекло, API отвечает `429`. Значение `0` у `api.max_queued` или `api.slot_wait_timeout_ms` отключает ожидание. Запросы к `/health/live` и `/health/ready` проходят независимо от этого лимита.
+
+`api.request_timeout_ms` задаёт общий бюджет запроса после чтения заголовков. По умолчанию это 2000 мс на очередь, чтение тела и обработку. По истечении общего бюджета API отвечает `503`. Если раньше сработал отдельный лимит ожидания места, API отвечает `429`.
+
+`database.operation_timeout_sec` задаёт общий таймаут на одну SQL-операцию API, включая ожидание соединения и чтение результата. По умолчанию это 1 секунда.
+
 ```bash
 make migrate   # поднять PostgreSQL, применить миграции и обновить db/schema
 make psql      # открыть psql в локальной базе
 make down      # остановить стенд, данные остаются в volume
 make reset     # удалить базу целиком; db/init выполнится заново при следующем старте
 ```
+
+После `make migrate` добавь клиента для локальной проверки через `make psql`:
+
+```sql
+INSERT INTO notifier.t_client (client_id, callback_url, max_lifetime_sec)
+VALUES ('curl-demo', 'http://example.test/callback', 86400)
+ON CONFLICT (client_id) DO NOTHING;
+```
+
+Выйди из `psql` командой `\q`. При запуске с хоста сделай временную копию конфига с адресом опубликованного порта PostgreSQL:
+
+```bash
+notifier_local_config=$(mktemp)
+sed 's/@postgres:5432/@127.0.0.1:5432/g' configs/config.yaml > "$notifier_local_config"
+go run ./cmd/notifier -config "$notifier_local_config" api
+rm "$notifier_local_config"
+```
+
+В другом терминале отправь запрос на сервер:
+
+```bash
+curl -i http://127.0.0.1:8080/v1/notifications \
+  -H 'Content-Type: application/json' \
+  -H 'X-Client-ID: curl-demo' \
+  -H 'X-Request-ID: curl-demo-1' \
+  --data '{"external_id":"curl-demo-order","notification_params":[{"type":"time","operation":"after","value":"2026-12-01T09:00:00Z"}]}'
+```
+
+При первом запросе с этим `external_id` сервер отвечает `200 OK` с `notification_id`. Останови сервер через `Ctrl+C`.
 
 Для работы с AI-агентами один раз после клонирования и после изменений в `ai/`:
 
@@ -282,7 +317,7 @@ make ai-setup  # подключить правила, guards и скиллы и�
 │   ├── redocly.yaml                   # Настройки lint и bundle
 │   └── ogen.yaml                      # Настройки кодогенерации: только сервер, без OpenTelemetry
 ├── cmd/
-│   ├── notifier/                      # Точка входа: режимы api | worker | collector | migrate
+│   ├── notifier/                      # Точка входа: работают api и migrate
 │   └── emulator/                      # Эмулятор Information Service и приёмник callback'ов
 ├── configs/
 │   └── config.yaml                    # Единственный конфиг, кладётся в образ

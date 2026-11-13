@@ -55,7 +55,9 @@ func run() error {
 	switch mode {
 	case "migrate":
 		return application.Migrate(ctx, cfg)
-	case "api", "worker", "collector":
+	case "api":
+		return application.RunAPI(ctx, cfg)
+	case "worker", "collector":
 		return fmt.Errorf("mode %q is not implemented yet", mode)
 	default:
 		return fmt.Errorf("unknown mode %q", mode)

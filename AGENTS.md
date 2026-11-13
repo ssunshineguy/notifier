@@ -9,7 +9,7 @@ The service is a single `notifier` binary that runs in different modes:
 
 | Mode | Purpose | Lifecycle |
 | --- | --- | --- |
-| `api` | CRUD of notifications over HTTP | long-running process |
+| `api` | HTTP notification API (currently supports creation) | long-running process |
 | `worker` | checks conditions and delivers events to clients | long-running process |
 | `collector` | removes stopped notifications in batches | runs once and exits, started on a schedule |
 | `migrate` | applies database migrations | one-off run before the services start |

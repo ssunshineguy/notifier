@@ -15,7 +15,10 @@ get:
           schema:
             $ref: ../components/schemas/common/Health.yaml
     "503":
-      description: A dependency is unavailable.
+      description: A dependency is unavailable or the request time limit expired.
+      headers:
+        X-Request-ID:
+          $ref: ../components/headers/RequestId.yaml
       content:
         application/problem+json:
           schema:
