@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerates API bundles and server code from the OpenAPI specs.
+# Regenerates API bundles and Go code from the OpenAPI specs.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,5 +22,12 @@ generate_server() {
 
 generate_server notifier/api/bundle/openapi.yaml notifier/internal/server/codegen
 generate_server emulator/api/bundle/openapi.yaml emulator/internal/server/codegen
+
+go tool ogen \
+  --config build/openapi/ogen-infoservice-client.yaml \
+  --target notifier/internal/interactions/infoservice/codegen \
+  --package codegen \
+  --clean \
+  emulator/api/bundle/openapi.yaml 2> >(grep -v -E 'not canonical|will not be enforced|Convenient errors' >&2)
 
 go build ./...
