@@ -28,9 +28,9 @@ func (h *Handler) SetClientOverride(_ context.Context, req codegen.ClientOverrid
 				},
 			}, nil
 		}
-		h.store.SetTime(params.ClientID, value)
+		h.clients.SetTime(params.ClientID, value)
 	case codegen.ClientPriceOverrideClientOverride:
-		h.store.SetPrice(params.ClientID, req.ClientPriceOverride.Value)
+		h.clients.SetPrice(params.ClientID, req.ClientPriceOverride.Value)
 	default:
 		return nil, errors.New("unexpected client override type")
 	}
@@ -39,19 +39,19 @@ func (h *Handler) SetClientOverride(_ context.Context, req codegen.ClientOverrid
 
 // ResetClientOverrides drops the client's Information Service values.
 func (h *Handler) ResetClientOverrides(_ context.Context, params codegen.ResetClientOverridesParams) (codegen.ResetClientOverridesRes, error) {
-	h.store.ResetClient(params.ClientID)
+	h.clients.ResetClient(params.ClientID)
 	return &codegen.OverrideApplied{XRequestID: codegen.NewOptString(params.XRequestID)}, nil
 }
 
 // SetCallbackOverride stores the status and delay for a notification.
 func (h *Handler) SetCallbackOverride(_ context.Context, req *codegen.CallbackOverride, params codegen.SetCallbackOverrideParams) (codegen.SetCallbackOverrideRes, error) {
 	delay := time.Duration(req.ResponseTimeout) * time.Millisecond
-	h.store.SetCallback(uuid.UUID(params.NotificationID), int(req.StatusCode), delay)
+	h.callbacks.SetCallback(uuid.UUID(params.NotificationID), int(req.StatusCode), delay)
 	return &codegen.OverrideApplied{XRequestID: codegen.NewOptString(params.XRequestID)}, nil
 }
 
 // ResetCallbackOverride drops the response override for a notification.
 func (h *Handler) ResetCallbackOverride(_ context.Context, params codegen.ResetCallbackOverrideParams) (codegen.ResetCallbackOverrideRes, error) {
-	h.store.ResetCallback(uuid.UUID(params.NotificationID))
+	h.callbacks.ResetCallback(uuid.UUID(params.NotificationID))
 	return &codegen.OverrideApplied{XRequestID: codegen.NewOptString(params.XRequestID)}, nil
 }

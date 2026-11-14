@@ -48,6 +48,8 @@ func TestClientOverrides(t *testing.T) {
 		request(t, router, http.MethodGet, "/time", "alice", "", 200, `{"time":"2026-12-01T09:00:00.123456789Z"}`)
 		request(t, router, http.MethodGet, "/price", "alice", "", 200, `{"price":19990}`)
 		request(t, router, http.MethodGet, "/price", "bob", "", 200, `{"price":9007199254740993}`)
+		defaultTime := fmt.Sprintf(`{"time":%q}`, time.Now().UTC().Format(time.RFC3339Nano))
+		request(t, router, http.MethodGet, "/time", "bob", "", 200, defaultTime)
 		request(t, router, http.MethodPost, clientOverrides+"alice", "", `{"parameter":"price","value":199.90}`, 400, "")
 		request(t, router, http.MethodPost, clientOverrides+"alice", "", `{"parameter":"time","value":"tomorrow"}`, 400, "")
 		request(t, router, http.MethodPost, clientOverrides+"alice", "", `{"parameter":"time","value":"0000-01-01T00:00:00+01:00"}`, 400, "")
@@ -56,12 +58,14 @@ func TestClientOverrides(t *testing.T) {
 		request(t, router, http.MethodPost, clientOverrides+"alice", "", `{"parameter":"price","value":5}`, 200, "")
 		request(t, router, http.MethodGet, "/price", "alice", "", 200, `{"price":5}`)
 		request(t, router, http.MethodGet, "/time", "alice", "", 200, `{"time":"2026-12-01T09:00:00.123456789Z"}`)
+		request(t, router, http.MethodPost, clientOverrides+"alice", "", `{"parameter":"time","value":"0001-01-01T00:00:00Z"}`, 200, "")
+		request(t, router, http.MethodGet, "/time", "alice", "", 200, `{"time":"0001-01-01T00:00:00Z"}`)
+		request(t, router, http.MethodGet, "/price", "alice", "", 200, `{"price":5}`)
 
 		request(t, router, http.MethodDelete, clientOverrides+"alice", "", "", 200, "")
 		request(t, router, http.MethodDelete, clientOverrides+"alice", "", "", 200, "")
 		request(t, router, http.MethodGet, "/price", "alice", "", 200, `{"price":0}`)
 		request(t, router, http.MethodGet, "/price", "bob", "", 200, `{"price":9007199254740993}`)
-		defaultTime := fmt.Sprintf(`{"time":%q}`, time.Now().UTC().Format(time.RFC3339Nano))
 		request(t, router, http.MethodGet, "/time", "alice", "", 200, defaultTime)
 	})
 }
@@ -139,6 +143,29 @@ func TestCallbackStopsWaitingWhenCanceled(t *testing.T) {
 	})
 }
 
+func TestPresetCachesAreIndependent(t *testing.T) {
+	router, err := NewRouter()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const id = firstNotification
+	clientPath := clientOverrides + id
+	callbackPath := callbackOverrides + id
+	const pricePreset = `{"parameter":"price","value":19990}`
+	const callbackPreset = `{"status_code":201,"response_timeout":0}`
+
+	request(t, router, http.MethodPost, clientPath, "", pricePreset, 200, "")
+	request(t, router, http.MethodPost, callbackPath, "", callbackPreset, 200, "")
+	request(t, router, http.MethodDelete, clientPath, "", "", 200, "")
+	request(t, router, http.MethodGet, "/price", id, "", 200, `{"price":0}`)
+	request(t, router, http.MethodPost, "/callback", "", event(id), 201, "")
+
+	request(t, router, http.MethodPost, clientPath, "", pricePreset, 200, "")
+	request(t, router, http.MethodDelete, callbackPath, "", "", 200, "")
+	request(t, router, http.MethodPost, "/callback", "", event(id), 200, "")
+	request(t, router, http.MethodGet, "/price", id, "", 200, `{"price":19990}`)
+}
+
 func TestOverrideRequestHeaders(t *testing.T) {
 	router, err := NewRouter()
 	if err != nil {
@@ -164,15 +191,15 @@ func TestOverrideRequestHeaders(t *testing.T) {
 	request(t, router, http.MethodGet, "/price", "alice", "", 200, `{"price":0}`)
 }
 
-func TestConcurrentClientOverrides(t *testing.T) {
+func TestConcurrentPresetRequests(t *testing.T) {
 	router, err := NewRouter()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var clients sync.WaitGroup
+	var requests sync.WaitGroup
 	start := make(chan struct{})
 	for id := range 8 {
-		clients.Go(func() {
+		requests.Go(func() {
 			<-start
 			clientID := fmt.Sprintf("client-%d", id)
 			path := clientOverrides + clientID
@@ -185,9 +212,21 @@ func TestConcurrentClientOverrides(t *testing.T) {
 				request(t, router, http.MethodGet, "/price", clientID, "", 200, `{"price":0}`)
 			}
 		})
+		requests.Go(func() {
+			<-start
+			notificationID := fmt.Sprintf("0193a1f4-6c2e-7d55-9b1a-%012d", id)
+			path := callbackOverrides + notificationID
+			const body = `{"status_code":201,"response_timeout":0}`
+			for range 10 {
+				request(t, router, http.MethodPost, path, "", body, 200, "")
+				request(t, router, http.MethodPost, "/callback", "", event(notificationID), 201, "")
+				request(t, router, http.MethodDelete, path, "", "", 200, "")
+				request(t, router, http.MethodPost, "/callback", "", event(notificationID), 200, "")
+			}
+		})
 	}
 	close(start)
-	clients.Wait()
+	requests.Wait()
 }
 
 func request(t *testing.T, router http.Handler, method, path, clientID, body string, status int, response string) {

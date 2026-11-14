@@ -22,9 +22,12 @@ import (
 
 var loggableRequestID = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
 
-// NewRouter creates the emulator's HTTP router with an empty override store.
+// NewRouter creates the emulator's HTTP router with fresh preset caches.
 func NewRouter() (http.Handler, error) {
-	return codegen.NewServer(handlers.New(memory.New()), codegen.WithErrorHandler(handleError))
+	return codegen.NewServer(
+		handlers.New(memory.NewClientCache(), memory.NewCallbackCache()),
+		codegen.WithErrorHandler(handleError),
+	)
 }
 
 func handleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {

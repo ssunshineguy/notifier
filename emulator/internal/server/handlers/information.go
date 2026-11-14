@@ -9,8 +9,10 @@ import (
 
 // GetTime returns the emulated clock value.
 func (h *Handler) GetTime(_ context.Context, params codegen.GetTimeParams) (codegen.GetTimeRes, error) {
-	value, found := h.store.Time(params.XClientID)
-	if !found {
+	var value time.Time
+	if preset := h.clients.Time(params.XClientID); preset != nil {
+		value = *preset
+	} else {
 		value = time.Now().UTC()
 	}
 	return &codegen.TimeHeaders{
@@ -23,6 +25,6 @@ func (h *Handler) GetTime(_ context.Context, params codegen.GetTimeParams) (code
 func (h *Handler) GetPrice(_ context.Context, params codegen.GetPriceParams) (codegen.GetPriceRes, error) {
 	return &codegen.PriceHeaders{
 		XRequestID: codegen.NewOptString(params.XRequestID),
-		Response:   codegen.Price{Price: h.store.Price(params.XClientID)},
+		Response:   codegen.Price{Price: h.clients.Price(params.XClientID)},
 	}, nil
 }

@@ -6,13 +6,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// Store is the emulator's override storage.
-type Store interface {
-	Time(clientID string) (time.Time, bool)
+// ClientStore provides the presets used by the Information Service endpoints.
+type ClientStore interface {
+	Time(clientID string) *time.Time
 	Price(clientID string) int64
 	SetTime(clientID string, value time.Time)
 	SetPrice(clientID string, value int64)
 	ResetClient(clientID string)
+}
+
+// CallbackStore provides the response presets used by the callback endpoint.
+type CallbackStore interface {
 	Callback(notificationID uuid.UUID) (int, time.Duration, bool)
 	SetCallback(notificationID uuid.UUID, status int, delay time.Duration)
 	ResetCallback(notificationID uuid.UUID)
@@ -20,10 +24,11 @@ type Store interface {
 
 // Handler implements the emulator's HTTP operations.
 type Handler struct {
-	store Store
+	clients   ClientStore
+	callbacks CallbackStore
 }
 
 // New creates an emulator handler.
-func New(store Store) *Handler {
-	return &Handler{store: store}
+func New(clients ClientStore, callbacks CallbackStore) *Handler {
+	return &Handler{clients: clients, callbacks: callbacks}
 }
