@@ -23,6 +23,7 @@ alwaysApply: false
 | `notifier/internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |
 | `internal/health` | Serve internal probes on loopback and coordinate their listener lifecycle with the service. |
 | `notifier/internal/storage/postgres` | Own SQL, PostgreSQL transactions, row mapping and database error translation. |
+| `notifier/internal/worker` | Own polling loops, batch concurrency and cancellation of notification processing. |
 | `notifier/internal/interactions` | Own outbound transport. Keep domain policy in the caller or in core. |
 | `emulator/cmd/emulator` | Parse listen flags and handle process signals. |
 | `emulator/internal/application` | Wire the emulator's router and own the HTTP server lifecycle. |
@@ -38,6 +39,7 @@ alwaysApply: false
 - Pass the request or job context into I/O. Derive operation deadlines from that context and release them with the corresponding cancel function.
 - Give long-lived resources an owner. Tie background work to shutdown and bound concurrent work and wait queues using the existing limits.
 - Release acquired resources on every exit path. Check errors that affect the response, persisted state or cleanup. Keep error classification with `errors.Is` or `errors.As` across wrapping.
+- Give the claim and every goroutine in its batch the same cycle context. Wait for the batch to exit before starting another one. The notification reservation must cover the cycle budget. The scheduling delay and reservation duration live under `notification`.
 
 ## PostgreSQL runtime
 

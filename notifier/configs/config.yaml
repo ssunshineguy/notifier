@@ -6,6 +6,11 @@ api:
   slot_wait_timeout_ms: 100
   request_timeout_ms: 2000
 
+worker:
+  workers: 2
+  batch_size: 8
+  cycle_timeout_ms: 2000
+
 database:
   min_conns: 4
   max_conns: 8
@@ -17,3 +22,4 @@ database:
 
 notification:
   scheduled_time_sec: 10
+  lock_duration_ms: 2000

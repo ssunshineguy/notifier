@@ -1,0 +1,46 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/ssunshineguy/notifier/notifier/internal/config"
+	"github.com/ssunshineguy/notifier/notifier/internal/core"
+	"github.com/ssunshineguy/notifier/notifier/internal/storage/postgres"
+	"github.com/ssunshineguy/notifier/notifier/internal/worker"
+)
+
+// RunWorker owns the worker database pool and runs polling until shutdown.
+func RunWorker(ctx context.Context, cfg config.Config) error {
+	poolConfig, err := pgxpool.ParseConfig(cfg.Database.WorkerDSN)
+	if err != nil {
+		return errors.New("invalid worker database configuration")
+	}
+	poolConfig.MinConns = cfg.Database.MinConns
+	poolConfig.MaxConns = cfg.Database.MaxConns
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return fmt.Errorf("open worker database pool: %w", err)
+	}
+	defer pool.Close()
+
+	store := postgres.NewStore(pool, time.Duration(cfg.Database.OperationTimeoutSec)*time.Second)
+	settings := worker.Settings{
+		Workers:      cfg.Worker.Workers,
+		BatchSize:    cfg.Worker.BatchSize,
+		CycleTimeout: time.Duration(cfg.Worker.CycleTimeoutMS) * time.Millisecond,
+		LockDuration: time.Duration(cfg.Notification.LockDurationMS) * time.Millisecond,
+	}
+	slog.InfoContext(ctx, "starting notification worker",
+		"workers", cfg.Worker.Workers, "batch_size", cfg.Worker.BatchSize,
+		"cycle_timeout_ms", cfg.Worker.CycleTimeoutMS, "lock_duration_ms", cfg.Notification.LockDurationMS)
+	worker.Run(ctx, store, processNotification, settings)
+	return nil
+}
+
+func processNotification(context.Context, core.NotificationClaim) {}
