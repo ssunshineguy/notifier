@@ -4,6 +4,7 @@ package worker
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
@@ -22,41 +23,46 @@ type Settings struct {
 	LockDuration time.Duration
 }
 
-// Run starts polling loops and joins their processors on shutdown.
+// Run polls for notifications until ctx is canceled.
 func Run(ctx context.Context, store Store, process func(context.Context, core.NotificationClaim), settings Settings) {
 	var loops sync.WaitGroup
 	for range settings.Workers {
 		loops.Go(func() {
+			var busy atomic.Int64
 			for ctx.Err() == nil {
-				runCycle(ctx, store, process, settings)
+				cycleCtx, cancel := context.WithTimeout(ctx, settings.CycleTimeout)
+				runCycle(cycleCtx, store, process, settings, &busy)
+				<-cycleCtx.Done()
+				cancel()
 			}
 		})
 	}
 	loops.Wait()
 }
 
-func runCycle(ctx context.Context, store Store, process func(context.Context, core.NotificationClaim), settings Settings) {
-	cycleCtx, cancel := context.WithTimeout(ctx, settings.CycleTimeout)
-	defer cancel()
-
-	batch, err := store.ClaimNotifications(cycleCtx, settings.BatchSize, settings.LockDuration)
-	if err != nil || len(batch) == 0 {
-		<-cycleCtx.Done()
+func runCycle(ctx context.Context, store Store, process func(context.Context, core.NotificationClaim), settings Settings, busy *atomic.Int64) {
+	if ctx.Err() != nil {
 		return
 	}
 
-	var tasks sync.WaitGroup
-	for _, claim := range batch {
-		if cycleCtx.Err() != nil {
-			break
-		}
-		tasks.Go(func() {
-			process(cycleCtx, claim)
-		})
+	free := settings.BatchSize - int(busy.Load())
+	if free == 0 {
+		return
 	}
-	// The deadline asks handlers to exit so the next cycle can reuse their slots.
-	// For simplicity, we wait for the whole batch and accept that a stuck goroutine can stall this worker.
-	// We expect handlers to avoid mutexes and other waits that ignore cancellation.
-	// If handlers hang in practice, we will run them in child processes we can terminate.
-	tasks.Wait()
+
+	batch, err := store.ClaimNotifications(ctx, free, settings.LockDuration)
+	if err != nil {
+		return
+	}
+
+	for _, claim := range batch {
+		if ctx.Err() != nil {
+			return
+		}
+		busy.Add(1)
+		go func() {
+			defer busy.Add(-1)
+			process(ctx, claim)
+		}()
+	}
 }
