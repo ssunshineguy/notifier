@@ -2,18 +2,20 @@ title: Condition
 description: |
   Node of the condition tree. The `type` field selects the node kind:
 
-  - leaf conditions (`time`) check one fact;
+  - leaf conditions (`time`, `price`) check one fact;
   - groups (`and`, `or`) combine nested conditions, which can be leaves or
     other groups.
 
   New leaf kinds are added as new variants.
 oneOf:
   - $ref: ./TimeCondition.yaml
+  - $ref: ./PriceCondition.yaml
   - $ref: ./AndCondition.yaml
   - $ref: ./OrCondition.yaml
 discriminator:
   propertyName: type
   mapping:
     time: ./TimeCondition.yaml
+    price: ./PriceCondition.yaml
     and: ./AndCondition.yaml
     or: ./OrCondition.yaml

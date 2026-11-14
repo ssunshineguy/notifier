@@ -173,6 +173,46 @@ func (s *AndConditionType) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes ComparisonOperation as json.
+func (s ComparisonOperation) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ComparisonOperation from json.
+func (s *ComparisonOperation) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ComparisonOperation to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ComparisonOperation(v) {
+	case ComparisonOperationGreaterThan:
+		*s = ComparisonOperationGreaterThan
+	case ComparisonOperationLessThan:
+		*s = ComparisonOperationLessThan
+	default:
+		*s = ComparisonOperation(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ComparisonOperation) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ComparisonOperation) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes Condition as json.
 func (s Condition) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -194,6 +234,20 @@ func (s Condition) encodeFields(e *jx.Encoder) {
 			{
 				e.FieldStart("value")
 				json.EncodeDateTime(e, s.Value)
+			}
+		}
+	case PriceConditionCondition:
+		e.FieldStart("type")
+		e.Str("price")
+		{
+			s := s.PriceCondition
+			{
+				e.FieldStart("operation")
+				s.Operation.Encode(e)
+			}
+			{
+				e.FieldStart("value")
+				e.Int64(s.Value)
 			}
 		}
 	case AndConditionCondition:
@@ -253,6 +307,9 @@ func (s *Condition) Decode(d *jx.Decoder) error {
 				case "time":
 					s.Type = TimeConditionCondition
 					found = true
+				case "price":
+					s.Type = PriceConditionCondition
+					found = true
 				case "and":
 					s.Type = AndConditionCondition
 					found = true
@@ -275,6 +332,10 @@ func (s *Condition) Decode(d *jx.Decoder) error {
 	switch s.Type {
 	case TimeConditionCondition:
 		if err := s.TimeCondition.Decode(d); err != nil {
+			return err
+		}
+	case PriceConditionCondition:
+		if err := s.PriceCondition.Decode(d); err != nil {
 			return err
 		}
 	case AndConditionCondition:
@@ -1345,6 +1406,170 @@ func (s *OrConditionType) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *PriceCondition) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PriceCondition) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("type")
+		s.Type.Encode(e)
+	}
+	{
+		e.FieldStart("operation")
+		s.Operation.Encode(e)
+	}
+	{
+		e.FieldStart("value")
+		e.Int64(s.Value)
+	}
+}
+
+var jsonFieldsNameOfPriceCondition = [3]string{
+	0: "type",
+	1: "operation",
+	2: "value",
+}
+
+// Decode decodes PriceCondition from json.
+func (s *PriceCondition) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PriceCondition to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "type":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Type.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "operation":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Operation.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"operation\"")
+			}
+		case "value":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Value = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"value\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PriceCondition")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPriceCondition) {
+					name = jsonFieldsNameOfPriceCondition[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PriceCondition) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PriceCondition) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PriceConditionType as json.
+func (s PriceConditionType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PriceConditionType from json.
+func (s *PriceConditionType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PriceConditionType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PriceConditionType(v) {
+	case PriceConditionTypePrice:
+		*s = PriceConditionTypePrice
+	default:
+		*s = PriceConditionType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PriceConditionType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PriceConditionType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *Problem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -1658,44 +1883,6 @@ func (s *TimeCondition) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *TimeCondition) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes TimeConditionOperation as json.
-func (s TimeConditionOperation) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes TimeConditionOperation from json.
-func (s *TimeConditionOperation) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode TimeConditionOperation to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch TimeConditionOperation(v) {
-	case TimeConditionOperationAfter:
-		*s = TimeConditionOperationAfter
-	default:
-		*s = TimeConditionOperation(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s TimeConditionOperation) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *TimeConditionOperation) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

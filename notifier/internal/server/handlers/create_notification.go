@@ -156,7 +156,17 @@ func toCoreConditions(conditions []codegen.Condition) ([]core.Condition, error) 
 		switch condition.Type {
 		case codegen.TimeConditionCondition:
 			node.Type = core.ConditionTime
-			node.After = condition.TimeCondition.Value
+			node.Time = core.TimeCondition{
+				Operation: core.ComparisonOperation(condition.TimeCondition.Operation),
+				Threshold: condition.TimeCondition.Value,
+			}
+			continue
+		case codegen.PriceConditionCondition:
+			node.Type = core.ConditionPrice
+			node.Price = core.PriceCondition{
+				Operation: core.ComparisonOperation(condition.PriceCondition.Operation),
+				Threshold: condition.PriceCondition.Value,
+			}
 			continue
 		case codegen.AndConditionCondition:
 			node.Type = core.ConditionAnd

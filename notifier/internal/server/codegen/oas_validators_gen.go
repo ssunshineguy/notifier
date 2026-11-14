@@ -77,10 +77,26 @@ func (s AndConditionType) Validate() error {
 	}
 }
 
+func (s ComparisonOperation) Validate() error {
+	switch s {
+	case "greater_than":
+		return nil
+	case "less_than":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s Condition) Validate() error {
 	switch s.Type {
 	case TimeConditionCondition:
 		if err := s.TimeCondition.Validate(); err != nil {
+			return err
+		}
+		return nil
+	case PriceConditionCondition:
+		if err := s.PriceCondition.Validate(); err != nil {
 			return err
 		}
 		return nil
@@ -369,6 +385,70 @@ func (s OrConditionType) Validate() error {
 	}
 }
 
+func (s *PriceCondition) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Type.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "type",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Operation.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "operation",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Value)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "value",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s PriceConditionType) Validate() error {
+	switch s {
+	case "price":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *TimeCondition) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -401,15 +481,6 @@ func (s *TimeCondition) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s TimeConditionOperation) Validate() error {
-	switch s {
-	case "after":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s TimeConditionType) Validate() error {

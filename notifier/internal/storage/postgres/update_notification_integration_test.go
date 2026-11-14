@@ -27,10 +27,11 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 	deadline := start.Add(24 * time.Hour)
 	scheduled := start.Add(time.Minute)
 	lockUntil := start.Add(2 * time.Minute)
-	original := []core.Condition{{Type: core.ConditionTime, After: start.Add(time.Hour)}}
+	original := []core.Condition{{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: start.Add(time.Hour)}}}
 	replacement := []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{
-		{Type: core.ConditionTime, After: start.Add(2 * time.Hour)},
-		{Type: core.ConditionTime, After: start.Add(3 * time.Hour)},
+		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: start.Add(2 * time.Hour)}},
+		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.LessThan, Threshold: start.Add(3 * time.Hour)}},
+		{Type: core.ConditionPrice, Price: core.PriceCondition{Operation: core.LessThan, Threshold: 19990}},
 	}}}
 	id, err := store.CreateNotification(ctx, core.Notification{
 		ClientID: owner, ExternalID: externalID, Params: original,

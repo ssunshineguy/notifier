@@ -20,7 +20,7 @@ func TestDeleteNotificationIntegration(t *testing.T) {
 	const owner = "delete-owner"
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	scheduled := start.Add(time.Minute)
-	conditions := []core.Condition{{Type: core.ConditionTime, After: start.Add(2 * time.Minute)}}
+	conditions := []core.Condition{{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: start.Add(2 * time.Minute)}}}
 
 	create := func(t *testing.T, externalID string) uuid.UUID {
 		t.Helper()

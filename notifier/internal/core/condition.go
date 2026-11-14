@@ -1,9 +1,6 @@
 package core
 
-import (
-	"fmt"
-	"time"
-)
+import "fmt"
 
 const (
 	maxGroupDepth = 3
@@ -14,8 +11,10 @@ const (
 type ConditionType string
 
 const (
-	// ConditionTime becomes true after its configured instant.
+	// ConditionTime compares a time value with a configured threshold.
 	ConditionTime ConditionType = "time"
+	// ConditionPrice compares the current price with a configured threshold.
+	ConditionPrice ConditionType = "price"
 	// ConditionAnd becomes true when all child conditions hold.
 	ConditionAnd ConditionType = "and"
 	// ConditionOr becomes true when any child condition holds.
@@ -24,9 +23,9 @@ const (
 
 // Condition is a node of the condition tree: a leaf or an and/or group.
 type Condition struct {
-	Type ConditionType
-	// After is set for time leaves: the leaf is met once the current time is later than After.
-	After time.Time
+	Type  ConditionType
+	Time  TimeCondition
+	Price PriceCondition
 	// Conditions is set for groups.
 	Conditions []Condition
 }
