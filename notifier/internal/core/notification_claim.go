@@ -11,3 +11,9 @@ type NotificationClaim struct {
 	ID        uuid.UUID
 	LockUntil time.Time
 }
+
+// NotificationConditions holds the client and condition tree for an active claim.
+type NotificationConditions struct {
+	ClientID string
+	Params   []Condition
+}
