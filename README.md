@@ -241,7 +241,7 @@ sequenceDiagram
 
 ## Локальный запуск
 
-Нужны Docker Compose и `make`. `make up` запускает PostgreSQL, применяет миграции и ждёт готовности API. Адрес API — `http://127.0.0.1:8080`.
+Нужны Docker Compose и `make`. `make up` запускает PostgreSQL, применяет миграции и ждёт готовности Notifier API и эмулятора. С хоста API доступен на `http://127.0.0.1:8080`, эмулятор — на `http://127.0.0.1:8081`. Внутри сети Compose адрес эмулятора — `http://emulator:8081`.
 
 ```bash
 make up
@@ -254,58 +254,48 @@ make down      # остановить стенд, сохранив данные
 
 Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
 
-Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./internal/storage/postgres`. Сквозные сценарии Playwright запланированы.
+Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./notifier/internal/storage/postgres`. Сквозные сценарии Playwright запланированы.
 
 ## Структура репозитория
 
 ```
-├── ai/                                # Исходники AI-окружения для Claude Code и Codex, установка через make ai-setup
-│   ├── rules/                         # Правила по слоям, подгружаются по paths: во frontmatter
-│   ├── skills/                        # Workflow'ы для частых задач
-│   └── agents/                        # Guards: read-only подагенты-ревьюеры
-├── api/                               # Контракт API
-│   ├── spec/                          # Исходник OpenAPI-спецификации, разбитый по файлам
-│   │   ├── openapi.yaml               # Точка входа: info, servers, $ref на paths и components
-│   │   ├── paths/                     # Ручки, по файлу на путь; callback клиенту описан в createNotification
-│   │   └── components/                # schemas, parameters, headers, responses
-│   ├── bundle/                        # Собранная спецификация, вход для кодогенерации
-│   ├── redocly.yaml                   # Настройки lint и bundle
-│   └── ogen.yaml                      # Настройки кодогенерации: только сервер, без OpenTelemetry
-├── cmd/
-│   ├── notifier/                      # Точка входа: работают api и migrate
-│   └── emulator/                      # Эмулятор Information Service и приёмник callback'ов
-├── configs/
-│   └── config.yaml                    # Единственный конфиг, кладётся в образ
-├── internal/
-│   ├── application/                   # Сборка зависимостей и жизненный цикл каждого режима
-│   ├── config/                        # Структура конфига и загрузка
-│   ├── core/                          # Доменная логика без I/O: сущности, статусы, ретраи
-│   ├── server/                        # HTTP-слой
-│   │   ├── codegen/                   # Сгенерированный ogen-код, руками не правится
-│   │   ├── handlers/                  # Реализация ручек
-│   │   └── middleware/                # X-Client-ID, X-Request-ID, recover, логирование
-│   ├── worker/                        # Poller, lease через SKIP LOCKED, пул горутин
-│   ├── collector/                     # Пакетная очистка остановленных нотификаций
-│   ├── interactions/                  # Исходящие вызовы
-│   │   ├── infoservice/               # Клиенты источников условий
-│   │   └── callback/                  # Доставка уведомления клиенту
-│   └── storage/
-│       └── postgres/                  # Репозиторий и SQL
-├── db/
-│   ├── init/                          # Бутстрап локальной базы: схема notifier, роли migrator, api, worker, collector
-│   ├── migrations/                    # Миграции goose, пишутся руками: {nnn}__{name}.sql, только вперёд
-│   └── schema/                        # Схема каждой таблицы, генерируется make migrate; руками не правится
-├── tests/
-│   └── e2e/                           # Заготовка тестов API на Playwright (TypeScript)
-│       ├── fixtures/                  # Клиенты API и эмулятора, генераторы данных
-│       └── specs/                     # Сценарии
-├── build/                             # Dockerfile (multi-stage; сейчас таргет notifier, позже emulator)
-├── scripts/                           # Скрипты разработки; Makefile вызывает их (gen.sh — lint, bundle, ogen)
+├── notifier/
+│   ├── api/                           # OpenAPI Notifier: исходники в spec/, бандл в bundle/
+│   ├── cmd/notifier/                  # Точка входа: режимы api и migrate
+│   ├── configs/config.yaml            # Конфигурация Notifier
+│   ├── db/
+│   │   ├── init/                      # Бутстрап PostgreSQL
+│   │   ├── migrations/                # Миграции goose
+│   │   └── schema/                    # Дампы схемы, генерируются через make migrate
+│   └── internal/
+│       ├── application/               # Зависимости и жизненный цикл режимов
+│       ├── config/                    # Загрузка конфигурации
+│       ├── core/                      # Доменная логика
+│       ├── server/                    # Ogen-код, HTTP-обработчики и middleware
+│       ├── storage/postgres/          # Репозиторий и SQL
+│       ├── interactions/              # Исходящие вызовы
+│       ├── worker/                    # Проверка условий и доставка
+│       └── collector/                 # Очистка остановленных нотификаций
+├── emulator/
+│   ├── api/                           # OpenAPI эмулятора: исходники в spec/, бандл в bundle/
+│   ├── cmd/emulator/                  # Точка входа эмулятора
+│   └── internal/
+│       ├── application/               # Зависимости и жизненный цикл эмулятора
+│       ├── server/                    # Ogen-код и HTTP-обработчики
+│       └── storage/memory/            # Пресеты в памяти
+├── internal/                          # Общие пакеты обоих сервисов
+│   ├── health/                        # Внутренние пробы и управление слушателями
+│   ├── logging/                       # Контекст логирования и маскирование
+│   └── problem/                       # Ответы Problem Details
+├── ai/                                # Правила, скиллы и гварды для Claude Code и Codex
+├── tests/e2e/                         # Заготовки сценариев и фикстур Playwright
+├── build/                             # Dockerfile и общие настройки Redocly и ogen
+├── scripts/                           # Скрипты генерации, схемы БД и настройки ИИ
 ├── docs/                              # Схемы и ADR
-├── docker-compose.yaml                # Локальный стенд: postgres, migrate и api
-├── Makefile                           # Команды разработки: gen, up, down, reset, migrate, psql, ai-setup
+├── docker-compose.yaml                # PostgreSQL, миграции, API и эмулятор
+├── Makefile                           # Команды разработки
 ├── .golangci.yaml                     # Конфигурация golangci-lint
-├── go.mod
+├── go.mod                             # Общий Go-модуль
 ├── AGENTS.md                          # Контекст для ИИ-агентов
 ├── CLAUDE.md                          # Подключает AGENTS.md для Claude Code
 └── README.md                          # Этот файл

@@ -1,9 +1,12 @@
 ---
 description: Test changed Go behavior at the boundary that owns it
-globs: internal/**,cmd/notifier/**,tests/**
+globs: notifier/cmd/**,notifier/internal/**,emulator/cmd/**,emulator/internal/**,internal/**,tests/**
 paths:
   - internal/**
-  - cmd/notifier/**
+  - notifier/cmd/**
+  - notifier/internal/**
+  - emulator/cmd/**
+  - emulator/internal/**
   - tests/**
 alwaysApply: false
 ---
@@ -19,7 +22,7 @@ alwaysApply: false
 
 ## PostgreSQL integration tests
 
-- Put store tests beside the implementation in `internal/storage/postgres/*_integration_test.go` with `//go:build integration`. Use `notification_integration_test.go` as the first example.
+- Put store tests beside the implementation in `notifier/internal/storage/postgres/*_integration_test.go` with `//go:build integration`. Use `notification_integration_test.go` as the first example.
 - Use the existing `startPostgres(t)` helper. It uses a fresh Docker container with a random loopback port, applies the project's bootstrap SQL and migrations, and checks readiness with `SELECT 1`. The test connects as `notifier_api`. Keep containers, database state, and cleanup within the test.
 - Exercise the public store method. Use deterministic fixtures and verify returned values, ownership, and database errors relevant to the change. Seed state through existing store methods or targeted SQL in the disposable database. Keep dependent subtests serial.
-- Run `go test -tags=integration -count=1 ./internal/storage/postgres` for the store suite with Docker running. Run `go test ./...` for the default suite. A tagged test fails if its database cannot start.
+- Run `go test -tags=integration -count=1 ./notifier/internal/storage/postgres` for the store suite with Docker running. Run `go test ./...` for the default suite. A tagged test fails if its database cannot start.

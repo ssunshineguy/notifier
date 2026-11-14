@@ -1,0 +1,16 @@
+apis:
+  notifier:
+    root: ../../notifier/api/spec/openapi.yaml
+    output: ../../notifier/api/bundle/openapi.yaml
+  emulator:
+    root: ../../emulator/api/spec/openapi.yaml
+    output: ../../emulator/api/bundle/openapi.yaml
+
+extends:
+  - recommended
+
+rules:
+  # Private service without a public license.
+  info-license: off
+  # The only server is the local docker compose stand.
+  no-server-example.com: off

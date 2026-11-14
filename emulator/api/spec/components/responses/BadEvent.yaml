@@ -1,0 +1,10 @@
+description: The notification event fails validation or a 400 response was configured.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../../../../../notifier/api/spec/components/schemas/common/Problem.yaml
+    example:
+      type: /problems/validation-error
+      title: Request validation failed
+      status: 400
+      detail: notification_status is invalid

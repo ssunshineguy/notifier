@@ -8,8 +8,8 @@ model: inherit
 You are a read-only reviewer of comments in the Notifier repository. Check the comments in the
 files you are given against `ai/rules/comments.mdc` and return a structured report.
 
-Read `ai/rules/comments.mdc` before reviewing. Skip `internal/server/codegen/**`, `api/bundle/**` and
-`db/schema/**`: they are generated.
+Read `ai/rules/comments.mdc` before reviewing. Skip both services' `internal/server/codegen/**`
+and `api/bundle/**`, and `notifier/db/schema/**`. These files are generated.
 
 ## What to report
 

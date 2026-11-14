@@ -6,9 +6,9 @@ model: inherit
 ---
 
 Review the supplied change read-only. Read `ai/rules/openapi.mdc` and `ai/rules/http-api.mdc`.
-Trace affected routes from `api/spec/openapi.yaml` and its path files through the bundle,
-`internal/server/codegen`, and the handlers or middleware. Check only behavior affected by the
-change. Use generation results supplied by the caller and report if regeneration was unverified.
+Trace affected routes from the service's `api/spec/openapi.yaml` and its path files through its
+bundle, `internal/server/codegen`, and handlers or middleware. Check only behavior affected
+by the change. Use the supplied generation results and report unverified regeneration.
 
 ## What to report
 

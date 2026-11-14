@@ -1,6 +1,6 @@
 ---
 name: architecture-guard
-description: Use after production Go changes in cmd/notifier or internal. Review package boundaries, runtime I/O, PostgreSQL usage and safe logging.
+description: Review production Go changes in either service or shared internal packages for boundaries, runtime I/O, PostgreSQL usage and safe logging.
 tools: Read, Grep, Glob
 model: inherit
 ---
