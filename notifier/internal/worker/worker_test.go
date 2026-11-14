@@ -3,6 +3,7 @@ package worker_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -79,21 +80,26 @@ func TestRunStartsConfiguredWorkersAndBoundsEachBatch(t *testing.T) {
 	})
 }
 
-func TestRunImmediatelyClaimsAgainAfterProcessing(t *testing.T) {
+func TestRunWaitsForNextCycleAfterProcessing(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		start := time.Now()
 		first := core.NotificationClaim{ID: uuid.New()}
 		calls := 0
-		processed := false
+		processed := make(chan struct{})
 		store := claimFunc(func(context.Context, int, time.Duration) ([]core.NotificationClaim, error) {
 			calls++
 			if calls == 1 {
 				return []core.NotificationClaim{first}, nil
 			}
-			if !processed || time.Since(start) != 0 {
-				t.Errorf("next claim occurred before processing finished or waited: processed=%v elapsed=%v", processed, time.Since(start))
+			select {
+			case <-processed:
+			default:
+				t.Error("the first handler did not finish before the next claim")
+			}
+			if elapsed := time.Since(start); elapsed != defaultSettings.CycleTimeout {
+				t.Errorf("next claim after %v, want %v", elapsed, defaultSettings.CycleTimeout)
 			}
 			cancel()
 			return nil, nil
@@ -103,7 +109,7 @@ func TestRunImmediatelyClaimsAgainAfterProcessing(t *testing.T) {
 			if claim != first {
 				t.Errorf("processed claim = %+v, want %+v", claim, first)
 			}
-			processed = true
+			close(processed)
 		}, defaultSettings)
 		if calls != 2 {
 			t.Errorf("claims = %d, want 2", calls)
@@ -111,7 +117,7 @@ func TestRunImmediatelyClaimsAgainAfterProcessing(t *testing.T) {
 	})
 }
 
-func TestRunCancelsBatchAndWaitsForSlowHandler(t *testing.T) {
+func TestRunClaimsOnlyAvailableSlotsAfterCycleTimeout(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		settings := defaultSettings
 		settings.BatchSize = 2
@@ -122,44 +128,80 @@ func TestRunCancelsBatchAndWaitsForSlowHandler(t *testing.T) {
 		slow := core.NotificationClaim{ID: uuid.New()}
 		canceled := make(chan struct{})
 		release := make(chan struct{})
-		done := make(chan struct{})
 		store := claimFunc(func(_ context.Context, limit int, _ time.Duration) ([]core.NotificationClaim, error) {
 			calls++
 			if calls == 1 {
 				time.Sleep(500 * time.Millisecond)
 				return []core.NotificationClaim{slow, {ID: uuid.New()}}, nil
 			}
-			if limit != settings.BatchSize {
-				t.Errorf("next batch limit = %d, want %d", limit, settings.BatchSize)
+			if limit != 1 || time.Since(start) != settings.CycleTimeout {
+				t.Errorf("next batch limit = %d after %v, want one slot at the cycle deadline", limit, time.Since(start))
 			}
+			<-canceled
+			close(release)
 			cancel()
 			return nil, nil
 		})
 
-		go func() {
-			worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
-				if claim != slow {
-					return
-				}
-				<-ctx.Done()
-				if !errors.Is(ctx.Err(), context.DeadlineExceeded) || time.Since(start) != settings.CycleTimeout {
-					t.Errorf("handler cancellation = %v after %v", ctx.Err(), time.Since(start))
-				}
-				close(canceled)
-				<-release
-			}, settings)
-			close(done)
-		}()
-
-		<-canceled
-		synctest.Wait()
-		if calls != 1 {
-			t.Errorf("claims while the slow handler waits = %d, want 1", calls)
-		}
-		close(release)
-		<-done
+		worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
+			if claim != slow {
+				return
+			}
+			<-ctx.Done()
+			if !errors.Is(ctx.Err(), context.DeadlineExceeded) || time.Since(start) != settings.CycleTimeout {
+				t.Errorf("handler cancellation = %v after %v", ctx.Err(), time.Since(start))
+			}
+			close(canceled)
+			<-release
+		}, settings)
 		if calls != 2 {
 			t.Errorf("claims = %d, want 2", calls)
+		}
+	})
+}
+
+func TestRunSkipsClaimsWhileFullAndResumesAtNextCycle(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var calls atomic.Int32
+		started := make(chan struct{})
+		release := make(chan struct{})
+		done := make(chan struct{})
+		store := claimFunc(func(_ context.Context, limit int, _ time.Duration) ([]core.NotificationClaim, error) {
+			call := calls.Add(1)
+			if limit != 1 {
+				t.Errorf("claim limit = %d, want 1", limit)
+			}
+			if call == 1 {
+				return []core.NotificationClaim{{ID: uuid.New()}}, nil
+			}
+			cancel()
+			return nil, nil
+		})
+		go func() {
+			defer close(done)
+			worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
+				close(started)
+				<-release
+			}, defaultSettings)
+		}()
+
+		<-started
+		time.Sleep(5 * defaultSettings.CycleTimeout / 2)
+		synctest.Wait()
+		if calls := calls.Load(); calls != 1 {
+			t.Errorf("claims while the slot is occupied = %d, want 1", calls)
+		}
+		freed := time.Now()
+		close(release)
+		synctest.Wait()
+		if calls := calls.Load(); calls != 1 {
+			t.Errorf("claims before the next cycle = %d, want 1", calls)
+		}
+		<-done
+		if calls := calls.Load(); calls != 2 || time.Since(freed) != defaultSettings.CycleTimeout/2 {
+			t.Errorf("claims after freeing the slot = %d after %v, want second claim at the next cycle", calls, time.Since(freed))
 		}
 	})
 }
