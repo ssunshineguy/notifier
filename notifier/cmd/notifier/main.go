@@ -78,7 +78,9 @@ func run() error {
 			cfg.API.ListenAddr = *listenAddr
 		}
 		return application.RunAPI(ctx, cfg)
-	case "worker", "collector":
+	case "worker":
+		return application.RunWorker(ctx, cfg)
+	case "collector":
 		return fmt.Errorf("mode %q is not implemented yet", mode)
 	default:
 		return fmt.Errorf("unknown mode %q", mode)

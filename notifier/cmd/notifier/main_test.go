@@ -23,7 +23,6 @@ func TestRunRejectsInvalidInvocation(t *testing.T) {
 		{"missing mode", nil, "exactly one mode is required", true},
 		{"extra mode", []string{"api", "migrate"}, "exactly one mode is required", true},
 		{"unknown mode", []string{"-config", configPath, "unknown"}, "unknown mode \"unknown\"", false},
-		{"worker", []string{"-config", configPath, "worker"}, "mode \"worker\" is not implemented yet", false},
 		{"collector", []string{"-config", configPath, "collector"}, "mode \"collector\" is not implemented yet", false},
 	}
 	for _, tt := range tests {

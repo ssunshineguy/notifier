@@ -12,6 +12,7 @@ import (
 // Config mirrors notifier/configs/config.yaml.
 type Config struct {
 	API          API          `yaml:"api"`
+	Worker       Worker       `yaml:"worker"`
 	Database     Database     `yaml:"database"`
 	Notification Notification `yaml:"notification"`
 }
@@ -23,6 +24,13 @@ type API struct {
 	MaxQueued         int    `yaml:"max_queued"`
 	SlotWaitTimeoutMS int32  `yaml:"slot_wait_timeout_ms"`
 	RequestTimeoutMS  int32  `yaml:"request_timeout_ms"`
+}
+
+// Worker sets polling and processing limits.
+type Worker struct {
+	Workers        int   `yaml:"workers"`
+	BatchSize      int   `yaml:"batch_size"`
+	CycleTimeoutMS int32 `yaml:"cycle_timeout_ms"`
 }
 
 // Database configures role-specific DSNs and the connection pool.
@@ -38,7 +46,8 @@ type Database struct {
 
 // Notification holds the notification rules shared by the api and worker modes.
 type Notification struct {
-	ScheduledTimeSec int `yaml:"scheduled_time_sec"`
+	ScheduledTimeSec int   `yaml:"scheduled_time_sec"`
+	LockDurationMS   int32 `yaml:"lock_duration_ms"`
 }
 
 // Load reads and validates the config file at path.
@@ -53,8 +62,10 @@ func Load(path string) (Config, error) {
 	decoder.KnownFields(true)
 
 	cfg := Config{
-		API:      API{ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxQueued: 16, SlotWaitTimeoutMS: 100, RequestTimeoutMS: 2000},
-		Database: Database{MaxConns: 8, OperationTimeoutSec: 1},
+		API:          API{ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxQueued: 16, SlotWaitTimeoutMS: 100, RequestTimeoutMS: 2000},
+		Worker:       Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
+		Database:     Database{MaxConns: 8, OperationTimeoutSec: 1},
+		Notification: Notification{LockDurationMS: 2000},
 	}
 	if err := decoder.Decode(&cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
@@ -82,11 +93,19 @@ func Load(path string) (Config, error) {
 		{"database.operation_timeout_sec", int(cfg.Database.OperationTimeoutSec)},
 		{"api.max_in_flight", cfg.API.MaxInFlight},
 		{"api.request_timeout_ms", int(cfg.API.RequestTimeoutMS)},
+		{"worker.workers", cfg.Worker.Workers},
+		{"worker.batch_size", cfg.Worker.BatchSize},
+		{"worker.cycle_timeout_ms", int(cfg.Worker.CycleTimeoutMS)},
+		{"notification.lock_duration_ms", int(cfg.Notification.LockDurationMS)},
 	}
 	for _, field := range positive {
 		if field.value <= 0 {
 			return Config{}, fmt.Errorf("config: %s must be positive", field.key)
 		}
+	}
+
+	if cfg.Notification.LockDurationMS < cfg.Worker.CycleTimeoutMS {
+		return Config{}, fmt.Errorf("config: notification.lock_duration_ms must be at least worker.cycle_timeout_ms")
 	}
 
 	if cfg.Database.MinConns < 0 || cfg.Database.MinConns > cfg.Database.MaxConns {
