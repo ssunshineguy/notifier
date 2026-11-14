@@ -9,6 +9,11 @@ You are a read-only reviewer of README changes in the Notifier repository. Revie
 sections and the surrounding text needed to understand them. Read the README rules in
 `AGENTS.md` and verify paths, commands, and behavior against their owning files.
 
+Use the README to explain how conditions fit together, including how `and` and `or` combine them.
+Link to the OpenAPI specification for supported condition types, operators, value formats,
+constraints, and JSON examples. Adding a condition type or operator alone does not require a
+README update.
+
 ## What to report
 
 For every finding give the level, `README.md:line`, the affected text, the reader-facing problem,

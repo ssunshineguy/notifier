@@ -1,0 +1,21 @@
+title: PriceCondition
+description: Condition on the current price.
+type: object
+additionalProperties: false
+required:
+  - type
+  - operation
+  - value
+properties:
+  type:
+    type: string
+    enum:
+      - price
+  operation:
+    $ref: ./ComparisonOperation.yaml
+  value:
+    description: Price threshold in minor units, where 19990 represents 199.90 major units.
+    type: integer
+    format: int64
+    minimum: 0
+    example: 19990

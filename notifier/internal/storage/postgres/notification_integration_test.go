@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"math"
 	"net/url"
 	"os/exec"
 	"path/filepath"
@@ -33,11 +34,13 @@ func TestGetNotificationIntegration(t *testing.T) {
 	after := start.Add(time.Hour)
 	deadline := after.Add(time.Hour)
 	conditions := []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{
-		{Type: core.ConditionTime, After: after},
+		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
 		{Type: core.ConditionOr, Conditions: []core.Condition{
-			{Type: core.ConditionTime, After: after},
-			{Type: core.ConditionTime, After: after.Add(time.Minute)},
+			{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
+			{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.LessThan, Threshold: after.Add(time.Minute)}},
+			{Type: core.ConditionPrice, Price: core.PriceCondition{Operation: core.LessThan, Threshold: math.MaxInt64}},
 		}},
+		{Type: core.ConditionPrice, Price: core.PriceCondition{Operation: core.GreaterThan, Threshold: 0}},
 	}}}
 	id, err := store.CreateNotification(ctx, core.Notification{
 		ClientID:      owner,
@@ -74,6 +77,16 @@ func TestGetNotificationIntegration(t *testing.T) {
 		assertMissing(t, id, "other-client")
 		assertMissing(t, uuid.New(), owner)
 	})
+	t.Run("legacy after operation", func(t *testing.T) {
+		_, err := pool.Exec(t.Context(), `
+			UPDATE notifier.t_notification
+			SET data = jsonb_set(data, '{0,conditions,0,operation}', '"after"'::jsonb)
+			WHERE id = $1`, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertStatus(t, "active")
+	})
 	for _, status := range []string{"delivered", "deadline_exceeded", "delivery_failed", "deleted"} {
 		t.Run(status, func(t *testing.T) {
 			_, err := pool.Exec(t.Context(), `
@@ -94,8 +107,14 @@ func TestGetNotificationIntegration(t *testing.T) {
 		wantErr string
 	}{
 		{"unknown nested condition", `[{"type":"and","conditions":[{}]}]`, "map notification params:"},
-		{"time without timestamp", `[{"type":"time","operation":"after"}]`, "map notification params:"},
-		{"invalid timestamp", `[{"type":"time","operation":"after","value":"invalid"}]`, "decode notification params:"},
+		{"time without timestamp", `[{"type":"time","operation":"greater_than"}]`, "map notification params:"},
+		{"invalid timestamp", `[{"type":"time","operation":"greater_than","value":"invalid"}]`, "map notification params:"},
+		{"invalid time operation", `[{"type":"time","operation":"equal","value":"2026-12-02T09:00:00Z"}]`, "map notification params:"},
+		{"price without threshold", `[{"type":"price","operation":"less_than"}]`, "map notification params:"},
+		{"null price threshold", `[{"type":"price","operation":"less_than","value":null}]`, "map notification params:"},
+		{"string price threshold", `[{"type":"price","operation":"less_than","value":"0"}]`, "map notification params:"},
+		{"negative price threshold", `[{"type":"price","operation":"greater_than","value":-1}]`, "map notification params:"},
+		{"invalid price operation", `[{"type":"price","operation":"equal","value":0}]`, "map notification params:"},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
 			_, err := pool.Exec(t.Context(), "UPDATE notifier.t_notification SET data = $1::jsonb WHERE id = $2", fixture.data, id)

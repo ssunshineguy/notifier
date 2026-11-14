@@ -38,7 +38,7 @@ post:
               external_id: order-42-reminder
               notification_params:
                 - type: time
-                  operation: after
+                  operation: greater_than
                   value: "2026-12-01T09:00:00Z"
               deadline_dt: "2026-12-01T18:00:00Z"
           nested:
@@ -53,25 +53,25 @@ post:
               external_id: order-43-reminder
               notification_params:
                 - type: time                         # A
-                  operation: after
+                  operation: greater_than
                   value: "2026-12-01T09:00:00Z"
                 - type: or                           # level 1
                   conditions:
                     - type: time                     # B
-                      operation: after
+                      operation: greater_than
                       value: "2026-12-01T12:00:00Z"
                     - type: and                      # level 2
                       conditions:
                         - type: time                 # C
-                          operation: after
+                          operation: greater_than
                           value: "2026-12-01T10:00:00Z"
                         - type: or                   # level 3
                           conditions:
                             - type: time             # D
-                              operation: after
+                              operation: greater_than
                               value: "2026-12-01T10:30:00Z"
                             - type: time             # E
-                              operation: after
+                              operation: greater_than
                               value: "2026-12-01T11:00:00Z"
   responses:
     "200":

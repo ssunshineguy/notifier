@@ -67,16 +67,16 @@ func TestPrepareCreateNotification(t *testing.T) {
 	want := core.CreateRequest{
 		ExternalID: "order-42",
 		Params: []core.Condition{
-			{Type: core.ConditionTime, After: after},
+			{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
 			{
 				Type: core.ConditionAnd,
 				Conditions: []core.Condition{
-					{Type: core.ConditionTime, After: later},
+					{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: later}},
 					{
 						Type: core.ConditionOr,
 						Conditions: []core.Condition{
-							{Type: core.ConditionTime, After: after},
-							{Type: core.ConditionTime, After: later},
+							{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
+							{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: later}},
 						},
 					},
 				},
@@ -126,7 +126,7 @@ func TestPrepareCreateNotification(t *testing.T) {
 func timeCondition(after time.Time) codegen.Condition {
 	return codegen.NewTimeConditionCondition(codegen.TimeCondition{
 		Type:      codegen.TimeConditionTypeTime,
-		Operation: codegen.TimeConditionOperationAfter,
+		Operation: codegen.ComparisonOperationGreaterThan,
 		Value:     after,
 	})
 }
@@ -173,24 +173,39 @@ func TestCreateNotification(t *testing.T) {
 	const scheduledTime = 10 * time.Second
 	client := core.Client{ID: "client-42", MaxLifetime: 24 * time.Hour}
 	id := uuid.MustParse("0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71")
+	now := time.Now().UTC().Truncate(time.Second)
+	threshold := now.Add(48 * time.Hour)
 
 	tests := []struct {
 		name       string
-		deadline   string
+		operation  core.ComparisonOperation
+		deadline   time.Time
 		wantStatus int
 		wantFields []codegen.FieldError
 	}{
 		{
 			name:       "invalid deadline",
-			deadline:   `,"deadline_dt":"2000-01-01T00:00:00Z"`,
+			operation:  core.GreaterThan,
+			deadline:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 			wantStatus: http.StatusBadRequest,
 			wantFields: []codegen.FieldError{
 				{Field: "/deadline_dt", Message: "must be in the future"},
-				{Field: "/deadline_dt", Message: "must be later than the moment the time conditions can be met, 2001-01-01T00:00:00Z"},
 			},
 		},
 		{
-			name:       "valid request",
+			name:       "greater than",
+			operation:  core.GreaterThan,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "explicit deadline before the time threshold",
+			operation:  core.GreaterThan,
+			deadline:   now.Add(time.Hour),
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "less than",
+			operation:  core.LessThan,
 			wantStatus: http.StatusOK,
 		},
 	}
@@ -206,7 +221,12 @@ func TestCreateNotification(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			body := `{"external_id":"order-42","notification_params":[{"type":"time","operation":"after","value":"2001-01-01T00:00:00Z"}]` + tt.deadline + "}"
+			body := fmt.Sprintf(`{"external_id":"order-42","notification_params":[{"type":"time","operation":%q,"value":%q}]`,
+				tt.operation, threshold.Format(time.RFC3339))
+			if !tt.deadline.IsZero() {
+				body += fmt.Sprintf(`,"deadline_dt":%q`, tt.deadline.Format(time.RFC3339))
+			}
+			body += "}"
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/notifications", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Request-ID", requestID)
@@ -267,14 +287,18 @@ func TestCreateNotification(t *testing.T) {
 					t.Errorf("unexpected saved notification: %+v", saved)
 				}
 				wantConditions := []core.Condition{{
-					Type:  core.ConditionTime,
-					After: time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
+					Type: core.ConditionTime,
+					Time: core.TimeCondition{Operation: tt.operation, Threshold: threshold},
 				}}
 				if !reflect.DeepEqual(saved.Params, wantConditions) {
 					t.Errorf("conditions = %+v, want %+v", saved.Params, wantConditions)
 				}
-				if !saved.Deadline.Equal(saved.Start.Add(client.MaxLifetime)) {
-					t.Errorf("deadline = %v, want %v", saved.Deadline, saved.Start.Add(client.MaxLifetime))
+				wantDeadline := tt.deadline
+				if wantDeadline.IsZero() {
+					wantDeadline = saved.Start.Add(client.MaxLifetime)
+				}
+				if !saved.Deadline.Equal(wantDeadline) {
+					t.Errorf("deadline = %v, want %v", saved.Deadline, wantDeadline)
 				}
 				if !saved.NextScheduled.Equal(saved.Start.Add(scheduledTime)) {
 					t.Errorf("next check = %v, want %v", saved.NextScheduled, saved.Start.Add(scheduledTime))
@@ -327,7 +351,7 @@ func TestCreateNotificationDuplicate(t *testing.T) {
 		{"expired", "2002-01-01T00:00:00Z", `,"deadline_dt":"2003-01-01T00:00:00Z"`, http.StatusConflict},
 	}
 	for _, request := range requests {
-		body := `{"external_id":"order-42","notification_params":[{"type":"time","operation":"after","value":` +
+		body := `{"external_id":"order-42","notification_params":[{"type":"time","operation":"greater_than","value":` +
 			fmt.Sprintf("%q", request.after) + `}]` + request.deadline + "}"
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/notifications", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -354,7 +378,7 @@ func TestCreateNotificationDuplicate(t *testing.T) {
 	if len(store.saved) != 1 {
 		t.Fatalf("saved %d notifications, want 1", len(store.saved))
 	}
-	if got := store.saved[0].Params[0].After.Format(time.RFC3339); got != requests[0].after {
+	if got := store.saved[0].Params[0].Time.Threshold.Format(time.RFC3339); got != requests[0].after {
 		t.Errorf("saved condition = %s, want original %s", got, requests[0].after)
 	}
 }
@@ -387,7 +411,7 @@ func TestCreateNotificationStorageError(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			body := `{"external_id":"order-42","notification_params":[{"type":"time","operation":"after","value":"2001-01-01T00:00:00Z"}]` + tt.deadline + "}"
+			body := `{"external_id":"order-42","notification_params":[{"type":"time","operation":"greater_than","value":"2001-01-01T00:00:00Z"}]` + tt.deadline + "}"
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/notifications", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Client-ID", client.ID)

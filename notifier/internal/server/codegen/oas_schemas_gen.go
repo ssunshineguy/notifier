@@ -154,9 +154,54 @@ func (s *ClientID) SetRoles(val []string) {
 	s.Roles = val
 }
 
+//   - `greater_than` — met when the current value is strictly greater than the threshold.
+//   - `less_than` — met when the current value is strictly less than the threshold.
+//
+// Ref: #/components/schemas/ComparisonOperation
+type ComparisonOperation string
+
+const (
+	ComparisonOperationGreaterThan ComparisonOperation = "greater_than"
+	ComparisonOperationLessThan    ComparisonOperation = "less_than"
+)
+
+// AllValues returns all ComparisonOperation values.
+func (ComparisonOperation) AllValues() []ComparisonOperation {
+	return []ComparisonOperation{
+		ComparisonOperationGreaterThan,
+		ComparisonOperationLessThan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ComparisonOperation) MarshalText() ([]byte, error) {
+	switch s {
+	case ComparisonOperationGreaterThan:
+		return []byte(s), nil
+	case ComparisonOperationLessThan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ComparisonOperation) UnmarshalText(data []byte) error {
+	switch ComparisonOperation(data) {
+	case ComparisonOperationGreaterThan:
+		*s = ComparisonOperationGreaterThan
+		return nil
+	case ComparisonOperationLessThan:
+		*s = ComparisonOperationLessThan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Node of the condition tree. The `type` field selects the node kind:
 //
-//   - leaf conditions (`time`) check one fact;
+//   - leaf conditions (`time`, `price`) check one fact;
 //   - groups (`and`, `or`) combine nested conditions, which can be leaves or other groups.
 //
 // New leaf kinds are added as new variants.
@@ -164,10 +209,11 @@ func (s *ClientID) SetRoles(val []string) {
 // Condition represents sum type.
 type Condition struct {
 	// Type selects the active sum variant, switch on this field.
-	Type          ConditionType
-	TimeCondition TimeCondition
-	AndCondition  AndCondition
-	OrCondition   OrCondition
+	Type           ConditionType
+	TimeCondition  TimeCondition
+	PriceCondition PriceCondition
+	AndCondition   AndCondition
+	OrCondition    OrCondition
 }
 
 // ConditionType is oneOf type of Condition.
@@ -175,13 +221,17 @@ type ConditionType string
 
 // Possible values for ConditionType.
 const (
-	TimeConditionCondition ConditionType = "time"
-	AndConditionCondition  ConditionType = "and"
-	OrConditionCondition   ConditionType = "or"
+	TimeConditionCondition  ConditionType = "time"
+	PriceConditionCondition ConditionType = "price"
+	AndConditionCondition   ConditionType = "and"
+	OrConditionCondition    ConditionType = "or"
 )
 
 // IsTimeCondition reports whether Condition is TimeCondition.
 func (s Condition) IsTimeCondition() bool { return s.Type == TimeConditionCondition }
+
+// IsPriceCondition reports whether Condition is PriceCondition.
+func (s Condition) IsPriceCondition() bool { return s.Type == PriceConditionCondition }
 
 // IsAndCondition reports whether Condition is AndCondition.
 func (s Condition) IsAndCondition() bool { return s.Type == AndConditionCondition }
@@ -207,6 +257,27 @@ func (s Condition) GetTimeCondition() (v TimeCondition, ok bool) {
 func NewTimeConditionCondition(v TimeCondition) Condition {
 	var s Condition
 	s.SetTimeCondition(v)
+	return s
+}
+
+// SetPriceCondition sets Condition to PriceCondition.
+func (s *Condition) SetPriceCondition(v PriceCondition) {
+	s.Type = PriceConditionCondition
+	s.PriceCondition = v
+}
+
+// GetPriceCondition returns PriceCondition and true boolean if Condition is PriceCondition.
+func (s Condition) GetPriceCondition() (v PriceCondition, ok bool) {
+	if !s.IsPriceCondition() {
+		return v, false
+	}
+	return s.PriceCondition, true
+}
+
+// NewPriceConditionCondition returns new Condition from PriceCondition.
+func NewPriceConditionCondition(v PriceCondition) Condition {
+	var s Condition
+	s.SetPriceCondition(v)
 	return s
 }
 
@@ -441,9 +512,10 @@ type NotificationCreate struct {
 	// in the client settings. When set, `deadline_dt` must be:
 	//
 	//  - in the future;
-	//  - later than the moment the `time` conditions can be met, when they bound the condition tree;
 	//  - not later than the creation moment plus the maximum notification lifetime configured for the
 	//    client. The limit keeps notifications from living forever.
+	//
+	// Notifier validates this deadline against its own clock independently of the trigger conditions.
 	DeadlineDt OptDateTime `json:"deadline_dt"`
 }
 
@@ -840,6 +912,79 @@ func (s *OrConditionType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Condition on the current price.
+// Ref: #/components/schemas/PriceCondition
+type PriceCondition struct {
+	Type      PriceConditionType  `json:"type"`
+	Operation ComparisonOperation `json:"operation"`
+	// Price threshold in minor units, where 19990 represents 199.90 major units.
+	Value int64 `json:"value"`
+}
+
+// GetType returns the value of Type.
+func (s *PriceCondition) GetType() PriceConditionType {
+	return s.Type
+}
+
+// GetOperation returns the value of Operation.
+func (s *PriceCondition) GetOperation() ComparisonOperation {
+	return s.Operation
+}
+
+// GetValue returns the value of Value.
+func (s *PriceCondition) GetValue() int64 {
+	return s.Value
+}
+
+// SetType sets the value of Type.
+func (s *PriceCondition) SetType(val PriceConditionType) {
+	s.Type = val
+}
+
+// SetOperation sets the value of Operation.
+func (s *PriceCondition) SetOperation(val ComparisonOperation) {
+	s.Operation = val
+}
+
+// SetValue sets the value of Value.
+func (s *PriceCondition) SetValue(val int64) {
+	s.Value = val
+}
+
+type PriceConditionType string
+
+const (
+	PriceConditionTypePrice PriceConditionType = "price"
+)
+
+// AllValues returns all PriceConditionType values.
+func (PriceConditionType) AllValues() []PriceConditionType {
+	return []PriceConditionType{
+		PriceConditionTypePrice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PriceConditionType) MarshalText() ([]byte, error) {
+	switch s {
+	case PriceConditionTypePrice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PriceConditionType) UnmarshalText(data []byte) error {
+	switch PriceConditionType(data) {
+	case PriceConditionTypePrice:
+		*s = PriceConditionTypePrice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Error in the RFC 9457 Problem Details format.
 // Ref: #/components/schemas/Problem
 type Problem struct {
@@ -948,13 +1093,12 @@ func (*RequestTimeoutHeaders) deleteNotificationRes() {}
 func (*RequestTimeoutHeaders) getNotificationRes()    {}
 func (*RequestTimeoutHeaders) updateNotificationRes() {}
 
-// Condition on the current time.
+// Condition on a timestamp.
 // Ref: #/components/schemas/TimeCondition
 type TimeCondition struct {
-	Type TimeConditionType `json:"type"`
-	//  - `after` — met when the current time is later than `value`.
-	Operation TimeConditionOperation `json:"operation"`
-	// Moment to compare the current time with, ISO 8601.
+	Type      TimeConditionType   `json:"type"`
+	Operation ComparisonOperation `json:"operation"`
+	// Comparison threshold in ISO 8601.
 	Value time.Time `json:"value"`
 }
 
@@ -964,7 +1108,7 @@ func (s *TimeCondition) GetType() TimeConditionType {
 }
 
 // GetOperation returns the value of Operation.
-func (s *TimeCondition) GetOperation() TimeConditionOperation {
+func (s *TimeCondition) GetOperation() ComparisonOperation {
 	return s.Operation
 }
 
@@ -979,48 +1123,13 @@ func (s *TimeCondition) SetType(val TimeConditionType) {
 }
 
 // SetOperation sets the value of Operation.
-func (s *TimeCondition) SetOperation(val TimeConditionOperation) {
+func (s *TimeCondition) SetOperation(val ComparisonOperation) {
 	s.Operation = val
 }
 
 // SetValue sets the value of Value.
 func (s *TimeCondition) SetValue(val time.Time) {
 	s.Value = val
-}
-
-// - `after` — met when the current time is later than `value`.
-type TimeConditionOperation string
-
-const (
-	TimeConditionOperationAfter TimeConditionOperation = "after"
-)
-
-// AllValues returns all TimeConditionOperation values.
-func (TimeConditionOperation) AllValues() []TimeConditionOperation {
-	return []TimeConditionOperation{
-		TimeConditionOperationAfter,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s TimeConditionOperation) MarshalText() ([]byte, error) {
-	switch s {
-	case TimeConditionOperationAfter:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *TimeConditionOperation) UnmarshalText(data []byte) error {
-	switch TimeConditionOperation(data) {
-	case TimeConditionOperationAfter:
-		*s = TimeConditionOperationAfter
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type TimeConditionType string

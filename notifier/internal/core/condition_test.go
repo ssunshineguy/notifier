@@ -15,7 +15,7 @@ var (
 )
 
 func leaf(after time.Time) core.Condition {
-	return core.Condition{Type: core.ConditionTime, After: after}
+	return core.Condition{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}}
 }
 
 func and(conds ...core.Condition) core.Condition {
@@ -72,11 +72,11 @@ func TestNewNotificationConditionTree(t *testing.T) {
 		},
 		{
 			name:   "20 leaves",
-			params: []core.Condition{and(leaves(10, a.After)...), and(leaves(10, a.After)...)},
+			params: []core.Condition{and(leaves(10, a.Time.Threshold)...), and(leaves(10, a.Time.Threshold)...)},
 		},
 		{
 			name:   "21 leaves",
-			params: []core.Condition{and(leaves(10, a.After)...), and(leaves(10, a.After)...), a},
+			params: []core.Condition{and(leaves(10, a.Time.Threshold)...), and(leaves(10, a.Time.Threshold)...), a},
 			want: []core.FieldError{{
 				Field:   "/notification_params",
 				Message: "has 21 leaf conditions, at most 20 allowed",

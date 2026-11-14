@@ -27,7 +27,7 @@ func TestCreateNotificationIntegration(t *testing.T) {
 		Start:         start,
 		Deadline:      start.Add(time.Hour),
 		NextScheduled: start,
-		Params:        []core.Condition{{Type: core.ConditionTime, After: after}},
+		Params:        []core.Condition{{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}}},
 	}
 	id, err := store.CreateNotification(ctx, notification)
 	if err != nil {
@@ -38,7 +38,7 @@ func TestCreateNotificationIntegration(t *testing.T) {
 	}
 
 	retry := notification
-	retry.Params = []core.Condition{{Type: core.ConditionTime, After: after.Add(time.Minute)}}
+	retry.Params = []core.Condition{{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after.Add(time.Minute)}}}
 	_, err = store.CreateNotification(ctx, retry)
 	var duplicate *core.AlreadyExistsError
 	if !errors.As(err, &duplicate) || duplicate.ID != id {
@@ -49,7 +49,7 @@ func TestCreateNotificationIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(stored.Params) != 1 || !stored.Params[0].After.Equal(after) {
+	if len(stored.Params) != 1 || !stored.Params[0].Time.Threshold.Equal(after) {
 		t.Fatalf("retry changed the stored conditions: %+v", stored.Params)
 	}
 

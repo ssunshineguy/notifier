@@ -27,15 +27,19 @@ func (s *notificationStoreStub) UpdateNotification(ctx context.Context, id uuid.
 func TestUpdateNotification(t *testing.T) {
 	const requestID = "put-request-42"
 	const owner = "owner"
-	const condition = `{"type":"time","operation":"after","value":"2026-12-02T09:00:00Z"}`
-	const validBody = `{"notification_params":[{"type":"or","conditions":[` + condition + `,` + condition + `]}]}`
+	const condition = `{"type":"time","operation":"greater_than","value":"2026-12-02T09:00:00Z"}`
+	const beforeCondition = `{"type":"time","operation":"less_than","value":"2026-12-02T17:00:00Z"}`
+	const price = `{"type":"price","operation":"greater_than","value":0}`
+	const validBody = `{"notification_params":[{"type":"or","conditions":[` + condition + `,` + beforeCondition + `,` + price + `]}]}`
 	id := uuid.MustParse("0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71")
 	start := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
 	deadline := time.Date(2026, 12, 2, 18, 0, 0, 0, time.UTC)
 	after := time.Date(2026, 12, 2, 9, 0, 0, 0, time.UTC)
+	before := deadline.Add(-time.Hour)
 	expectedConditions := []core.Condition{{Type: core.ConditionOr, Conditions: []core.Condition{
-		{Type: core.ConditionTime, After: after},
-		{Type: core.ConditionTime, After: after},
+		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
+		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.LessThan, Threshold: before}},
+		{Type: core.ConditionPrice, Price: core.PriceCondition{Operation: core.GreaterThan, Threshold: 0}},
 	}}}
 	dbErr := errors.New("private database failure")
 	deepCondition := condition
@@ -65,6 +69,8 @@ func TestUpdateNotification(t *testing.T) {
 		{name: "invalid UUID", id: "not-a-uuid", status: 400, problem: "/problems/validation-error"},
 		{name: "missing conditions", body: `{}`, status: 400, problem: "/problems/validation-error"},
 		{name: "empty conditions", body: `{"notification_params":[]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "removed after operation", body: `{"notification_params":[{"type":"time","operation":"after","value":"2026-12-02T09:00:00Z"}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "negative price threshold", body: `{"notification_params":[{"type":"price","operation":"greater_than","value":-1}]}`, status: 400, problem: "/problems/validation-error"},
 		{name: "reject deadline changes", body: `{"notification_params":[` + condition + `],"deadline_dt":"2026-12-02T20:00:00Z"}`, status: 400, problem: "/problems/validation-error"},
 		{name: "group depth", body: `{"notification_params":[` + deepCondition + `]}`, status: 400, problem: "/problems/validation-error", fieldError: true},
 		{name: "total leaves", body: `{"notification_params":[` + groupOfSeven + "," + groupOfSeven + "," + groupOfSeven + `]}`, status: 400, problem: "/problems/validation-error", fieldError: true},
@@ -133,7 +139,16 @@ func TestUpdateNotification(t *testing.T) {
 					NotificationID: codegen.NotificationId(id), ExternalID: "order-42",
 					NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatusActive),
 					NotificationParams: codegen.NotificationParams{codegen.NewOrConditionCondition(codegen.OrCondition{
-						Type: codegen.OrConditionTypeOr, Conditions: []codegen.Condition{timeCondition(after), timeCondition(after)},
+						Type: codegen.OrConditionTypeOr,
+						Conditions: []codegen.Condition{
+							timeCondition(after),
+							codegen.NewTimeConditionCondition(codegen.TimeCondition{
+								Type: codegen.TimeConditionTypeTime, Operation: codegen.ComparisonOperationLessThan, Value: before,
+							}),
+							codegen.NewPriceConditionCondition(codegen.PriceCondition{
+								Type: codegen.PriceConditionTypePrice, Operation: codegen.ComparisonOperationGreaterThan, Value: 0,
+							}),
+						},
 					})},
 					DeadlineDt: deadline, StartDt: start,
 				}

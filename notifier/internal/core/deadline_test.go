@@ -15,9 +15,6 @@ func at(d time.Duration) *time.Time {
 
 func TestNewNotificationDeadline(t *testing.T) {
 	inHour := leaf(now.Add(time.Hour))
-	inDay := leaf(now.Add(24 * time.Hour))
-	hourAgo := leaf(now.Add(-time.Hour))
-	counter := core.Condition{Type: "counter"}
 	maxLifetime := client.MaxLifetime
 
 	tests := []struct {
@@ -33,60 +30,21 @@ func TestNewNotificationDeadline(t *testing.T) {
 			wantDeadline: now.Add(maxLifetime),
 		},
 		{
-			name:         "omitted: not checked against conditions",
+			name:         "default deadline before the time threshold",
 			params:       []core.Condition{leaf(now.Add(maxLifetime + time.Hour))},
 			wantDeadline: now.Add(maxLifetime),
 		},
 		{
 			name:     "now is not in the future",
-			params:   []core.Condition{hourAgo},
+			params:   []core.Condition{inHour},
 			deadline: at(0),
 			want:     []core.FieldError{{Field: "/deadline_dt", Message: "must be in the future"}},
 		},
 		{
-			name:     "equal to the time condition",
-			params:   []core.Condition{inHour},
-			deadline: at(time.Hour),
-			want: []core.FieldError{{
-				Field:   "/deadline_dt",
-				Message: "must be later than the moment the time conditions can be met, 2026-11-13T11:00:00Z",
-			}},
-		},
-		{
-			name:         "later than the time condition",
-			params:       []core.Condition{inHour},
-			deadline:     at(time.Hour + time.Second),
-			wantDeadline: now.Add(time.Hour + time.Second),
-		},
-		{
-			name:         "or: the earliest branch counts",
-			params:       []core.Condition{or(inDay, inHour)},
-			deadline:     at(2 * time.Hour),
-			wantDeadline: now.Add(2 * time.Hour),
-		},
-		{
-			name:     "and: the latest branch counts",
-			params:   []core.Condition{and(inDay, inHour)},
-			deadline: at(2 * time.Hour),
-			want: []core.FieldError{{
-				Field:   "/deadline_dt",
-				Message: "must be later than the moment the time conditions can be met, 2026-11-14T10:00:00Z",
-			}},
-		},
-		{
-			name:         "or with a non-time leaf: no bound",
-			params:       []core.Condition{or(inDay, counter)},
-			deadline:     at(2 * time.Hour),
-			wantDeadline: now.Add(2 * time.Hour),
-		},
-		{
-			name:     "and with a non-time leaf: time leaf still bounds",
-			params:   []core.Condition{and(inDay, counter)},
-			deadline: at(2 * time.Hour),
-			want: []core.FieldError{{
-				Field:   "/deadline_dt",
-				Message: "must be later than the moment the time conditions can be met, 2026-11-14T10:00:00Z",
-			}},
+			name:         "explicit deadline before the time threshold",
+			params:       []core.Condition{leaf(now.Add(maxLifetime + time.Hour))},
+			deadline:     at(time.Hour),
+			wantDeadline: now.Add(time.Hour),
 		},
 		{
 			name:         "exactly max lifetime",

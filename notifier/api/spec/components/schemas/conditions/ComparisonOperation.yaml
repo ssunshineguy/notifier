@@ -1,0 +1,8 @@
+title: ComparisonOperation
+description: |
+  - `greater_than` — met when the current value is strictly greater than the threshold.
+  - `less_than` — met when the current value is strictly less than the threshold.
+type: string
+enum:
+  - greater_than
+  - less_than

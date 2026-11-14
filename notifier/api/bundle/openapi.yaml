@@ -90,7 +90,7 @@ paths:
                   external_id: order-42-reminder
                   notification_params:
                     - type: time
-                      operation: after
+                      operation: greater_than
                       value: '2026-12-01T09:00:00Z'
                   deadline_dt: '2026-12-01T18:00:00Z'
               nested:
@@ -105,25 +105,25 @@ paths:
                   external_id: order-43-reminder
                   notification_params:
                     - type: time
-                      operation: after
+                      operation: greater_than
                       value: '2026-12-01T09:00:00Z'
                     - type: or
                       conditions:
                         - type: time
-                          operation: after
+                          operation: greater_than
                           value: '2026-12-01T12:00:00Z'
                         - type: and
                           conditions:
                             - type: time
-                              operation: after
+                              operation: greater_than
                               value: '2026-12-01T10:00:00Z'
                             - type: or
                               conditions:
                                 - type: time
-                                  operation: after
+                                  operation: greater_than
                                   value: '2026-12-01T10:30:00Z'
                                 - type: time
-                                  operation: after
+                                  operation: greater_than
                                   value: '2026-12-01T11:00:00Z'
       responses:
         '200':
@@ -245,7 +245,7 @@ paths:
                 notification_status: active
                 notification_params:
                   - type: time
-                    operation: after
+                    operation: greater_than
                     value: '2026-12-01T09:00:00Z'
                 deadline_dt: '2026-12-01T18:00:00Z'
                 start_dt: '2026-11-13T10:00:00Z'
@@ -286,7 +286,7 @@ paths:
                 value:
                   notification_params:
                     - type: time
-                      operation: after
+                      operation: greater_than
                       value: '2026-12-02T09:00:00Z'
               nested:
                 summary: Condition tree with the maximum three levels of groups
@@ -298,25 +298,25 @@ paths:
                 value:
                   notification_params:
                     - type: time
-                      operation: after
+                      operation: greater_than
                       value: '2026-12-02T09:00:00Z'
                     - type: or
                       conditions:
                         - type: time
-                          operation: after
+                          operation: greater_than
                           value: '2026-12-02T12:00:00Z'
                         - type: and
                           conditions:
                             - type: time
-                              operation: after
+                              operation: greater_than
                               value: '2026-12-02T10:00:00Z'
                             - type: or
                               conditions:
                                 - type: time
-                                  operation: after
+                                  operation: greater_than
                                   value: '2026-12-02T10:30:00Z'
                                 - type: time
-                                  operation: after
+                                  operation: greater_than
                                   value: '2026-12-02T11:00:00Z'
       responses:
         '200':
@@ -333,7 +333,7 @@ paths:
                 external_id: order-42-reminder
                 notification_params:
                   - type: time
-                    operation: after
+                    operation: greater_than
                     value: '2026-12-02T09:00:00Z'
                 deadline_dt: '2026-12-02T18:00:00Z'
                 start_dt: '2026-11-13T10:00:00Z'
@@ -419,9 +419,18 @@ components:
       maxLength: 128
       pattern: ^[A-Za-z0-9._:-]+$
       example: order-42-reminder
+    ComparisonOperation:
+      title: ComparisonOperation
+      description: |
+        - `greater_than` — met when the current value is strictly greater than the threshold.
+        - `less_than` — met when the current value is strictly less than the threshold.
+      type: string
+      enum:
+        - greater_than
+        - less_than
     TimeCondition:
       title: TimeCondition
-      description: Condition on the current time.
+      description: Condition on a timestamp.
       type: object
       additionalProperties: false
       required:
@@ -434,34 +443,54 @@ components:
           enum:
             - time
         operation:
-          description: |
-            - `after` — met when the current time is later than `value`.
-          type: string
-          enum:
-            - after
+          $ref: '#/components/schemas/ComparisonOperation'
         value:
-          description: Moment to compare the current time with, ISO 8601.
+          description: Comparison threshold in ISO 8601.
           type: string
           format: date-time
           example: '2026-12-01T09:00:00Z'
+    PriceCondition:
+      title: PriceCondition
+      description: Condition on the current price.
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - operation
+        - value
+      properties:
+        type:
+          type: string
+          enum:
+            - price
+        operation:
+          $ref: '#/components/schemas/ComparisonOperation'
+        value:
+          description: Price threshold in minor units, where 19990 represents 199.90 major units.
+          type: integer
+          format: int64
+          minimum: 0
+          example: 19990
     Condition:
       title: Condition
       description: |
         Node of the condition tree. The `type` field selects the node kind:
 
-        - leaf conditions (`time`) check one fact;
+        - leaf conditions (`time`, `price`) check one fact;
         - groups (`and`, `or`) combine nested conditions, which can be leaves or
           other groups.
 
         New leaf kinds are added as new variants.
       oneOf:
         - $ref: '#/components/schemas/TimeCondition'
+        - $ref: '#/components/schemas/PriceCondition'
         - $ref: '#/components/schemas/AndCondition'
         - $ref: '#/components/schemas/OrCondition'
       discriminator:
         propertyName: type
         mapping:
           time: '#/components/schemas/TimeCondition'
+          price: '#/components/schemas/PriceCondition'
           and: '#/components/schemas/AndCondition'
           or: '#/components/schemas/OrCondition'
     AndCondition:
@@ -520,15 +549,21 @@ components:
         $ref: '#/components/schemas/Condition'
       example:
         - type: time
-          operation: after
+          operation: greater_than
           value: '2026-12-01T09:00:00Z'
+        - type: time
+          operation: less_than
+          value: '2026-12-01T18:00:00Z'
+        - type: price
+          operation: less_than
+          value: 19990
         - type: or
           conditions:
             - type: time
-              operation: after
+              operation: greater_than
               value: '2026-12-01T12:00:00Z'
             - type: time
-              operation: after
+              operation: greater_than
               value: '2026-12-01T15:00:00Z'
     NotificationCreate:
       title: NotificationCreate
@@ -551,11 +586,12 @@ components:
             client settings. When set, `deadline_dt` must be:
 
             - in the future;
-            - later than the moment the `time` conditions can be met, when they
-              bound the condition tree;
             - not later than the creation moment plus the maximum notification
               lifetime configured for the client. The limit keeps notifications
               from living forever.
+
+            Notifier validates this deadline against its own clock independently
+            of the trigger conditions.
           type: string
           format: date-time
           example: '2026-12-01T18:00:00Z'

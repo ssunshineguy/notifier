@@ -59,9 +59,8 @@ func NewNotification(client Client, req CreateRequest, now time.Time, scheduledT
 	var deadline time.Time
 	if req.Deadline != nil {
 		deadline = *req.Deadline
-		fieldErrs = append(fieldErrs, checkDeadline(deadline, now, maxDeadline, req.Params)...)
+		fieldErrs = append(fieldErrs, checkDeadline(deadline, now, maxDeadline)...)
 	} else {
-		// Emulated conditions may outlive the default deadline, so skip the reachability check.
 		deadline = maxDeadline
 	}
 

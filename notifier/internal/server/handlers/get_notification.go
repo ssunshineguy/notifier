@@ -71,8 +71,16 @@ func toAPIConditions(conditions []core.Condition) ([]codegen.Condition, bool) {
 		if condition.Type == core.ConditionTime {
 			result[i] = codegen.NewTimeConditionCondition(codegen.TimeCondition{
 				Type:      codegen.TimeConditionTypeTime,
-				Operation: codegen.TimeConditionOperationAfter,
-				Value:     condition.After,
+				Operation: codegen.ComparisonOperation(condition.Time.Operation),
+				Value:     condition.Time.Threshold,
+			})
+			continue
+		}
+		if condition.Type == core.ConditionPrice {
+			result[i] = codegen.NewPriceConditionCondition(codegen.PriceCondition{
+				Type:      codegen.PriceConditionTypePrice,
+				Operation: codegen.ComparisonOperation(condition.Price.Operation),
+				Value:     condition.Price.Threshold,
 			})
 			continue
 		}

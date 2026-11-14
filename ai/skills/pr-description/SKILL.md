@@ -5,6 +5,9 @@ description: Draft or revise a GitHub pull request title and description for the
 
 # Notifier pull request descriptions
 
+Keep the description focused on the changes in the diff, their rationale, their direct effects,
+and relevant checks. Omit unchanged behavior and deferred work.
+
 Start the English title with an action verb and name the outcome. Write the description in English with these sections in order:
 
 1. **Why** explains the problem and the intended outcome in a short paragraph.

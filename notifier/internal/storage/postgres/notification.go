@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -85,7 +84,7 @@ func (s *Store) GetNotification(ctx context.Context, notificationID uuid.UUID, c
 		return core.NotificationDetails{}, fmt.Errorf("query notification: %w", err)
 	}
 
-	var conditions []conditionJSON
+	var conditions []conditionJSON[*json.RawMessage]
 	if err := json.Unmarshal(data, &conditions); err != nil {
 		return core.NotificationDetails{}, fmt.Errorf("decode notification params: %w", err)
 	}
@@ -110,37 +109,62 @@ func (s *Store) FindNotificationID(ctx context.Context, clientID, externalID str
 	return id, true, nil
 }
 
-type conditionJSON struct {
-	Type       core.ConditionType `json:"type"`
-	Operation  string             `json:"operation,omitempty"`
-	Value      *time.Time         `json:"value,omitempty"`
-	Conditions []conditionJSON    `json:"conditions,omitempty"`
+type conditionJSON[T any] struct {
+	Type       core.ConditionType       `json:"type"`
+	Operation  core.ComparisonOperation `json:"operation,omitempty"`
+	Value      T                        `json:"value,omitempty"`
+	Conditions []conditionJSON[T]       `json:"conditions,omitempty"`
 }
 
-func conditionsToJSON(conds []core.Condition) []conditionJSON {
-	out := make([]conditionJSON, 0, len(conds))
+func conditionsToJSON(conds []core.Condition) []conditionJSON[any] {
+	out := make([]conditionJSON[any], 0, len(conds))
 	for _, c := range conds {
-		if c.Type == core.ConditionTime {
-			after := c.After
-			out = append(out, conditionJSON{Type: c.Type, Operation: "after", Value: &after})
-			continue
+		switch c.Type {
+		case core.ConditionTime:
+			out = append(out, conditionJSON[any]{Type: c.Type, Operation: c.Time.Operation, Value: c.Time.Threshold})
+		case core.ConditionPrice:
+			out = append(out, conditionJSON[any]{Type: c.Type, Operation: c.Price.Operation, Value: c.Price.Threshold})
+		default:
+			out = append(out, conditionJSON[any]{Type: c.Type, Conditions: conditionsToJSON(c.Conditions)})
 		}
-		out = append(out, conditionJSON{Type: c.Type, Conditions: conditionsToJSON(c.Conditions)})
 	}
 	return out
 }
 
-func conditionsFromJSON(conditions []conditionJSON) ([]core.Condition, error) {
+func conditionsFromJSON(conditions []conditionJSON[*json.RawMessage]) ([]core.Condition, error) {
 	result := make([]core.Condition, len(conditions))
 	for i, condition := range conditions {
 		node := &result[i]
 		node.Type = condition.Type
 		switch condition.Type {
 		case core.ConditionTime:
-			if condition.Value == nil || condition.Operation != "after" {
+			op := condition.Operation
+			if op == "after" {
+				// Existing rows can predate the shared comparison operators.
+				op = core.GreaterThan
+			}
+			if condition.Value == nil || !op.IsValid() {
 				return nil, errors.New("invalid stored time condition")
 			}
-			node.After = *condition.Value
+			node.Time.Operation = op
+			if err := json.Unmarshal(*condition.Value, &node.Time.Threshold); err != nil {
+				return nil, fmt.Errorf("invalid stored time condition: %w", err)
+			}
+		case core.ConditionPrice:
+			if !condition.Operation.IsValid() {
+				return nil, errors.New("invalid stored price operation")
+			}
+			if condition.Value == nil {
+				return nil, errors.New("missing stored price threshold")
+			}
+			var threshold int64
+			if err := json.Unmarshal(*condition.Value, &threshold); err != nil {
+				return nil, fmt.Errorf("invalid stored price threshold: %w", err)
+			}
+			if threshold < 0 {
+				return nil, errors.New("invalid stored price threshold")
+			}
+			node.Price = core.PriceCondition{Operation: condition.Operation, Threshold: threshold}
 		case core.ConditionAnd, core.ConditionOr:
 			children, err := conditionsFromJSON(condition.Conditions)
 			if err != nil {

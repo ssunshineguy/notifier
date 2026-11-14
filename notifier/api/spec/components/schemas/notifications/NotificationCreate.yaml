@@ -18,11 +18,12 @@ properties:
       client settings. When set, `deadline_dt` must be:
 
       - in the future;
-      - later than the moment the `time` conditions can be met, when they
-        bound the condition tree;
       - not later than the creation moment plus the maximum notification
         lifetime configured for the client. The limit keeps notifications
         from living forever.
+
+      Notifier validates this deadline against its own clock independently
+      of the trigger conditions.
     type: string
     format: date-time
     example: "2026-12-01T18:00:00Z"

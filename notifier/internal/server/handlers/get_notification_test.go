@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"mime"
 	"net/http"
 	"net/http/httptest"
@@ -38,10 +39,11 @@ func TestGetNotification(t *testing.T) {
 		Start:      start,
 		Deadline:   deadline,
 		Params: []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{
-			{Type: core.ConditionTime, After: after},
+			{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
 			{Type: core.ConditionOr, Conditions: []core.Condition{
-				{Type: core.ConditionTime, After: after},
-				{Type: core.ConditionTime, After: after.Add(time.Minute)},
+				{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after}},
+				{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.LessThan, Threshold: after.Add(time.Minute)}},
+				{Type: core.ConditionPrice, Price: core.PriceCondition{Operation: core.LessThan, Threshold: math.MaxInt64}},
 			}},
 		}}},
 	}
@@ -135,7 +137,14 @@ func TestGetNotification(t *testing.T) {
 									Type: codegen.OrConditionTypeOr,
 									Conditions: []codegen.Condition{
 										timeCondition(after),
-										timeCondition(after.Add(time.Minute)),
+										codegen.NewTimeConditionCondition(codegen.TimeCondition{
+											Type:      codegen.TimeConditionTypeTime,
+											Operation: codegen.ComparisonOperationLessThan,
+											Value:     after.Add(time.Minute),
+										}),
+										codegen.NewPriceConditionCondition(codegen.PriceCondition{
+											Type: codegen.PriceConditionTypePrice, Operation: codegen.ComparisonOperationLessThan, Value: math.MaxInt64,
+										}),
 									},
 								}),
 							},
