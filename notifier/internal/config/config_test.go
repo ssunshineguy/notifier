@@ -29,7 +29,8 @@ func TestLoadDefaults(t *testing.T) {
 			ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxQueued: 16,
 			SlotWaitTimeoutMS: 100, RequestTimeoutMS: 2000,
 		},
-		Worker: config.Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
+		Worker:      config.Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
+		InfoService: config.InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database: config.Database{
 			MaxConns: 8, OperationTimeoutSec: 1,
 			MigratorDSN:  "postgres://migrator@localhost/notifier",
@@ -57,6 +58,10 @@ worker:
   workers: 3
   batch_size: 5
   cycle_timeout_ms: 1500
+infoservice:
+  base_url: https://infoservice.example
+  time_timeout_ms: 150
+  price_timeout_ms: 350
 `
 	got, err := config.Load(writeConfig(t, yaml))
 	if err != nil {
@@ -69,6 +74,10 @@ worker:
 	wantWorker := config.Worker{Workers: 3, BatchSize: 5, CycleTimeoutMS: 1500}
 	if got.Worker != wantWorker {
 		t.Errorf("Worker = %+v, want %+v", got.Worker, wantWorker)
+	}
+	wantInfoService := config.InfoService{BaseURL: "https://infoservice.example", TimeTimeoutMS: 150, PriceTimeoutMS: 350}
+	if got.InfoService != wantInfoService {
+		t.Errorf("InfoService = %+v, want %+v", got.InfoService, wantInfoService)
 	}
 	wantNotification := config.Notification{ScheduledTimeSec: 12, LockDurationMS: 4250}
 	if got.Notification != wantNotification {
@@ -101,6 +110,12 @@ func TestLoadRejectsInvalidSettings(t *testing.T) {
 		{"zero worker count", "notification:\n", "worker:\n  workers: 0\nnotification:\n", "worker.workers must be positive"},
 		{"zero worker batch size", "notification:\n", "worker:\n  batch_size: 0\nnotification:\n", "worker.batch_size must be positive"},
 		{"zero worker cycle timeout", "notification:\n", "worker:\n  cycle_timeout_ms: 0\nnotification:\n", "worker.cycle_timeout_ms must be positive"},
+		{"empty information service URL", "notification:\n", "infoservice:\n  base_url: ''\nnotification:\n", "infoservice.base_url must be an absolute HTTP or HTTPS URL"},
+		{"relative information service URL", "notification:\n", "infoservice:\n  base_url: /emulator\nnotification:\n", "infoservice.base_url must be an absolute HTTP or HTTPS URL"},
+		{"unsupported information service URL scheme", "notification:\n", "infoservice:\n  base_url: ftp://emulator\nnotification:\n", "infoservice.base_url must be an absolute HTTP or HTTPS URL"},
+		{"invalid information service URL", "notification:\n", "infoservice:\n  base_url: http://emulator:bad\nnotification:\n", "infoservice.base_url must be an absolute HTTP or HTTPS URL"},
+		{"zero time timeout", "notification:\n", "infoservice:\n  time_timeout_ms: 0\nnotification:\n", "infoservice.time_timeout_ms must be positive"},
+		{"negative price timeout", "notification:\n", "infoservice:\n  price_timeout_ms: -1\nnotification:\n", "infoservice.price_timeout_ms must be positive"},
 		{"zero reservation duration", "notification:\n", "notification:\n  lock_duration_ms: 0\n", "notification.lock_duration_ms must be positive"},
 		{"reservation shorter than cycle timeout", "notification:\n", "notification:\n  lock_duration_ms: 1500\n", "notification.lock_duration_ms must be at least worker.cycle_timeout_ms"},
 		{"negative queue timeout", "notification:\n", "api:\n  slot_wait_timeout_ms: -1\nnotification:\n", "api.slot_wait_timeout_ms must be nonnegative"},

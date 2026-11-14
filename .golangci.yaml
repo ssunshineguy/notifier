@@ -18,6 +18,7 @@ linters:
   exclusions:
     paths:
       - ^(notifier|emulator)/internal/server/codegen/
+      - ^notifier/internal/interactions/infoservice/codegen/
 
 formatters:
   enable:
@@ -30,3 +31,4 @@ formatters:
   exclusions:
     paths:
       - ^(notifier|emulator)/internal/server/codegen/
+      - ^notifier/internal/interactions/infoservice/codegen/

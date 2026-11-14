@@ -1,0 +1,9 @@
+generator:
+  features:
+    disable_all: true
+    enable:
+      - paths/client
+  filters:
+    path_regex: "^/(time|price)$"
+    methods:
+      - GET
