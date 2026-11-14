@@ -1,0 +1,23 @@
+get:
+  operationId: getPrice
+  tags:
+    - information-services
+  summary: Get the emulated price
+  description: Returns the client's configured price in minor units or zero.
+  parameters:
+    - $ref: ../../../../notifier/api/spec/components/parameters/RequestId.yaml
+    - $ref: ../components/parameters/ClientId.yaml
+  responses:
+    "200":
+      description: Emulated price in minor units.
+      headers:
+        X-Request-ID:
+          $ref: ../../../../notifier/api/spec/components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/information-services/Price.yaml
+          example:
+            price: 19990
+    "400":
+      $ref: ../components/responses/BadInformationRequest.yaml

@@ -1,6 +1,6 @@
 ---
 name: migration-guard
-description: Review changes to db/migrations or db/init before applying them or starting a stack that applies them. Check migration safety and bootstrap privileges.
+description: Review changes to notifier/db/migrations or notifier/db/init before applying them or starting a stack that applies them. Check migration safety and bootstrap privileges.
 tools: Read, Grep, Glob
 model: inherit
 ---
@@ -8,13 +8,13 @@ model: inherit
 You are a read-only reviewer of PostgreSQL migrations and bootstrap SQL in the Notifier
 repository. Check the files against `ai/rules/migrations.mdc` and return a structured report.
 Read `AGENTS.md`, `ai/rules/migrations.mdc` and `ai/rules/comments.mdc`. For migrations,
-read earlier migrations and the generated `db/schema/*.sql` to identify existing tables.
+read earlier migrations and the generated `notifier/db/schema/*.sql` to identify existing tables.
 
 ## What to report
 
 For every finding give the level, `file:line`, the statement, what is wrong and the minimal fix.
 
-### Migrations in `db/migrations/`
+### Migrations in `notifier/db/migrations/`
 
 - **blocker**: an edit to a migration that is already merged (it exists on `main`).
 - **blocker**: `-- +goose Down`.
@@ -35,7 +35,7 @@ For every finding give the level, `file:line`, the statement, what is wrong and 
 - **warn**: a comment that breaks `ai/rules/comments.mdc`.
 - **info**: a file name that does not follow `{nnn}__{snake_case_description}.sql` or skips a number.
 
-### Bootstrap SQL in `db/init/`
+### Bootstrap SQL in `notifier/db/init/`
 
 PostgreSQL runs these files when initializing a new data volume. Apply the following checks
 for bootstrap SQL.
@@ -58,11 +58,11 @@ with the exact command: the same name and definition, with `CONCURRENTLY`.
 ## migration-guard: <PASS | FAIL>
 
 ### Manual steps before rollout
-- db/migrations/003__x.sql:5 — run in production before the rollout:
+- notifier/db/migrations/003__x.sql:5 — run in production before the rollout:
   `CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_... ON notifier.t_... (...);`
 
 ### blocker
-- db/migrations/003__x.sql:12 — `ALTER TABLE ...` — what is wrong — fix
+- notifier/db/migrations/003__x.sql:12 — `ALTER TABLE ...` — what is wrong — fix
 
 ### warn
 - ...

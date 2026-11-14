@@ -17,7 +17,7 @@ linters:
     - misspell
   exclusions:
     paths:
-      - internal/server/codegen
+      - ^(notifier|emulator)/internal/server/codegen/
 
 formatters:
   enable:
@@ -29,4 +29,4 @@ formatters:
         - github.com/ssunshineguy/notifier
   exclusions:
     paths:
-      - internal/server/codegen
+      - ^(notifier|emulator)/internal/server/codegen/

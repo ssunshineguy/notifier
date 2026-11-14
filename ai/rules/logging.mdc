@@ -1,8 +1,11 @@
 ---
 description: Structured request and SQL logging with slog
-globs: cmd/notifier/**,internal/**
+globs: notifier/cmd/**,notifier/internal/**,emulator/cmd/**,emulator/internal/**,internal/**
 paths:
-  - cmd/notifier/**
+  - notifier/cmd/**
+  - notifier/internal/**
+  - emulator/cmd/**
+  - emulator/internal/**
   - internal/**
 alwaysApply: false
 ---

@@ -1,15 +1,15 @@
 ---
 description: Naming, locking and idempotency rules for PostgreSQL migrations
-globs: db/**
+globs: notifier/db/**
 paths:
-  - db/**
+  - notifier/db/**
 alwaysApply: false
 ---
 
 # Database migrations
 
-Migrations live in `db/migrations`, run with goose as `notifier_migrator`, and are applied by
-`make migrate`, which also regenerates `db/schema/`.
+Migrations live in `notifier/db/migrations`, run with goose as `notifier_migrator`, and are applied by
+`make migrate`, which also regenerates `notifier/db/schema/`.
 
 ## Files
 
@@ -17,7 +17,7 @@ Migrations live in `db/migrations`, run with goose as `notifier_migrator`, and a
   `003__t_notification_add_priority.sql`.
 - Forward-only: no `-- +goose Down`. A rollback is a new migration.
 - Never edit a migration that has been merged or applied outside a local stand.
-- No grants: tables are granted to the mode roles by default privileges from `db/init`.
+- No grants: tables are granted to the mode roles by default privileges from `notifier/db/init`.
 - Schema-qualify every object: `notifier.t_notification`, not `t_notification`.
 - Comments follow `ai/rules/comments.mdc`.
 
@@ -144,4 +144,4 @@ A migration must succeed even if its changes were already applied by hand.
 5. A new index on an existing table is flagged to the owner and listed under "Manual steps before
    rollout" in the PR description.
 6. No `varchar`, no `interval`, no grants, no `Down`.
-7. `make migrate` passes twice in a row and `db/schema/` is regenerated.
+7. `make migrate` passes twice in a row and `notifier/db/schema/` is regenerated.

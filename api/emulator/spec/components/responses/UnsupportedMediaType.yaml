@@ -1,8 +1,0 @@
-description: The request body must use application/json.
-headers:
-  X-Request-ID:
-    $ref: ../../../../spec/components/headers/RequestId.yaml
-content:
-  application/problem+json:
-    schema:
-      $ref: ../../../../spec/components/schemas/common/Problem.yaml

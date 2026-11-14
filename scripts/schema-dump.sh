@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Regenerates db/schema/<table>.sql from the local database after migrations.
+# Regenerates notifier/db/schema/<table>.sql from the local database after migrations.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-out=db/schema
+out=notifier/db/schema
 db=(docker compose exec -T postgres)
 conn=(-U notifier_migrator -d notifier)
 

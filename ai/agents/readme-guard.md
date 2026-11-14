@@ -23,7 +23,7 @@ and the smallest fix.
 - **warn**: local startup includes test data, manual smoke scenarios, temporary workarounds, or
   implementation details beyond prerequisites, startup, shutdown, the local address, and essential
   setup.
-- **warn**: API statuses, payloads, or limits repeat the contract in `api/spec/` where a short
+- **warn**: API statuses, payloads, or limits repeat the contract in `notifier/api/spec/` where a short
   reference would suffice.
 - **warn**: test instructions are outside the testing section, or repeated instructions make a
   workflow harder to follow.

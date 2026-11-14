@@ -1,4 +1,0 @@
-description: The override was saved or cleared. The response body is empty.
-headers:
-  X-Request-ID:
-    $ref: ../../../../spec/components/headers/RequestId.yaml
