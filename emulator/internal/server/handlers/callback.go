@@ -14,7 +14,7 @@ import (
 
 // ReceiveNotificationEvent returns the response configured for the notification.
 func (h *Handler) ReceiveNotificationEvent(ctx context.Context, req *codegen.NotificationEvent) (codegen.ReceiveNotificationEventRes, error) {
-	status, delay, found := h.store.Callback(uuid.UUID(req.NotificationID))
+	status, delay, found := h.callbacks.Callback(uuid.UUID(req.NotificationID))
 	if !found {
 		return &codegen.ReceiveNotificationEventOK{}, nil
 	}
