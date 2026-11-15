@@ -66,6 +66,7 @@ services:
     environment:
       NOTIFIER_LOG_LEVEL: ${NOTIFIER_LOG_LEVEL:-INFO}
     command: ["worker"]
+    stop_grace_period: 11s
     restart: on-failure
     depends_on:
       migrate:

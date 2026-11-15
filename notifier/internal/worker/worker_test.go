@@ -53,7 +53,7 @@ func TestRunStartsConfiguredWorkersAndBoundsEachBatch(t *testing.T) {
 		}
 		done := make(chan struct{})
 		go func() {
-			worker.Run(ctx, store, process, settings)
+			worker.Run(ctx, ctx, store, process, settings)
 			close(done)
 		}()
 
@@ -80,7 +80,7 @@ func TestRunStartsConfiguredWorkersAndBoundsEachBatch(t *testing.T) {
 	})
 }
 
-func TestRunWaitsForNextCycleAfterProcessing(t *testing.T) {
+func TestRunStartsNextBatchImmediatelyAfterProcessing(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
@@ -98,17 +98,18 @@ func TestRunWaitsForNextCycleAfterProcessing(t *testing.T) {
 			default:
 				t.Error("the first handler did not finish before the next claim")
 			}
-			if elapsed := time.Since(start); elapsed != defaultSettings.CycleTimeout {
-				t.Errorf("next claim after %v, want %v", elapsed, defaultSettings.CycleTimeout)
+			if elapsed := time.Since(start); elapsed != 100*time.Millisecond {
+				t.Errorf("next claim after %v, want immediately after processing at 100ms", elapsed)
 			}
 			cancel()
 			return nil, nil
 		})
 
-		worker.Run(ctx, store, func(_ context.Context, claim core.NotificationClaim) {
+		worker.Run(ctx, ctx, store, func(_ context.Context, claim core.NotificationClaim) {
 			if claim != first {
 				t.Errorf("processed claim = %+v, want %+v", claim, first)
 			}
+			time.Sleep(100 * time.Millisecond)
 			close(processed)
 		}, defaultSettings)
 		if calls != 2 {
@@ -143,7 +144,7 @@ func TestRunClaimsOnlyAvailableSlotsAfterCycleTimeout(t *testing.T) {
 			return nil, nil
 		})
 
-		worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
+		worker.Run(ctx, ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
 			if claim != slow {
 				return
 			}
@@ -160,7 +161,7 @@ func TestRunClaimsOnlyAvailableSlotsAfterCycleTimeout(t *testing.T) {
 	})
 }
 
-func TestRunSkipsClaimsWhileFullAndResumesAtNextCycle(t *testing.T) {
+func TestRunSkipsClaimsWhileFullAndResumesWhenSlotFreed(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
@@ -181,7 +182,7 @@ func TestRunSkipsClaimsWhileFullAndResumesAtNextCycle(t *testing.T) {
 		})
 		go func() {
 			defer close(done)
-			worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
+			worker.Run(ctx, ctx, store, func(context.Context, core.NotificationClaim) {
 				close(started)
 				<-release
 			}, defaultSettings)
@@ -195,13 +196,9 @@ func TestRunSkipsClaimsWhileFullAndResumesAtNextCycle(t *testing.T) {
 		}
 		freed := time.Now()
 		close(release)
-		synctest.Wait()
-		if calls := calls.Load(); calls != 1 {
-			t.Errorf("claims before the next cycle = %d, want 1", calls)
-		}
 		<-done
-		if calls := calls.Load(); calls != 2 || time.Since(freed) != defaultSettings.CycleTimeout/2 {
-			t.Errorf("claims after freeing the slot = %d after %v, want second claim at the next cycle", calls, time.Since(freed))
+		if calls := calls.Load(); calls != 2 || time.Since(freed) != 0 {
+			t.Errorf("claims after freeing the slot = %d after %v, want an immediate second claim", calls, time.Since(freed))
 		}
 	})
 }
@@ -220,7 +217,7 @@ func TestRunSkipsAClaimReturnedAfterDeadline(t *testing.T) {
 			cancel()
 			return nil, nil
 		})
-		worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
+		worker.Run(ctx, ctx, store, func(context.Context, core.NotificationClaim) {
 			t.Error("processor ran after the cycle expired")
 		}, defaultSettings)
 		if calls != 2 {
@@ -255,7 +252,7 @@ func TestRunWaitsBeforeRetryingEmptyOrFailedClaim(t *testing.T) {
 					cancel()
 					return nil, nil
 				})
-				worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
+				worker.Run(ctx, ctx, store, func(context.Context, core.NotificationClaim) {
 					t.Error("processor ran without a successful claim")
 				}, defaultSettings)
 				if calls != 2 {
