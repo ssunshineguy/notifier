@@ -38,7 +38,7 @@ func TestLoadDefaults(t *testing.T) {
 			WorkerDSN:    "postgres://worker@localhost/notifier",
 			CollectorDSN: "postgres://collector@localhost/notifier",
 		},
-		Notification: config.Notification{ScheduledTimeSec: 10, LockDurationMS: 2000},
+		Notification: config.Notification{InitialCheckDelaySec: 0, ScheduledTimeSec: 10, LockDurationMS: 2000},
 	}
 	if got != want {
 		t.Errorf("Load = %+v, want %+v", got, want)
@@ -79,7 +79,7 @@ infoservice:
 	if got.InfoService != wantInfoService {
 		t.Errorf("InfoService = %+v, want %+v", got.InfoService, wantInfoService)
 	}
-	wantNotification := config.Notification{ScheduledTimeSec: 12, LockDurationMS: 4250}
+	wantNotification := config.Notification{InitialCheckDelaySec: 0, ScheduledTimeSec: 12, LockDurationMS: 4250}
 	if got.Notification != wantNotification {
 		t.Errorf("Notification = %+v, want %+v", got.Notification, wantNotification)
 	}

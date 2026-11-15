@@ -47,7 +47,7 @@ sequenceDiagram
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
     G->>N: Create<br/>X-Client-ID, X-Request-ID<br/>Тело params
     N->>N: Сгенерировать notification_id
-    N->>DB: INSERT INTO t_notification<br/>external_id, id = notification_id, data = params (JSONB)<br/>client_id = X-Client-ID, deadline_dt, start_dt = now()<br/>next_scheduled_dt = now() + scheduled_time
+    N->>DB: INSERT INTO t_notification<br/>external_id, id = notification_id, data = params (JSONB)<br/>client_id = X-Client-ID, deadline_dt, start_dt = now()<br/>next_scheduled_dt = now() + initial_check_delay
     DB-->>N: Запись создана
     N-->>G: 200 OK, {notification_id}
     G-->>C: 200 OK, {notification_id}
@@ -251,13 +251,21 @@ make down      # остановить стенд, сохранив данные
 
 Для работы с локальной базой используй `make psql`. `make migrate` применяет миграции и обновляет дамп схемы, а `make reset` удаляет локальную базу.
 
+## Первая проверка уведомления
+
+`notification.initial_check_delay_sec` в [конфигурации](notifier/configs/config.yaml) задаёт задержку первой проверки в целых секундах: от `0` до `9223372036` включительно (предел `time.Duration` при переводе секунд в наносекунды). Например, `7200` откладывает проверку на два часа. Отрицательное значение или переполнение останавливает запуск с ошибкой конфигурации. Штатное значение указано в файле; при отсутствии параметра или значении `null` загрузчик использует такое же значение по умолчанию.
+
+При создании API сохраняет `next_scheduled_dt = now + initial_check_delay`. Эта задержка не зависит от `notification.scheduled_time_sec` (интервала повторных проверок worker) и callback backoff. Первая дата не ограничивается deadline: если deadline раньше, worker при первой обработке уже просроченной активной записи выберет `deadline_exceeded`.
+
+Новое значение применяется после перезапуска API с обновлённой конфигурацией, только к создаваемым после этого записям. В штатном Compose конфигурация входит в образ: для её обновления нужен `make up` с пересборкой. Hot reload нет. Сохранённые даты не переносятся; API продолжает выполнять INSERT, а worker — обрабатывать старую очередь. Задержка уменьшает новую нагрузку от проверок, но не приостанавливает работу с БД.
+
 ## Тестирование
 
 Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
 
 Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./notifier/internal/storage/postgres`.
 
-Сквозные API-тесты на pytest запускаются на текущем Docker Compose. См. [правила запуска](ai/rules/tests.mdc).
+Сквозные API-тесты на pytest запускаются на текущем Docker Compose. См. [правила запуска](ai/rules/tests.mdc). Если API запущен с другой задержкой первой проверки, передай её тестам через `NOTIFIER_E2E_INITIAL_CHECK_DELAY_SEC` в секундах; эта переменная задаёт ожидание теста, конфигурацию API она не меняет.
 
 ## Структура репозитория
 

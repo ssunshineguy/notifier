@@ -34,9 +34,9 @@ func RunAPI(ctx context.Context, cfg config.Config) error {
 
 	operationTimeout := time.Duration(cfg.Database.OperationTimeoutSec) * time.Second
 	store := postgres.NewStore(pool, operationTimeout)
-	scheduledTime := time.Duration(cfg.Notification.ScheduledTimeSec) * time.Second
+	initialCheckDelay := time.Duration(cfg.Notification.InitialCheckDelaySec) * time.Second
 	router, err := codegen.NewServer(
-		handlers.NewHandler(store, scheduledTime),
+		handlers.NewHandler(store, initialCheckDelay),
 		middleware.NewClientSecurity(store),
 		codegen.WithErrorHandler(middleware.HandleError),
 	)

@@ -4,8 +4,10 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"net/url"
 	"os"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -53,10 +55,27 @@ type Database struct {
 	CollectorDSN        string `yaml:"collector_dsn"`
 }
 
+// InitialCheckDelaySeconds decodes the first-check delay as whole seconds.
+type InitialCheckDelaySeconds int64
+
+// UnmarshalYAML rejects non-integer values instead of truncating fractional seconds.
+func (d *InitialCheckDelaySeconds) UnmarshalYAML(value *yaml.Node) error {
+	if value.Tag != "!!int" {
+		return fmt.Errorf("notification.initial_check_delay_sec must be an integer number of seconds")
+	}
+	var seconds int64
+	if err := value.Decode(&seconds); err != nil {
+		return err
+	}
+	*d = InitialCheckDelaySeconds(seconds)
+	return nil
+}
+
 // Notification holds the notification rules shared by the api and worker modes.
 type Notification struct {
-	ScheduledTimeSec int   `yaml:"scheduled_time_sec"`
-	LockDurationMS   int32 `yaml:"lock_duration_ms"`
+	InitialCheckDelaySec InitialCheckDelaySeconds `yaml:"initial_check_delay_sec"`
+	ScheduledTimeSec     int                      `yaml:"scheduled_time_sec"`
+	LockDurationMS       int32                    `yaml:"lock_duration_ms"`
 }
 
 // Load reads and validates the config file at path.
@@ -75,7 +94,7 @@ func Load(path string) (Config, error) {
 		Worker:       Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
 		InfoService:  InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database:     Database{MaxConns: 8, OperationTimeoutSec: 1},
-		Notification: Notification{LockDurationMS: 2000},
+		Notification: Notification{InitialCheckDelaySec: 0, LockDurationMS: 2000},
 	}
 	if err := decoder.Decode(&cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
@@ -97,6 +116,10 @@ func Load(path string) (Config, error) {
 	baseURL, err := url.Parse(cfg.InfoService.BaseURL)
 	if err != nil || baseURL.Hostname() == "" || (baseURL.Scheme != "http" && baseURL.Scheme != "https") {
 		return Config{}, fmt.Errorf("config: infoservice.base_url must be an absolute HTTP or HTTPS URL with a host")
+	}
+
+	if cfg.Notification.InitialCheckDelaySec < 0 || cfg.Notification.InitialCheckDelaySec > InitialCheckDelaySeconds(math.MaxInt64/int64(time.Second)) {
+		return Config{}, fmt.Errorf("config: notification.initial_check_delay_sec must be between 0 and %d", math.MaxInt64/int64(time.Second))
 	}
 
 	positive := []struct {
