@@ -22,10 +22,10 @@ The original conditions in the main row are preserved; the separate snapshot als
 retains lifecycle values replaced by the stop transition. Raw data and parser
 errors are not exposed by GET or logged.
 
-DELETE and Collector delete the main row, and its DLQ record is deleted by the
-foreign key in the same transaction. Ownership and the unique
-`(client_id, external_id)` remain until deletion. DLQ retention is not selected
-here; task 05 owns that decision. No replay/requeue.
+The owner's DELETE removes the main row and its DLQ record through the foreign key
+in the same transaction. Ownership and the unique `(client_id, external_id)` remain
+until deletion. Collector retains DLQ indefinitely; its ordinary-notification retention
+does not apply to DLQ rows or their snapshots. No replay/requeue.
 
 ## API
 
@@ -116,7 +116,7 @@ ownership; this verification does not claim the combined 04/10/15 result.
 | --- | --- |
 | 10, callback journal / e2e | Integrate the agreed 04 contract, adapt ordinary-versus-DLQ GET assertions, add the live damaged-condition scenario that observes DLQ in API/DB and proves no callback in the journal, and rerun the combined full suite. |
 | 15, README API / worker | Use the final GET variant and show DLQ without callback plus independent technical rescheduling in the worker diagram. |
-| 05, Collector | Decide DLQ retention with the user. Delete `t_notification`; its `t_dlq` snapshot is removed by ON DELETE CASCADE. Verify cleanup with 003 present. |
+| 05, Collector | DLQ retention is indefinite: Collector excludes DLQ rows and their snapshots. Owner DELETE still removes the main row and its snapshot through ON DELETE CASCADE. |
 | 12, configuration docs | Document `notification.technical_retry_delay_sec`: positive int32 seconds, default 10, worker only, read at startup; used on transient storage/target failure, including failure to save a result, and never capped at deadline. |
 
 Do not copy unfinished neighboring implementations or independently merge their

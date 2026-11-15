@@ -24,6 +24,7 @@ alwaysApply: false
 | `notifier/internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |
 | `internal/health` | Serve internal probes on loopback and coordinate their listener lifecycle with the service. |
 | `notifier/internal/storage/postgres` | Own SQL, PostgreSQL transactions, row mapping and database error translation. |
+| `notifier/internal/collector` | Run one cleanup invocation with a fixed retention cutoff and sequential atomic batches; application owns the pool and the CLI bounds shutdown. |
 | `notifier/internal/worker` | Own polling loops, batch concurrency and cancellation of notification processing. |
 | `notifier/internal/interactions` | Own outbound transport. Keep domain policy in the caller or in core. |
 | `emulator/cmd/emulator` | Parse listen flags and handle process signals. |

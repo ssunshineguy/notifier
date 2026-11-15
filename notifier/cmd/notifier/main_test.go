@@ -23,7 +23,6 @@ func TestRunRejectsInvalidInvocation(t *testing.T) {
 		{"missing mode", nil, "exactly one mode is required", true},
 		{"extra mode", []string{"api", "migrate"}, "exactly one mode is required", true},
 		{"unknown mode", []string{"-config", configPath, "unknown"}, "unknown mode \"unknown\"", false},
-		{"collector", []string{"-config", configPath, "collector"}, "mode \"collector\" is not implemented yet", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -139,13 +138,17 @@ notification:
 
 func TestRunUsesExplicitDSNFile(t *testing.T) {
 	configPath := writeCLIConfig(t, cliTestMigratorDSN)
-	if err := os.Remove(filepath.Join(filepath.Dir(configPath), "collector.dsn")); err != nil {
+	if err := os.Remove(filepath.Join(filepath.Dir(configPath), "api.dsn")); err != nil {
 		t.Fatal(err)
 	}
-	selected := filepath.Join(filepath.Dir(configPath), "api.dsn")
-	setCommandLine(t, "-config", configPath, "-database-dsn-file", selected, "collector")
-	if err := run(); err == nil || err.Error() != "mode \"collector\" is not implemented yet" {
-		t.Fatalf("run = %v, want unimplemented collector after successful config loading", err)
+	selected := filepath.Join(filepath.Dir(configPath), "explicit.dsn")
+	if err := os.WriteFile(selected, []byte("postgres://collector@127.0.0.1:1/notifier?sslmode=disable"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	setCommandLine(t, "-config", configPath, "-database-dsn-file", selected, "-listen-addr", "127.0.0.1:8080:explicit", "api")
+	var addrErr *net.AddrError
+	if err := run(); !errors.As(err, &addrErr) || addrErr.Addr != "127.0.0.1:8080:explicit" {
+		t.Fatalf("run = %v, want the explicit listen address error after successful config loading", err)
 	}
 }
 

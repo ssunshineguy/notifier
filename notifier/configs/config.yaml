@@ -14,6 +14,10 @@ worker:
   batch_size: 8
   cycle_timeout_ms: 2000
 
+collector:
+  batch_size: 1000
+  retention_days: 365
+
 infoservice:
   base_url: http://emulator:8081
   time_timeout_ms: 200

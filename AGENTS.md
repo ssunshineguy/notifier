@@ -11,7 +11,7 @@ The service is a single `notifier` binary that runs in different modes:
 | --- | --- | --- |
 | `api` | HTTP notification creation and health probes | long-running process |
 | `worker` | checks conditions and delivers events to clients | long-running process |
-| `collector` | removes stopped notifications in batches | runs once and exits, started on a schedule |
+| `collector` | removes ordinary stopped notifications older than the configured retention | runs once and exits; scheduled externally as a single instance |
 | `migrate` | applies database migrations | one-off run before the services start |
 
 ## Language
@@ -45,6 +45,17 @@ in `emulator/internal/`.
 Notifier API, the emulator, and the worker serve `/health/live` and `/health/ready` on internal
 loopback listeners on ports `9080`, `9081`, and `9082` respectively. Compose runs the readiness
 checks inside each container and restarts the worker when it exits with an error.
+
+Collector runs once, using only `collector.dsn` and the shared pool bootstrap. The
+external scheduler must run exactly one instance; Collector adds no leader election
+or concurrent cleanup goroutines. `collector.retention_days` defaults to 365 and
+accepts 1–106751 whole days (24 hours each). The cutoff is fixed once at startup.
+Only `success` and `deadline_exceeded` with `stop_dt` strictly before that cutoff
+are deleted. Active notifications and DLQ remain; DLQ retention is indefinite.
+`collector.batch_size` must be a positive integer (default 1000); batches are sequential atomic SQL
+statements. SIGINT/SIGTERM cancels the current operation; the CLI shares the worker's
+10-second forced-exit watchdog, including pool closure. The Compose `maintenance`
+profile keeps Collector out of `make up`; run it explicitly after stack startup.
 
 ## Where to look
 

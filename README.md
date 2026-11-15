@@ -178,31 +178,6 @@ sequenceDiagram
 
 </details>
 
-<details>
-<summary>Collector</summary>
-
-```mermaid
-sequenceDiagram
-    participant K as Notifier Collector
-    participant DB as PostgreSQL
-
-    loop Очистка пачками
-        K->>DB: SELECT id FROM t_notification<br/>WHERE stop_dt IS NOT NULL<br/>LIMIT 1000
-        DB-->>K: Список ID, от 0 до 1000
-
-        opt Выбрана хотя бы одна запись
-            K->>DB: DELETE FROM t_notification<br/>WHERE id IN (выбранные ID)
-            DB-->>K: Количество удалённых записей
-        end
-
-        break SELECT вернул меньше 1000 записей
-            K->>K: Завершить текущий запуск
-        end
-    end
-```
-
-</details>
-
 ## Ограничения прототипа
 
 | Область | Допущение прототипа |
@@ -315,7 +290,7 @@ docker compose logs --since=10m notification_worker
 ```
 ├── notifier/
 │   ├── api/                           # OpenAPI Notifier: исходники в spec/, бандл в bundle/
-│   ├── cmd/notifier/                  # Точка входа: режимы api и migrate
+│   ├── cmd/notifier/                  # Точка входа: режимы api, worker, collector и migrate
 │   ├── configs/config.yaml            # Конфигурация Notifier
 │   ├── db/
 │   │   ├── init/                      # Бутстрап PostgreSQL

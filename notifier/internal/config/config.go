@@ -19,6 +19,7 @@ import (
 type Config struct {
 	API          API          `yaml:"api"`
 	Worker       Worker       `yaml:"worker"`
+	Collector    Collector    `yaml:"collector"`
 	InfoService  InfoService  `yaml:"infoservice"`
 	Database     Database     `yaml:"database"`
 	Notification Notification `yaml:"notification"`
@@ -41,6 +42,44 @@ type Worker struct {
 	Workers        int   `yaml:"workers"`
 	BatchSize      int   `yaml:"batch_size"`
 	CycleTimeoutMS int32 `yaml:"cycle_timeout_ms"`
+}
+
+// Collector sets retention and the maximum rows removed per transaction.
+type Collector struct {
+	BatchSize     CollectorBatchSize `yaml:"batch_size"`
+	RetentionDays RetentionDays      `yaml:"retention_days"`
+}
+
+// CollectorBatchSize requires a whole number of rows per deletion transaction.
+type CollectorBatchSize int
+
+// UnmarshalYAML rejects fractional limits instead of silently reducing them.
+func (b *CollectorBatchSize) UnmarshalYAML(value *yaml.Node) error {
+	if value.Tag != "!!int" {
+		return fmt.Errorf("collector.batch_size must be an integer number of rows")
+	}
+	var count int
+	if err := value.Decode(&count); err != nil {
+		return err
+	}
+	*b = CollectorBatchSize(count)
+	return nil
+}
+
+// RetentionDays rejects fractional retention values that could delete data too early.
+type RetentionDays int32
+
+// UnmarshalYAML requires a whole number of days rather than truncating a fractional value.
+func (d *RetentionDays) UnmarshalYAML(value *yaml.Node) error {
+	if value.Tag != "!!int" {
+		return fmt.Errorf("collector.retention_days must be an integer number of days")
+	}
+	var days int32
+	if err := value.Decode(&days); err != nil {
+		return err
+	}
+	*d = RetentionDays(days)
+	return nil
 }
 
 // InfoService sets the service address and request budgets.
@@ -101,6 +140,7 @@ func Load(path, mode, dsnPath string) (Config, error) {
 	cfg := Config{
 		API:          API{ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxConnections: 1024, MaxQueued: 16, SlotWaitTimeoutMS: 100, RequestTimeoutMS: 300, WriteTimeoutMS: 1000, IdleTimeoutMS: 60000},
 		Worker:       Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
+		Collector:    Collector{BatchSize: 1000, RetentionDays: 365},
 		InfoService:  InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database:     Database{MaxConns: 8, OperationTimeoutSec: 1},
 		Notification: Notification{InitialCheckDelaySec: 0, TechnicalRetryDelaySec: 10, LockDurationMS: 2000},
@@ -155,6 +195,15 @@ func Load(path, mode, dsnPath string) (Config, error) {
 
 	if cfg.Notification.LockDurationMS < cfg.Worker.CycleTimeoutMS {
 		return Config{}, fmt.Errorf("config: notification.lock_duration_ms must be at least worker.cycle_timeout_ms")
+	}
+
+	const maxRetentionDays = RetentionDays(math.MaxInt64 / int64(24*time.Hour))
+	if cfg.Collector.RetentionDays < 1 || cfg.Collector.RetentionDays > maxRetentionDays {
+		return Config{}, fmt.Errorf("config: collector.retention_days must be between 1 and %d", maxRetentionDays)
+	}
+
+	if cfg.Collector.BatchSize < 1 {
+		return Config{}, fmt.Errorf("config: collector.batch_size must be positive")
 	}
 
 	if cfg.Database.MinConns < 0 || cfg.Database.MinConns > cfg.Database.MaxConns {

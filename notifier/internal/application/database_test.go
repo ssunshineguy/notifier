@@ -37,6 +37,9 @@ func TestModeWiringRejectsMissingAndInvalidDSN(t *testing.T) {
 		"worker": func(ctx context.Context, cfg config.Config) error {
 			return RunWorker(ctx, cfg, func() {})
 		},
+		"collector": func(ctx context.Context, cfg config.Config) error {
+			return RunCollector(ctx, cfg, func() {})
+		},
 		"migrate": Migrate,
 	} {
 		for _, dsn := range []string{"", " \t\n", "postgres://role:synthetic-secret@localhost:invalid/notifier"} {
