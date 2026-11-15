@@ -42,8 +42,10 @@ func TestSaveNotificationResultIntegration(t *testing.T) {
 		deleted bool
 	}{
 		{name: "reschedule", result: core.NotificationResult{NextScheduled: &next, NotificationStatus: core.NotificationActive}},
-		{name: "retry", result: core.NotificationResult{NextScheduled: &next, FailedAttemptCount: 3,
-			NotificationStatus: core.EventSuccess, DeliveryStatus: core.DeliveryTryingToDeliver}},
+		{name: "retry", result: core.NotificationResult{
+			NextScheduled: &next, FailedAttemptCount: 3,
+			NotificationStatus: core.EventSuccess, DeliveryStatus: core.DeliveryTryingToDeliver,
+		}},
 		{name: "delivered", result: core.NotificationResult{NotificationStatus: core.EventSuccess, DeliveryStatus: core.DeliveryDelivered, FailedAttemptCount: 1}},
 		{name: "deadline event delivered", result: core.NotificationResult{NotificationStatus: core.EventDeadlineExceeded, DeliveryStatus: core.DeliveryDelivered}},
 		{name: "attempts exhausted", result: core.NotificationResult{NotificationStatus: core.EventSuccess, DeliveryStatus: core.DeliveryFailed, FailedAttemptCount: 42}},

@@ -50,7 +50,8 @@ def test_notification_lifecycle(
     assert original_state is not None
     stored_start = original_state["start_dt"]
     stored_deadline = original_state["deadline_dt"]
-    assert before_create <= stored_start <= after_create
+    clock_skew_tolerance = timedelta(milliseconds=100)
+    assert before_create - clock_skew_tolerance <= stored_start <= after_create + clock_skew_tolerance
     assert stored_deadline - stored_start == timedelta(seconds=client.max_lifetime_sec)
     assert start == stored_start.replace(microsecond=0)
     assert deadline == stored_deadline.replace(microsecond=0)

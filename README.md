@@ -242,14 +242,16 @@ sequenceDiagram
 
 ## Локальный запуск
 
-Нужны Docker Compose и `make`. `make up` запускает PostgreSQL, применяет миграции и ждёт готовности Notifier API и эмулятора. С хоста API доступен на `http://127.0.0.1:8080`, эмулятор — на `http://127.0.0.1:8081`. Внутри сети Compose адрес эмулятора — `http://emulator:8081`.
+Нужны работающий Docker с Compose и `make`. `make up` запускает PostgreSQL, применяет миграции и ждёт готовности API, worker и эмулятора. Порты на loopback назначаются динамически; команда выводит адреса API, эмулятора и PostgreSQL. Внутри сети Compose адрес эмулятора — `http://emulator:8081`. Для параллельных checkout используй разные `COMPOSE_PROJECT_NAME`.
 
 ```bash
 make up
 make down      # остановить стенд, сохранив данные
 ```
 
-Для работы с локальной базой используй `make psql`. `make migrate` применяет миграции и обновляет дамп схемы, а `make reset` удаляет локальную базу.
+Для работы с локальной базой используй `make psql`. `make migrate` применяет миграции и обновляет дамп схемы, а `make reset` удаляет данные выбранного Compose-проекта.
+
+Prerequisites, изоляция стендов и последовательность первого уведомления описаны в [руководстве разработки](docs/development.md). Параметры, ограничения и момент применения изменений — в [справочнике конфигурации](docs/configuration.md).
 
 ## Первая проверка уведомления
 
@@ -261,11 +263,14 @@ make down      # остановить стенд, сохранив данные
 
 ## Тестирование
 
-Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
+Единые команды запускаются из корня checkout:
 
-Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./notifier/internal/storage/postgres`.
+- `make check` — Go unit tests, vet, lint, проверка форматирования и `git diff --check` без автоматических исправлений.
+- `make test-integration` — PostgreSQL integration suite; нужен Docker.
+- `make setup-e2e` — явная установка закреплённых Python-зависимостей; `make test-e2e` — helper-тесты и сквозные сценарии на выбранном работающем Compose-стенде.
+- `make ai-check` — проверка AI setup без изменения checkout; перед первым запуском нужен `make ai-setup`.
 
-Сквозные API-тесты на pytest запускаются на текущем Docker Compose. См. [правила запуска](ai/rules/tests.mdc). Если API запущен с другой задержкой первой проверки, передай её тестам через `NOTIFIER_E2E_INITIAL_CHECK_DELAY_SEC` в секундах; эта переменная задаёт ожидание теста, конфигурацию API она не меняет.
+Версии инструментов, границы suites, дополнительные race/generation checks и обновление зависимостей описаны в [руководстве разработки](docs/development.md#checks-and-suites). E2e обязателен на каждое изменение кода, включая Python и tooling. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
 
 ## Структура репозитория
 
