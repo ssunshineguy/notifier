@@ -323,9 +323,9 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 // handleGetNotificationRequest handles getNotification operation.
 //
 // Returns the parameters of a notification owned by the client, including a stopped notification while
-// its record is retained. The response includes its current notification status. An invalid
-// `notification_id` returns `400`. A missing notification or one owned by another client returns
-// `404`.
+// its record is retained. The response includes the condition result and, once a callback attempt is
+// recorded, the delivery status. An invalid `notification_id` returns `400`. A missing notification or
+// one owned by another client returns `404`.
 //
 // GET /v1/notifications/{notification_id}
 func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -457,11 +457,12 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 
 // handleUpdateNotificationRequest handles updateNotification operation.
 //
-// Replaces the trigger conditions of an active notification. The deadline and other parameters cannot
-// be changed. If the client's notification is stopped, the request returns `400` with the problem
-// title "Incorrect notification status".
+// Replaces the trigger conditions of a notification that has not stopped. The deadline and other
+// parameters cannot be changed. If the client's notification is stopped, the request returns `400`
+// with the problem title "Incorrect notification status".
 //
-// The change applies from the next check: an event that is already being delivered is not cancelled.
+// The change applies from the next check. Delivery of an already selected event, including retries,
+// continues with the same event status.
 //
 // PUT /v1/notifications/{notification_id}
 func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

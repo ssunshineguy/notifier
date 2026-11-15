@@ -33,18 +33,17 @@ func TestClaimNotificationsIntegration(t *testing.T) {
 		t.Helper()
 		id := uuid.New()
 		var stoppedAt *time.Time
-		var reason *string
+		notificationStatus, deliveryStatus := core.NotificationActive, ""
 		if stopped {
 			stoppedAt = &now
-			delivered := "delivered"
-			reason = &delivered
+			notificationStatus, deliveryStatus = core.EventSuccess, core.DeliveryDelivered
 		}
 		_, err := pool.Exec(ctx, `
 			INSERT INTO notifier.t_notification
 			    (id, client_id, external_id, data, start_dt, deadline_dt,
-			     next_scheduled_dt, lock_until_dt, stop_dt, stop_reason)
-			VALUES ($1, 'worker-fixture', $2, '[]', $3, $4, $5, $6, $7, $8)`,
-			id, name, now.Add(-time.Hour), now.Add(time.Hour), scheduled, lockUntil, stoppedAt, reason)
+			     next_scheduled_dt, lock_until_dt, stop_dt, notification_status, delivery_status)
+			VALUES ($1, 'worker-fixture', $2, '[]', $3, $4, $5, $6, $7, $8, NULLIF($9, ''))`,
+			id, name, now.Add(-time.Hour), now.Add(time.Hour), scheduled, lockUntil, stoppedAt, notificationStatus, deliveryStatus)
 		if err != nil {
 			t.Fatal(err)
 		}

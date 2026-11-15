@@ -17,7 +17,7 @@ const updateNotification = `
 UPDATE notifier.t_notification
 SET data = $3
 WHERE id = $1 AND client_id = $2 AND stop_dt IS NULL
-RETURNING id, external_id, deadline_dt, start_dt`
+RETURNING id, external_id, deadline_dt, start_dt, notification_status, COALESCE(delivery_status, '')`
 
 const selectStoppedNotification = `
 SELECT id
@@ -35,7 +35,8 @@ func (s *Store) UpdateNotification(ctx context.Context, notificationID uuid.UUID
 	err = s.scanRow(ctx, "update_notification", updateNotification,
 		[]any{notificationID, clientID, data},
 		func() slog.Attr { return slog.String("notification_id", notification.ID.String()) },
-		&notification.ID, &notification.ExternalID, &notification.Deadline, &notification.Start)
+		&notification.ID, &notification.ExternalID, &notification.Deadline, &notification.Start,
+		&notification.NotificationStatus, &notification.DeliveryStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return core.NotificationDetails{}, s.checkStoppedNotification(ctx, notificationID, clientID)
 	}
@@ -44,7 +45,6 @@ func (s *Store) UpdateNotification(ctx context.Context, notificationID uuid.UUID
 	}
 
 	notification.Params = conditions
-	notification.Status = "active"
 	return notification, nil
 }
 

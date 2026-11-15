@@ -12,12 +12,15 @@ CREATE TABLE notifier.t_notification (
     lock_until_dt timestamp with time zone,
     failed_attempt_count smallint DEFAULT 0 NOT NULL,
     stop_dt timestamp with time zone,
-    stop_reason text,
+    notification_status text DEFAULT 'active'::text NOT NULL,
+    delivery_status text,
     CONSTRAINT ck_notification_deadline_dt_start_dt CHECK ((deadline_dt > start_dt)),
+    CONSTRAINT ck_notification_delivery_status CHECK ((delivery_status = ANY (ARRAY['trying_to_deliver'::text, 'delivered'::text, 'delivery_failed'::text]))),
     CONSTRAINT ck_notification_external_id CHECK (((length(external_id) >= 1) AND (length(external_id) <= 128))),
     CONSTRAINT ck_notification_failed_attempt_count CHECK ((failed_attempt_count >= 0)),
-    CONSTRAINT ck_notification_stop_dt_stop_reason CHECK (((stop_dt IS NULL) = (stop_reason IS NULL))),
-    CONSTRAINT ck_notification_stop_reason CHECK ((stop_reason = ANY (ARRAY['delivered'::text, 'deadline_exceeded'::text, 'delivery_failed'::text, 'deleted'::text])))
+    CONSTRAINT ck_notification_notification_status CHECK ((notification_status = ANY (ARRAY['active'::text, 'success'::text, 'deadline_exceeded'::text]))),
+    CONSTRAINT ck_notification_notification_status_delivery_status CHECK (((notification_status = 'active'::text) = (delivery_status IS NULL))),
+    CONSTRAINT ck_notification_stop_dt_delivery_status CHECK (((delivery_status IS NULL) OR ((stop_dt IS NULL) = (delivery_status = 'trying_to_deliver'::text))))
 );
 
 COMMENT ON COLUMN notifier.t_notification.client_id IS 'No foreign key to t_client: clients will move to the Directory service.';

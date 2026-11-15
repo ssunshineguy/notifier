@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -21,6 +22,24 @@ type conditionStoreFunc func(context.Context, core.NotificationClaim) (core.Noti
 
 func (f conditionStoreFunc) GetClaimedNotificationConditions(ctx context.Context, claim core.NotificationClaim) (core.NotificationConditions, error) {
 	return f(ctx, claim)
+}
+
+func (conditionStoreFunc) GetClaimedCallbackTarget(context.Context, core.NotificationClaim) (core.CallbackTarget, error) {
+	return core.CallbackTarget{}, nil
+}
+
+func (conditionStoreFunc) SaveNotificationResult(context.Context, core.NotificationClaim, core.NotificationResult) error {
+	return nil
+}
+
+type callbackFunc func(context.Context, string, string, core.NotificationEvent) (int, error)
+
+func (f callbackFunc) Send(ctx context.Context, endpoint, requestID string, event core.NotificationEvent) (int, error) {
+	return f(ctx, endpoint, requestID, event)
+}
+
+func acceptEvent(context.Context, string, string, core.NotificationEvent) (int, error) {
+	return http.StatusNoContent, nil
 }
 
 type informationServiceStub struct {
@@ -96,8 +115,10 @@ func TestProcessConditions(t *testing.T) {
 					t.Errorf("store deadline = %v, want %v", deadline, parentDeadline)
 				}
 				return core.NotificationConditions{
-					ClientID: clientID,
-					Params:   tt.params,
+					ClientID:           clientID,
+					Params:             tt.params,
+					Deadline:           after.Add(time.Minute),
+					NotificationStatus: core.NotificationActive,
 				}, tt.storeErr
 			})
 			checkRequest := func(ctx context.Context, gotClientID string) {
@@ -123,7 +144,7 @@ func TestProcessConditions(t *testing.T) {
 				},
 			}
 
-			worker.ProcessConditions(ctx, claim, store, source)
+			worker.ProcessNotification(ctx, claim, store, source, callbackFunc(acceptEvent), worker.ProcessingSettings{})
 
 			if timeCalls != tt.wantTimeCalls || priceCalls != tt.wantPriceCalls {
 				t.Errorf("time/price calls = %d/%d, want %d/%d", timeCalls, priceCalls, tt.wantTimeCalls, tt.wantPriceCalls)
@@ -134,7 +155,8 @@ func TestProcessConditions(t *testing.T) {
 				Outcome        string `json:"outcome"`
 				Met            any    `json:"met"`
 			}
-			if err := json.Unmarshal(logs.Bytes(), &event); err != nil {
+			firstLine, _, _ := bytes.Cut(logs.Bytes(), []byte("\n"))
+			if err := json.Unmarshal(firstLine, &event); err != nil {
 				t.Fatal(err)
 			}
 			if event.Outcome != tt.outcome || event.Met != tt.wantMet || event.NotificationID != claim.ID.String() {
@@ -164,8 +186,10 @@ func TestProcessConditionsFetchesTimeAndPriceConcurrently(t *testing.T) {
 		done := make(chan struct{})
 		store := conditionStoreFunc(func(context.Context, core.NotificationClaim) (core.NotificationConditions, error) {
 			return core.NotificationConditions{
-				ClientID: "test-client",
-				Params:   []core.Condition{{Type: core.ConditionTime}, {Type: core.ConditionPrice}},
+				ClientID:           "test-client",
+				Params:             []core.Condition{{Type: core.ConditionTime}, {Type: core.ConditionPrice}},
+				Deadline:           time.Now().Add(time.Minute),
+				NotificationStatus: core.NotificationActive,
 			}, nil
 		})
 		source := informationServiceStub{
@@ -183,7 +207,7 @@ func TestProcessConditionsFetchesTimeAndPriceConcurrently(t *testing.T) {
 
 		go func() {
 			defer close(done)
-			worker.ProcessConditions(t.Context(), core.NotificationClaim{}, store, source)
+			worker.ProcessNotification(t.Context(), core.NotificationClaim{}, store, source, callbackFunc(acceptEvent), worker.ProcessingSettings{})
 		}()
 		synctest.Wait()
 		if len(started) != 2 {

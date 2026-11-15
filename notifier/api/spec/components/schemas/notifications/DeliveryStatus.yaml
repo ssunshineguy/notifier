@@ -1,0 +1,13 @@
+title: DeliveryStatus
+description: |
+  Delivery state of the selected event. Omitted before the first attempt.
+
+  - `trying_to_deliver` — a further attempt is scheduled.
+  - `delivered` — the recipient confirmed delivery.
+  - `delivery_failed` — delivery attempts were exhausted.
+type: string
+enum:
+  - trying_to_deliver
+  - delivered
+  - delivery_failed
+example: trying_to_deliver

@@ -59,8 +59,10 @@ func TestUpdateNotification(t *testing.T) {
 		problem    string
 		title      string
 		fieldError bool
+		retrying   bool
 	}{
 		{name: "replace conditions", calls: 1, status: 200},
+		{name: "replace conditions during retry", calls: 1, status: 200, retrying: true},
 		{name: "stopped", storeErr: fmt.Errorf("update: %w", core.ErrNotificationStopped), calls: 1, status: 400, problem: "/problems/incorrect-notification-status", title: "Incorrect notification status"},
 		{name: "missing", storeErr: fmt.Errorf("update: %w", core.ErrNotificationNotFound), calls: 1, status: 404, problem: "/problems/not-found"},
 		{name: "foreign", clientID: "other-client", storeErr: core.ErrNotificationNotFound, calls: 1, status: 404, problem: "/problems/not-found"},
@@ -82,6 +84,10 @@ func TestUpdateNotification(t *testing.T) {
 			if clientID == "" {
 				clientID = owner
 			}
+			notificationStatus, deliveryStatus := core.NotificationActive, ""
+			if tt.retrying {
+				notificationStatus, deliveryStatus = core.EventSuccess, core.DeliveryTryingToDeliver
+			}
 			calls := 0
 			store := &notificationStoreStub{
 				updateNotification: func(_ context.Context, gotID uuid.UUID, gotClientID string, conditions []core.Condition) (core.NotificationDetails, error) {
@@ -91,7 +97,7 @@ func TestUpdateNotification(t *testing.T) {
 					}
 					return core.NotificationDetails{
 						ID: id, ExternalID: "order-42", Params: conditions,
-						Start: start, Deadline: deadline, Status: "active",
+						Start: start, Deadline: deadline, NotificationStatus: notificationStatus, DeliveryStatus: deliveryStatus,
 					}, tt.storeErr
 				},
 			}
@@ -137,7 +143,7 @@ func TestUpdateNotification(t *testing.T) {
 				}
 				want := codegen.Notification{
 					NotificationID: codegen.NotificationId(id), ExternalID: "order-42",
-					NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatusActive),
+					NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatus(notificationStatus)),
 					NotificationParams: codegen.NotificationParams{codegen.NewOrConditionCondition(codegen.OrCondition{
 						Type: codegen.OrConditionTypeOr,
 						Conditions: []codegen.Condition{
@@ -151,6 +157,9 @@ func TestUpdateNotification(t *testing.T) {
 						},
 					})},
 					DeadlineDt: deadline, StartDt: start,
+				}
+				if deliveryStatus != "" {
+					want.DeliveryStatus.SetTo(codegen.DeliveryStatus(deliveryStatus))
 				}
 				if !reflect.DeepEqual(got, want) {
 					t.Errorf("notification = %+v, want %+v", got, want)

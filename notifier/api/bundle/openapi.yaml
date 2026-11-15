@@ -226,7 +226,8 @@ paths:
       description: |
         Returns the parameters of a notification owned by the client,
         including a stopped notification while its record is retained.
-        The response includes its current notification status. An invalid
+        The response includes the condition result and, once a callback
+        attempt is recorded, the delivery status. An invalid
         `notification_id` returns `400`.
         A missing notification or one owned by another client returns `404`.
       responses:
@@ -242,7 +243,8 @@ paths:
               example:
                 notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
                 external_id: order-42-reminder
-                notification_status: active
+                notification_status: success
+                delivery_status: trying_to_deliver
                 notification_params:
                   - type: time
                     operation: greater_than
@@ -267,13 +269,13 @@ paths:
         - notifications
       summary: Replace the notification conditions
       description: |
-        Replaces the trigger conditions of an active notification. The deadline
-        and other parameters cannot be changed. If the client's notification is
-        stopped, the request returns `400` with the problem title
+        Replaces the trigger conditions of a notification that has not stopped.
+        The deadline and other parameters cannot be changed. If the client's
+        notification is stopped, the request returns `400` with the problem title
         "Incorrect notification status".
 
-        The change applies from the next check: an event that is already being
-        delivered is not cancelled.
+        The change applies from the next check. Delivery of an already selected
+        event, including retries, continues with the same event status.
       requestBody:
         required: true
         content:
@@ -331,6 +333,7 @@ paths:
               example:
                 notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
                 external_id: order-42-reminder
+                notification_status: active
                 notification_params:
                   - type: time
                     operation: greater_than
@@ -698,21 +701,31 @@ components:
     NotificationStatus:
       title: NotificationStatus
       description: |
-        Current lifecycle status of the stored notification.
+        Result of checking the notification's conditions.
 
-        - `active` — the notification has not stopped.
-        - `delivered` — the condition event was delivered.
-        - `deadline_exceeded` — the deadline event was delivered.
-        - `delivery_failed` — delivery attempts were exhausted.
-        - `deleted` — the notification was stopped by a delete request.
+        - `active` — no event has been selected for the notification.
+        - `success` — the conditions were met before the deadline.
+        - `deadline_exceeded` — the deadline passed before the conditions were met.
       type: string
       enum:
         - active
-        - delivered
+        - success
         - deadline_exceeded
-        - delivery_failed
-        - deleted
       example: active
+    DeliveryStatus:
+      title: DeliveryStatus
+      description: |
+        Delivery state of the selected event. Omitted before the first attempt.
+
+        - `trying_to_deliver` — a further attempt is scheduled.
+        - `delivered` — the recipient confirmed delivery.
+        - `delivery_failed` — delivery attempts were exhausted.
+      type: string
+      enum:
+        - trying_to_deliver
+        - delivered
+        - delivery_failed
+      example: trying_to_deliver
     Notification:
       title: Notification
       description: Notification parameters.
@@ -731,6 +744,8 @@ components:
           $ref: '#/components/schemas/ExternalId'
         notification_status:
           $ref: '#/components/schemas/NotificationStatus'
+        delivery_status:
+          $ref: '#/components/schemas/DeliveryStatus'
         notification_params:
           $ref: '#/components/schemas/NotificationParams'
         deadline_dt:

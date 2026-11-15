@@ -56,12 +56,15 @@ func TestGetNotification(t *testing.T) {
 		storeErr           error
 		invalidConditions  bool
 		notificationStatus string
+		deliveryStatus     string
 		wantStatus         int
 		wantType           string
 		wantTitle          string
 	}{
 		{name: "active notification", id: id, clientID: owner, notificationStatus: "active", wantStatus: http.StatusOK},
-		{name: "stopped notification", id: id, clientID: owner, notificationStatus: "delivered", wantStatus: http.StatusOK},
+		{name: "retrying after condition match", id: id, clientID: owner, notificationStatus: core.EventSuccess, deliveryStatus: core.DeliveryTryingToDeliver, wantStatus: http.StatusOK},
+		{name: "delivered deadline event", id: id, clientID: owner, notificationStatus: core.EventDeadlineExceeded, deliveryStatus: core.DeliveryDelivered, wantStatus: http.StatusOK},
+		{name: "delivery failed after condition match", id: id, clientID: owner, notificationStatus: core.EventSuccess, deliveryStatus: core.DeliveryFailed, wantStatus: http.StatusOK},
 		{name: "foreign client", id: id, clientID: "another-client", wantStatus: http.StatusNotFound, wantType: "/problems/not-found", wantTitle: "Notification not found"},
 		{name: "missing notification", id: unknownID, clientID: owner, wantStatus: http.StatusNotFound, wantType: "/problems/not-found", wantTitle: "Notification not found"},
 		{name: "database error", id: id, clientID: owner, storeErr: dbErr, wantStatus: http.StatusInternalServerError, wantType: "/problems/internal-error", wantTitle: "Internal server error"},
@@ -83,7 +86,8 @@ func TestGetNotification(t *testing.T) {
 						return core.NotificationDetails{}, fmt.Errorf("lookup: %w", core.ErrNotificationNotFound)
 					}
 					notification := details
-					notification.Status = tt.notificationStatus
+					notification.NotificationStatus = tt.notificationStatus
+					notification.DeliveryStatus = tt.deliveryStatus
 					if tt.invalidConditions {
 						notification.Params = []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{{Type: "unknown"}}}}
 					}
@@ -150,6 +154,9 @@ func TestGetNotification(t *testing.T) {
 							},
 						}),
 					},
+				}
+				if tt.deliveryStatus != "" {
+					want.DeliveryStatus.SetTo(codegen.DeliveryStatus(tt.deliveryStatus))
 				}
 				if !reflect.DeepEqual(got, want) {
 					t.Errorf("notification = %+v, want %+v", got, want)

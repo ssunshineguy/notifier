@@ -11,6 +11,7 @@ import (
 
 	"github.com/ssunshineguy/notifier/notifier/internal/config"
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
+	"github.com/ssunshineguy/notifier/notifier/internal/interactions/callback"
 	"github.com/ssunshineguy/notifier/notifier/internal/interactions/infoservice"
 	"github.com/ssunshineguy/notifier/notifier/internal/storage/postgres"
 	"github.com/ssunshineguy/notifier/notifier/internal/worker"
@@ -34,7 +35,13 @@ func RunWorker(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("configure worker information service: %w", err)
 	}
-	store := postgres.NewStore(pool, time.Duration(cfg.Database.OperationTimeoutSec)*time.Second)
+	callbackClient := callback.NewClient()
+	databaseTimeout := time.Duration(cfg.Database.OperationTimeoutSec) * time.Second
+	store := postgres.NewStore(pool, databaseTimeout)
+	processing := worker.ProcessingSettings{
+		ScheduledDelay:     time.Duration(cfg.Notification.ScheduledTimeSec) * time.Second,
+		ResultWriteTimeout: databaseTimeout,
+	}
 	settings := worker.Settings{
 		Workers:      cfg.Worker.Workers,
 		BatchSize:    cfg.Worker.BatchSize,
@@ -45,7 +52,7 @@ func RunWorker(ctx context.Context, cfg config.Config) error {
 		"workers", cfg.Worker.Workers, "batch_size", cfg.Worker.BatchSize,
 		"cycle_timeout_ms", cfg.Worker.CycleTimeoutMS, "lock_duration_ms", cfg.Notification.LockDurationMS)
 	worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
-		worker.ProcessConditions(ctx, claim, store, informationService)
+		worker.ProcessNotification(ctx, claim, store, informationService, callbackClient, processing)
 	}, settings)
 	return nil
 }

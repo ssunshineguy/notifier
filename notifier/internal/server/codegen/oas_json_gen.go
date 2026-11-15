@@ -365,6 +365,48 @@ func (s *Condition) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes DeliveryStatus as json.
+func (s DeliveryStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes DeliveryStatus from json.
+func (s *DeliveryStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DeliveryStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch DeliveryStatus(v) {
+	case DeliveryStatusTryingToDeliver:
+		*s = DeliveryStatusTryingToDeliver
+	case DeliveryStatusDelivered:
+		*s = DeliveryStatusDelivered
+	case DeliveryStatusDeliveryFailed:
+		*s = DeliveryStatusDeliveryFailed
+	default:
+		*s = DeliveryStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s DeliveryStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DeliveryStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ExternalId as json.
 func (s ExternalId) Encode(e *jx.Encoder) {
 	unwrapped := string(s)
@@ -542,6 +584,12 @@ func (s *Notification) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.DeliveryStatus.Set {
+			e.FieldStart("delivery_status")
+			s.DeliveryStatus.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("notification_params")
 		s.NotificationParams.Encode(e)
 	}
@@ -555,13 +603,14 @@ func (s *Notification) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotification = [6]string{
+var jsonFieldsNameOfNotification = [7]string{
 	0: "notification_id",
 	1: "external_id",
 	2: "notification_status",
-	3: "notification_params",
-	4: "deadline_dt",
-	5: "start_dt",
+	3: "delivery_status",
+	4: "notification_params",
+	5: "deadline_dt",
+	6: "start_dt",
 }
 
 // Decode decodes Notification from json.
@@ -603,8 +652,18 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"notification_status\"")
 			}
+		case "delivery_status":
+			if err := func() error {
+				s.DeliveryStatus.Reset()
+				if err := s.DeliveryStatus.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"delivery_status\"")
+			}
 		case "notification_params":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.NotificationParams.Decode(d); err != nil {
 					return err
@@ -614,7 +673,7 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"notification_params\"")
 			}
 		case "deadline_dt":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.DeadlineDt = v
@@ -626,7 +685,7 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"deadline_dt\"")
 			}
 		case "start_dt":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartDt = v
@@ -647,7 +706,7 @@ func (s *Notification) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1021,14 +1080,10 @@ func (s *NotificationStatus) Decode(d *jx.Decoder) error {
 	switch NotificationStatus(v) {
 	case NotificationStatusActive:
 		*s = NotificationStatusActive
-	case NotificationStatusDelivered:
-		*s = NotificationStatusDelivered
+	case NotificationStatusSuccess:
+		*s = NotificationStatusSuccess
 	case NotificationStatusDeadlineExceeded:
 		*s = NotificationStatusDeadlineExceeded
-	case NotificationStatusDeliveryFailed:
-		*s = NotificationStatusDeliveryFailed
-	case NotificationStatusDeleted:
-		*s = NotificationStatusDeleted
 	default:
 		*s = NotificationStatus(v)
 	}
@@ -1176,6 +1231,39 @@ func (s OptDateTime) MarshalJSON() ([]byte, error) {
 func (s *OptDateTime) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d, json.DecodeDateTime)
+}
+
+// Encode encodes DeliveryStatus as json.
+func (o OptDeliveryStatus) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes DeliveryStatus from json.
+func (o *OptDeliveryStatus) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptDeliveryStatus to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptDeliveryStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptDeliveryStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
 }
 
 // Encode encodes NotificationStatus as json.

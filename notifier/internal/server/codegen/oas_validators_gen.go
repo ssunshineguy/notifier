@@ -115,6 +115,19 @@ func (s Condition) Validate() error {
 	}
 }
 
+func (s DeliveryStatus) Validate() error {
+	switch s {
+	case "trying_to_deliver":
+		return nil
+	case "delivered":
+		return nil
+	case "delivery_failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ExternalId) Validate() error {
 	alias := (string)(s)
 	if err := (validate.String{
@@ -167,6 +180,24 @@ func (s *Notification) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "notification_status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.DeliveryStatus.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "delivery_status",
 			Error: err,
 		})
 	}
@@ -281,13 +312,9 @@ func (s NotificationStatus) Validate() error {
 	switch s {
 	case "active":
 		return nil
-	case "delivered":
+	case "success":
 		return nil
 	case "deadline_exceeded":
-		return nil
-	case "delivery_failed":
-		return nil
-	case "deleted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

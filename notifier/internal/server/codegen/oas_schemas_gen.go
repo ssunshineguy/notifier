@@ -340,6 +340,61 @@ func (s *DeleteNotificationOK) SetXRequestID(val OptString) {
 
 func (*DeleteNotificationOK) deleteNotificationRes() {}
 
+// Delivery state of the selected event. Omitted before the first attempt.
+//
+//   - `trying_to_deliver` — a further attempt is scheduled.
+//   - `delivered` — the recipient confirmed delivery.
+//   - `delivery_failed` — delivery attempts were exhausted.
+//
+// Ref: #/components/schemas/DeliveryStatus
+type DeliveryStatus string
+
+const (
+	DeliveryStatusTryingToDeliver DeliveryStatus = "trying_to_deliver"
+	DeliveryStatusDelivered       DeliveryStatus = "delivered"
+	DeliveryStatusDeliveryFailed  DeliveryStatus = "delivery_failed"
+)
+
+// AllValues returns all DeliveryStatus values.
+func (DeliveryStatus) AllValues() []DeliveryStatus {
+	return []DeliveryStatus{
+		DeliveryStatusTryingToDeliver,
+		DeliveryStatusDelivered,
+		DeliveryStatusDeliveryFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DeliveryStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case DeliveryStatusTryingToDeliver:
+		return []byte(s), nil
+	case DeliveryStatusDelivered:
+		return []byte(s), nil
+	case DeliveryStatusDeliveryFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DeliveryStatus) UnmarshalText(data []byte) error {
+	switch DeliveryStatus(data) {
+	case DeliveryStatusTryingToDeliver:
+		*s = DeliveryStatusTryingToDeliver
+		return nil
+	case DeliveryStatusDelivered:
+		*s = DeliveryStatusDelivered
+		return nil
+	case DeliveryStatusDeliveryFailed:
+		*s = DeliveryStatusDeliveryFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExternalId string
 
 // Ref: #/components/schemas/FieldError
@@ -436,6 +491,7 @@ type Notification struct {
 	NotificationID     NotificationId        `json:"notification_id"`
 	ExternalID         ExternalId            `json:"external_id"`
 	NotificationStatus OptNotificationStatus `json:"notification_status"`
+	DeliveryStatus     OptDeliveryStatus     `json:"delivery_status"`
 	NotificationParams NotificationParams    `json:"notification_params"`
 	DeadlineDt         time.Time             `json:"deadline_dt"`
 	// Moment when the notification was created.
@@ -455,6 +511,11 @@ func (s *Notification) GetExternalID() ExternalId {
 // GetNotificationStatus returns the value of NotificationStatus.
 func (s *Notification) GetNotificationStatus() OptNotificationStatus {
 	return s.NotificationStatus
+}
+
+// GetDeliveryStatus returns the value of DeliveryStatus.
+func (s *Notification) GetDeliveryStatus() OptDeliveryStatus {
+	return s.DeliveryStatus
 }
 
 // GetNotificationParams returns the value of NotificationParams.
@@ -485,6 +546,11 @@ func (s *Notification) SetExternalID(val ExternalId) {
 // SetNotificationStatus sets the value of NotificationStatus.
 func (s *Notification) SetNotificationStatus(val OptNotificationStatus) {
 	s.NotificationStatus = val
+}
+
+// SetDeliveryStatus sets the value of DeliveryStatus.
+func (s *Notification) SetDeliveryStatus(val OptDeliveryStatus) {
+	s.DeliveryStatus = val
 }
 
 // SetNotificationParams sets the value of NotificationParams.
@@ -625,33 +691,27 @@ type NotificationId uuid.UUID
 
 type NotificationParams []Condition
 
-// Current lifecycle status of the stored notification.
+// Result of checking the notification's conditions.
 //
-//   - `active` — the notification has not stopped.
-//   - `delivered` — the condition event was delivered.
-//   - `deadline_exceeded` — the deadline event was delivered.
-//   - `delivery_failed` — delivery attempts were exhausted.
-//   - `deleted` — the notification was stopped by a delete request.
+//   - `active` — no event has been selected for the notification.
+//   - `success` — the conditions were met before the deadline.
+//   - `deadline_exceeded` — the deadline passed before the conditions were met.
 //
 // Ref: #/components/schemas/NotificationStatus
 type NotificationStatus string
 
 const (
 	NotificationStatusActive           NotificationStatus = "active"
-	NotificationStatusDelivered        NotificationStatus = "delivered"
+	NotificationStatusSuccess          NotificationStatus = "success"
 	NotificationStatusDeadlineExceeded NotificationStatus = "deadline_exceeded"
-	NotificationStatusDeliveryFailed   NotificationStatus = "delivery_failed"
-	NotificationStatusDeleted          NotificationStatus = "deleted"
 )
 
 // AllValues returns all NotificationStatus values.
 func (NotificationStatus) AllValues() []NotificationStatus {
 	return []NotificationStatus{
 		NotificationStatusActive,
-		NotificationStatusDelivered,
+		NotificationStatusSuccess,
 		NotificationStatusDeadlineExceeded,
-		NotificationStatusDeliveryFailed,
-		NotificationStatusDeleted,
 	}
 }
 
@@ -660,13 +720,9 @@ func (s NotificationStatus) MarshalText() ([]byte, error) {
 	switch s {
 	case NotificationStatusActive:
 		return []byte(s), nil
-	case NotificationStatusDelivered:
+	case NotificationStatusSuccess:
 		return []byte(s), nil
 	case NotificationStatusDeadlineExceeded:
-		return []byte(s), nil
-	case NotificationStatusDeliveryFailed:
-		return []byte(s), nil
-	case NotificationStatusDeleted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -679,17 +735,11 @@ func (s *NotificationStatus) UnmarshalText(data []byte) error {
 	case NotificationStatusActive:
 		*s = NotificationStatusActive
 		return nil
-	case NotificationStatusDelivered:
-		*s = NotificationStatusDelivered
+	case NotificationStatusSuccess:
+		*s = NotificationStatusSuccess
 		return nil
 	case NotificationStatusDeadlineExceeded:
 		*s = NotificationStatusDeadlineExceeded
-		return nil
-	case NotificationStatusDeliveryFailed:
-		*s = NotificationStatusDeliveryFailed
-		return nil
-	case NotificationStatusDeleted:
-		*s = NotificationStatusDeleted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -753,6 +803,52 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDeliveryStatus returns new OptDeliveryStatus with value set to v.
+func NewOptDeliveryStatus(v DeliveryStatus) OptDeliveryStatus {
+	return OptDeliveryStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDeliveryStatus is optional DeliveryStatus.
+type OptDeliveryStatus struct {
+	Value DeliveryStatus
+	Set   bool
+}
+
+// IsSet returns true if OptDeliveryStatus was set.
+func (o OptDeliveryStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDeliveryStatus) Reset() {
+	var v DeliveryStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDeliveryStatus) SetTo(v DeliveryStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDeliveryStatus) Get() (v DeliveryStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDeliveryStatus) Or(d DeliveryStatus) DeliveryStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}

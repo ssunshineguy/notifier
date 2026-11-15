@@ -43,9 +43,14 @@ func TestGetClaimedNotificationConditionsIntegration(t *testing.T) {
 	if claim.ID != id {
 		t.Fatalf("claim ID = %v, want %v", claim.ID, id)
 	}
+	if _, err := pool.Exec(ctx, "UPDATE notifier.t_notification SET failed_attempt_count = 2 WHERE id = $1", id); err != nil {
+		t.Fatal(err)
+	}
 
 	got, err := store.GetClaimedNotificationConditions(ctx, claim)
-	if err != nil || got.ClientID != notification.ClientID || !reflect.DeepEqual(got.Params, notification.Params) {
+	if err != nil || got.ClientID != notification.ClientID || got.ExternalID != notification.ExternalID ||
+		!got.Deadline.Equal(notification.Deadline) || got.NotificationStatus != core.NotificationActive ||
+		got.FailedAttemptCount != 2 || !reflect.DeepEqual(got.Params, notification.Params) {
 		t.Fatalf("GetClaimedNotificationConditions = %+v, %v, want client and nested conditions", got, err)
 	}
 
@@ -71,7 +76,8 @@ func TestGetClaimedNotificationConditionsIntegration(t *testing.T) {
 	}
 	assertUnavailable(core.NotificationClaim{ID: id, LockUntil: start})
 
-	if _, err := pool.Exec(ctx, "UPDATE notifier.t_notification SET lock_until_dt = $1, stop_dt = now(), stop_reason = 'delivered' WHERE id = $2", claim.LockUntil, id); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE notifier.t_notification
+		SET lock_until_dt = $1, stop_dt = now(), notification_status = 'success', delivery_status = 'delivered' WHERE id = $2`, claim.LockUntil, id); err != nil {
 		t.Fatal(err)
 	}
 	assertUnavailable(claim)
