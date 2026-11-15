@@ -11,12 +11,22 @@ alwaysApply: false
 Migrations live in `notifier/db/migrations`, run with goose as `notifier_migrator`, and are applied by
 `make migrate`, which also regenerates `notifier/db/schema/`.
 
-## Files
+## Files and execution scope
 
-- One file per change: `{nnn}__{snake_case_description}.sql`, the next free number, for example
-  `003__t_notification_add_priority.sql`.
+- One file per short DDL change: `{nnn}__{snake_case_description}.sql`, the next free number.
 - Forward-only: no `-- +goose Down`. A rollback is a new migration.
-- Never edit a migration that has been merged or applied outside a local stand.
+- Preserve merged or applied migration history. Before proposing an exception, inventory where
+  the version was applied and obtain explicit approval for that exact history change. Unknown
+  environments are not evidence that a rewrite is safe. Document both already-applied and fresh
+  installation paths; a later migration cannot undo the locks taken by an earlier one.
+- Automatic rollout migrations contain short DDL and bounded read-only schema assertions only.
+  Catalog existence/shape checks are allowed; application-table scans are not. Existing-table
+  `ALTER TABLE` must not
+  add, set, change or drop a `DEFAULT`. No data writes (`INSERT`, `UPDATE`, `DELETE`, `MERGE`),
+  backfill, `VALIDATE CONSTRAINT`, application-table scan or table rewrite belongs in this execution path, even in a separate transaction/file.
+  Put that work in a reviewed asynchronous production runbook outside goose and service startup.
+- A new `CREATE TABLE` may declare the final columns, defaults, nullability and checks directly:
+  it has no historical rows to convert. This does not permit default changes through `ALTER`.
 - No grants: tables are granted to the mode roles by default privileges from `notifier/db/init`.
 - Schema-qualify every object: `notifier.t_notification`, not `t_notification`.
 - Comments follow `ai/rules/comments.mdc`.
@@ -41,107 +51,183 @@ All names are singular and in snake_case. `<table>` below is the table name with
 
 ## Types
 
-- No `varchar(n)`: use `text` with a named length check.
-
-  ```sql
-  ALTER TABLE notifier.t_notification ADD COLUMN IF NOT EXISTS comment text;
-  ALTER TABLE notifier.t_notification DROP CONSTRAINT IF EXISTS ck_notification_comment;
-  ALTER TABLE notifier.t_notification
-      ADD CONSTRAINT ck_notification_comment CHECK (length(comment) <= 200);
-  ```
-
+- No `varchar(n)`: use `text` with a named length check. On an existing table, add the check
+  `NOT VALID`; its validation belongs to the asynchronous production runbook.
 - No `interval`: an integer with the unit in the name (`max_lifetime_sec`, `callback_timeout_ms`).
 - Timestamps are `timestamptz` with the `_dt` suffix.
 
-## Locks on existing tables
+## Short DDL on existing tables
 
-`ALTER TABLE` on a table that already holds data takes an `ACCESS EXCLUSIVE` lock. While it waits
-for the lock, every query to the table queues behind it, so a long wait stops the service. Bound the
-wait and take the lock explicitly:
+Most structural `ALTER TABLE` operations, including adding a column or check, require
+`ACCESS EXCLUSIVE`. The lock blocks reads and writes and remains held until the transaction ends.
+`lock_timeout` bounds waiting to acquire a lock, not how long an acquired lock is held.
+`statement_timeout` bounds one statement, not the whole transaction. Use a short transaction
+with a transaction deadline as well as bounded lock waits. For PostgreSQL 18, for example:
 
 ```sql
 -- +goose Up
-SET LOCAL lock_timeout = '6s';
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+SET LOCAL transaction_timeout = '5s';
 LOCK TABLE notifier.t_notification IN ACCESS EXCLUSIVE MODE;
 ALTER TABLE notifier.t_notification ADD COLUMN IF NOT EXISTS priority smallint;
-```
-
-- `SET LOCAL` because goose runs each migration in a transaction: the timeout ends with it.
-- If the lock is not taken in time, the migration fails and is safe to rerun later.
-- Tables created in the same migration need no lock.
-
-## Indexes on existing tables
-
-A plain `CREATE INDEX` blocks writes to the table for the whole build, and `CONCURRENTLY` takes too
-long to wait for during a rollout. So a new index on an existing table is applied **by hand in
-production before the migration is rolled out**:
-
-1. In production, before the rollout, run by hand:
-
-   ```sql
-   CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_notification_external_id
-       ON notifier.t_notification (external_id);
-   ```
-
-   If the build fails, it leaves an `INVALID` index that `IF NOT EXISTS` would skip: drop it with
-   `DROP INDEX CONCURRENTLY IF EXISTS ix_notification_external_id` and run the build again.
-
-2. The migration contains the same index without `CONCURRENTLY`. In production it finds the index
-   and finishes at once; on local and test databases it builds the index on small data:
-
-   ```sql
-   -- +goose Up
-   SET LOCAL lock_timeout = '6s';
-   CREATE INDEX IF NOT EXISTS ix_notification_external_id
-       ON notifier.t_notification (external_id);
-   ```
-
-   The name and the definition must match the manual command exactly.
-
-**When a change adds an index to an existing table, warn the owner explicitly** that the index must
-be created by hand in production before the rollout, and put the manual command into the PR
-description under "Manual steps before rollout".
-
-Indexes created together with their table in the same migration need none of this.
-
-## Checks on existing tables
-
-A check on a table with data is added `NOT VALID` and validated separately, so the long scan does not
-hold an exclusive lock:
-
-```sql
--- +goose Up
-SET LOCAL lock_timeout = '6s';
-LOCK TABLE notifier.t_notification IN ACCESS EXCLUSIVE MODE;
 ALTER TABLE notifier.t_notification DROP CONSTRAINT IF EXISTS ck_notification_priority;
 ALTER TABLE notifier.t_notification
     ADD CONSTRAINT ck_notification_priority CHECK (priority BETWEEN 0 AND 9) NOT VALID;
-ALTER TABLE notifier.t_notification VALIDATE CONSTRAINT ck_notification_priority;
 ```
+
+- Goose SQL migrations are transactional by default: the file ends with a commit. The example
+  adds a nullable column without a default, and does no data conversion or validation scan.
+  Choose rollout-specific budgets; these values are examples.
+- `SET LOCAL` applies only inside its transaction. Reapply it in every new transaction.
+- `-- +goose StatementBegin` / `StatementEnd` group parser statements; they do not commit.
+  Savepoints and loop iterations are not phase boundaries. `NO TRANSACTION`, explicit commits,
+  `DO`, functions and dynamic SQL do not exempt an automatic migration from the DDL-only rule.
+- A timeout aborts the DDL transaction. Release it and retry later; mark the migration version
+  applied only after all its DDL has committed. Applying this version does not prove that the
+  separately scheduled production work is complete.
+- Tables created in this transaction need no explicit lock. A table created in an earlier
+  committed migration is an existing table, including on a fresh installation.
+
+`NOT VALID` immediately enforces a check for new or updated rows. It only skips checking old rows;
+it does not make arbitrary legacy writes compatible. This example's check permits `NULL`.
+
+## Asynchronous production work
+
+Backfill, validation, default changes and other scans/rewrites must run independently of automatic
+migrations and service startup. The runbook names the operator/job, exact SQL, execution budgets,
+progress/completion queries, interruption/retry procedure and application-version gates. Do not
+start this work from goose, wait for it in `migrate`, or hide it in an invoked function/script.
+
+Keep real transaction boundaries even in the separate executor:
+
+1. Commit the short expansion DDL before starting data work.
+2. Execute each backfill batch in its own bounded transaction. Bound both changed rows and elapsed
+   time; preserve a restart predicate and monitor progress. Do not wrap the loop in one transaction.
+3. Validate only after the required backfill completion check succeeds. Use a separate transaction
+   with `SHARE UPDATE EXCLUSIVE`, never an explicit `ACCESS EXCLUSIVE` lock.
+4. Run required `SET/DROP DEFAULT` and other final metadata changes as separately reviewed short
+   production transactions with lock and execution budgets. They stay outside automatic `ALTER`.
+
+Example **manual/asynchronous backfill transaction**, not a goose migration. The separate executor
+repeats it and commits each batch before starting the next:
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+SET LOCAL transaction_timeout = '5s';
+WITH batch AS (
+    SELECT id FROM notifier.t_notification
+    WHERE priority IS NULL
+    ORDER BY id
+    LIMIT 1000
+    FOR UPDATE
+)
+UPDATE notifier.t_notification AS notification
+SET priority = 0
+FROM batch
+WHERE notification.id = batch.id AND notification.priority IS NULL;
+COMMIT;
+```
+
+The predicate makes committed batches safe to repeat. The row limit bounds writes; the deadline
+also bounds a slow scan. A zero-row batch plus the completion predicate establishes completion
+only when writers cannot introduce new unfilled values. With `SKIP LOCKED`, zero updated rows
+alone is insufficient because locked matching rows may remain.
+
+Example **manual/asynchronous validation transaction**, not a goose migration:
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '30min';
+SET LOCAL transaction_timeout = '30min';
+ALTER TABLE notifier.t_notification VALIDATE CONSTRAINT ck_notification_priority;
+COMMIT;
+```
+
+`SHARE UPDATE EXCLUSIVE` permits ordinary reads and writes. A failed validation leaves the earlier
+`NOT VALID` constraint in place; correct the offending rows and retry without undoing completed
+batches. The example budgets must be chosen for the actual table and production workload.
+
+## Indexes on existing tables
+
+Build a new index on an existing table asynchronously in production outside goose:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_notification_external_id
+    ON notifier.t_notification (external_id);
+```
+
+A failed build may leave an `INVALID` index that `IF NOT EXISTS` skips. Inspect its validity and
+exact definition; if invalid, run `DROP INDEX CONCURRENTLY IF EXISTS ix_notification_external_id`
+and rebuild. Record completion before deploying code that depends on the index. Do not put a
+plain `CREATE INDEX IF NOT EXISTS` fallback in an automatic migration: a missing index would
+cause the expensive build during rollout.
+
+**Tell the owner about the asynchronous build** and include its exact command, verification and
+retry steps under "Manual steps before rollout" in the PR description. Indexes created together
+with a new table in the same migration may be created directly.
+
+## Compatibility and verification
+
+For every multi-phase change, record:
+
+1. The application versions allowed to read/write each intermediate schema. Preserve legacy
+   fields until their users have stopped; handle nullable and partially filled values. New writes
+   must obey `NOT VALID` checks. If compatibility is not implemented, stop incompatible services
+   through the transition and explicitly document downtime; do not claim a rolling upgrade.
+2. The exact automatic DDL and separate production job order. A completed goose version is not
+   the async job's completion signal. Gate dependent application behavior on verified job results.
+3. Restart behavior after every commit and failed batch/validation. Do not reset converted data
+   or remove source fields before conversion is proved complete.
+4. PostgreSQL evidence from separate sessions: inspect `pg_locks`, prove the DDL commit releases
+   `ACCESS EXCLUSIVE`, and show concurrent reads/writes during the independent backfill and
+   validation. Check lock-wait failure and retry; elapsed time alone is not proof.
+5. Both upgrades with representative legacy rows and fresh installations. Already-applied
+   versions stay applied; changing an initial `CREATE TABLE` does not upgrade an existing table.
+
+## Checker and lock-test contract
+
+The task 14 checker/fixtures own automated rule checks. Keep one checker and one fixture suite.
+
+- Reject automatic migrations containing existing-table `ALTER ... DEFAULT`, `UPDATE`/backfill,
+  `VALIDATE`, scans/rewrites or existing-table index builds. Separate transactions/files and
+  `NO TRANSACTION` do not make them acceptable. Inspect executed `DO`, function calls, scripts
+  and dynamic SQL rather than accepting work hidden behind another statement. Classify actual
+  operations, not keywords inside comments/strings or an uninvoked function definition.
+- Accept final defaults/checks in a new `CREATE TABLE` and short existing-table DDL without a
+  default, such as adding a nullable column and a check `NOT VALID` with bounded locks.
+- Treat the manual/asynchronous SQL examples above as a separate execution path, never goose
+  migration fixtures. Verify their actual commits and locks from another PostgreSQL session:
+  DDL releases `ACCESS EXCLUSIVE` before independent data work, backfill/validation permit normal
+  concurrent reads/writes, and lock-wait failure is safely retryable.
+
+Static checks cannot prove execution boundaries, compatibility or restart safety. Keep the actual
+PostgreSQL and migration-specific upgrade checks as well.
 
 ## Rerunnable changes
 
-A migration must succeed even if its changes were already applied by hand.
+A migration must succeed even if its allowed DDL was already applied by hand.
 
-- Create with `IF NOT EXISTS`: `CREATE TABLE`, `CREATE INDEX`, `ADD COLUMN`.
+- Create with `IF NOT EXISTS`: `CREATE TABLE`, `CREATE INDEX` on a new table, `ADD COLUMN`.
 - Drop with `IF EXISTS`: `DROP TABLE`, `DROP INDEX`, `DROP COLUMN`, `DROP CONSTRAINT`.
 - `ADD CONSTRAINT` has no `IF NOT EXISTS`: drop the constraint `IF EXISTS` first, as above.
-- Functions use `CREATE OR REPLACE FUNCTION`.
-- Inserted data uses `ON CONFLICT DO NOTHING`:
-
-  ```sql
-  INSERT INTO notifier.t_client (client_id, callback_url, max_lifetime_sec)
-  VALUES ('emulator', 'http://emulator:8081/notification', 15552000)
-  ON CONFLICT DO NOTHING;
-  ```
+- Functions use `CREATE OR REPLACE FUNCTION`; inspect the body and callers for forbidden work.
+- Data inserts/conversion belong to a separate production procedure with explicit idempotency;
+  `ON CONFLICT DO NOTHING` does not turn data work into short DDL.
 
 ## Checklist
 
-1. Names follow the table above; everything is singular.
-2. Every object is schema-qualified.
-3. Every statement is rerunnable.
-4. Changes to existing tables set `lock_timeout` and lock explicitly.
-5. A new index on an existing table is flagged to the owner and listed under "Manual steps before
-   rollout" in the PR description.
+1. Names follow the table above; everything is singular and schema-qualified.
+2. Every automatic statement is rerunnable short DDL or a bounded schema assertion; no
+   existing-table `ALTER ... DEFAULT`,
+   backfill, `UPDATE`, `VALIDATE`, scan/rewrite or existing-table index build.
+3. Existing-table DDL sets local lock/statement/transaction budgets and takes its explicit lock.
+4. Required asynchronous work has a separate runbook, bounded batches, real commits, completion
+   checks and retry behavior. Application compatibility and rollout gates are documented.
+5. Manual production steps, including index builds, are shown to the owner and listed in the PR.
 6. No `varchar`, no `interval`, no grants, no `Down`.
 7. `make migrate` passes twice in a row and `notifier/db/schema/` is regenerated.
+8. Real PostgreSQL checks verify phase locks, concurrent access, timeout/retry and upgrade paths.
