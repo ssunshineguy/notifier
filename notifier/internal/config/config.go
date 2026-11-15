@@ -7,8 +7,11 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -44,15 +47,12 @@ type InfoService struct {
 	PriceTimeoutMS int32  `yaml:"price_timeout_ms"`
 }
 
-// Database configures role-specific DSNs and the connection pool.
+// Database holds the selected mode's DSN and shared connection pool settings.
 type Database struct {
 	MinConns            int32  `yaml:"min_conns"`
 	MaxConns            int32  `yaml:"max_conns"`
 	OperationTimeoutSec int32  `yaml:"operation_timeout_sec"`
-	MigratorDSN         string `yaml:"migrator_dsn"`
-	APIDSN              string `yaml:"api_dsn"`
-	WorkerDSN           string `yaml:"worker_dsn"`
-	CollectorDSN        string `yaml:"collector_dsn"`
+	DSN                 string `yaml:"-"`
 }
 
 // InitialCheckDelaySeconds decodes the first-check delay as whole seconds.
@@ -78,9 +78,14 @@ type Notification struct {
 	LockDurationMS       int32                    `yaml:"lock_duration_ms"`
 }
 
-// Load reads and validates the config file at path.
-// Unknown keys are rejected, so a typo in the file fails at startup.
-func Load(path string) (Config, error) {
+// Load reads shared settings and only the selected mode's DSN file.
+// An empty dsnPath selects <mode>.dsn alongside path; unknown YAML keys are rejected.
+func Load(path, mode, dsnPath string) (Config, error) {
+	switch mode {
+	case "api", "worker", "collector", "migrate":
+	default:
+		return Config{}, fmt.Errorf("unknown mode %q", mode)
+	}
 	data, err := os.ReadFile(path) //nolint:gosec // The path comes from the operator's -config flag.
 	if err != nil {
 		return Config{}, fmt.Errorf("read config: %w", err)
@@ -101,11 +106,7 @@ func Load(path string) (Config, error) {
 	}
 
 	required := []struct{ key, value string }{
-		{"database.migrator_dsn", cfg.Database.MigratorDSN},
-		{"database.api_dsn", cfg.Database.APIDSN},
 		{"api.listen_addr", cfg.API.ListenAddr},
-		{"database.worker_dsn", cfg.Database.WorkerDSN},
-		{"database.collector_dsn", cfg.Database.CollectorDSN},
 	}
 	for _, field := range required {
 		if field.value == "" {
@@ -159,5 +160,30 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("config: api.slot_wait_timeout_ms must be nonnegative")
 	}
 
+	if dsnPath == "" {
+		dsnPath = filepath.Join(filepath.Dir(path), mode+".dsn")
+	}
+	dsn, err := os.ReadFile(dsnPath) //nolint:gosec // The path comes from the operator's config or -database-dsn-file flag.
+	if err != nil {
+		return Config{}, &DatabaseConfigError{mode: mode, reason: "cannot read DSN file; provide -database-dsn-file"}
+	}
+	cfg.Database.DSN = strings.TrimSpace(string(dsn))
+	if cfg.Database.DSN == "" {
+		return Config{}, &DatabaseConfigError{mode: mode, reason: "DSN file must not be empty"}
+	}
+	if _, err := pgxpool.ParseConfig(cfg.Database.DSN); err != nil {
+		return Config{}, &DatabaseConfigError{mode: mode, reason: "DSN file contains an invalid connection string"}
+	}
 	return cfg, nil
+}
+
+// DatabaseConfigError contains only a validated mode and a safe startup diagnostic.
+type DatabaseConfigError struct {
+	mode   string
+	reason string
+}
+
+// Error excludes the DSN, file path and raw driver errors so it can be logged safely.
+func (e *DatabaseConfigError) Error() string {
+	return fmt.Sprintf("config: %s database: %s", e.mode, e.reason)
 }

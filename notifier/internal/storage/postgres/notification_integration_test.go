@@ -180,7 +180,7 @@ func startPostgres(t *testing.T) *pgxpool.Pool {
 	migratorDSN := postgresDSN(addr, "notifier_migrator")
 	migrator := openTestPool(ctx, t, migratorDSN)
 	waitForPostgres(ctx, t, migrator)
-	if err := application.Migrate(ctx, config.Config{Database: config.Database{MigratorDSN: migratorDSN}}); err != nil {
+	if err := application.Migrate(ctx, config.Config{Database: config.Database{DSN: migratorDSN}}); err != nil {
 		t.Fatal(err)
 	}
 	pool := openTestPool(ctx, t, postgresDSN(addr, "notifier_api"))

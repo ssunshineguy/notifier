@@ -15,7 +15,7 @@ alwaysApply: false
 | Package | Responsibility |
 | --- | --- |
 | `notifier/cmd/notifier` | Parse flags, load configuration, handle process signals and select the mode. |
-| `notifier/internal/application` | Wire dependencies and own their lifecycle. See `api.go` for the pool, ogen server, middleware and shutdown. |
+| `notifier/internal/application` | Wire dependencies and own their lifecycle. See `database.go` for shared pool bootstrap; each mode owns pool shutdown. `api.go` wires the ogen server and middleware. |
 | `internal/logging` | Carry request loggers in context and provide redaction attributes. |
 | `internal/problem` | Write Problem Details responses for both services' HTTP middleware. |
 | `notifier/internal/core` | Domain types and rules. Keep them independent of other internal packages and I/O. Pass in time when a rule depends on it. |

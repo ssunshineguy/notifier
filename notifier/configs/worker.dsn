@@ -1,0 +1,1 @@
+postgres://notifier_worker:notifier_worker@postgres:5432/notifier?sslmode=disable

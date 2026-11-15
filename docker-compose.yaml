@@ -24,7 +24,10 @@ services:
       dockerfile: build/Dockerfile
       target: notifier
     image: "${COMPOSE_PROJECT_NAME}-notifier:local"
-    command: ["migrate"]
+    command: ["-database-dsn-file", "/run/secrets/database_dsn", "migrate"]
+    secrets:
+      - source: migrate_dsn
+        target: database_dsn
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,7 +42,10 @@ services:
         max-buffer-size: '1m'
     environment:
       NOTIFIER_LOG_LEVEL: ${NOTIFIER_LOG_LEVEL:-INFO}
-    command: ["-listen-addr", "0.0.0.0:8080", "api"]
+    command: ["-database-dsn-file", "/run/secrets/database_dsn", "-listen-addr", "0.0.0.0:8080", "api"]
+    secrets:
+      - source: api_dsn
+        target: database_dsn
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -65,7 +71,10 @@ services:
         max-buffer-size: '1m'
     environment:
       NOTIFIER_LOG_LEVEL: ${NOTIFIER_LOG_LEVEL:-INFO}
-    command: ["worker"]
+    command: ["-database-dsn-file", "/run/secrets/database_dsn", "worker"]
+    secrets:
+      - source: worker_dsn
+        target: database_dsn
     stop_grace_period: 11s
     restart: on-failure
     depends_on:
@@ -106,3 +115,11 @@ services:
 
 volumes:
   postgres-data:
+
+secrets:
+  migrate_dsn:
+    file: ./notifier/configs/migrate.dsn
+  api_dsn:
+    file: ./notifier/configs/api.dsn
+  worker_dsn:
+    file: ./notifier/configs/worker.dsn

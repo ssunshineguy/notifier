@@ -28,7 +28,7 @@ func TestLoadInitialCheckDelay(t *testing.T) {
 			if tt.setting != "" {
 				yaml = strings.Replace(yaml, "notification:\n", "notification:\n  initial_check_delay_sec: "+tt.setting+"\n", 1)
 			}
-			got, err := config.Load(writeConfig(t, yaml))
+			got, err := config.Load(writeConfig(t, yaml), "api", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,7 +67,7 @@ func TestLoadRejectsInvalidInitialCheckDelay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			yaml := strings.Replace(validYAML, "notification:\n", "notification:\n  initial_check_delay_sec: "+tt.setting+"\n", 1)
-			_, err := config.Load(writeConfig(t, yaml))
+			_, err := config.Load(writeConfig(t, yaml), "api", "")
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("Load = %v, want error containing %q", err, tt.want)
 			}
