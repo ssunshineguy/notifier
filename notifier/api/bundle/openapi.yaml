@@ -245,7 +245,9 @@ paths:
         Returns the parameters of a notification owned by the client,
         including a stopped notification while its record is retained.
         The response includes the condition result and, once a callback
-        attempt is recorded, the delivery status. An invalid
+        attempt is recorded, the delivery status. A DLQ response instead contains
+        stop_dt, dlq_dt and the safe dlq_reason code; notification_params and
+        delivery_status are absent. An invalid
         `notification_id` returns `400`.
         A missing notification or one owned by another client returns `404`.
       responses:
@@ -257,18 +259,32 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Notification'
-              example:
-                notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
-                external_id: order-42-reminder
-                notification_status: success
-                delivery_status: trying_to_deliver
-                notification_params:
-                  - type: time
-                    operation: greater_than
-                    value: '2026-12-01T09:00:00Z'
-                deadline_dt: '2026-12-01T18:00:00Z'
-                start_dt: '2026-11-13T10:00:00Z'
+                $ref: '#/components/schemas/NotificationRead'
+              examples:
+                ordinary:
+                  summary: A selected event awaiting delivery
+                  value:
+                    notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                    external_id: order-42-reminder
+                    notification_status: success
+                    delivery_status: trying_to_deliver
+                    notification_params:
+                      - type: time
+                        operation: greater_than
+                        value: '2026-12-01T09:00:00Z'
+                    deadline_dt: '2026-12-01T18:00:00Z'
+                    start_dt: '2026-11-13T10:00:00Z'
+                dlq:
+                  summary: Invalid stored conditions stopped processing
+                  value:
+                    notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                    external_id: order-42-reminder
+                    notification_status: dlq
+                    deadline_dt: '2026-12-01T18:00:00Z'
+                    start_dt: '2026-11-13T10:00:00Z'
+                    stop_dt: '2026-11-13T10:00:10Z'
+                    dlq_reason: invalid_stored_conditions
+                    dlq_dt: '2026-11-13T10:00:10Z'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -292,7 +308,7 @@ paths:
         Replaces the trigger conditions of a notification that has not stopped.
         The deadline and other parameters cannot be changed. If the client's
         notification is stopped, the request returns `400` with the problem title
-        "Incorrect notification status".
+        "Incorrect notification status", including notifications in DLQ.
         An unexpired worker reservation returns `409`.
 
         The change applies from the next check. Delivery of an already selected
@@ -730,14 +746,9 @@ components:
           type: string
           format: date-time
           example: '2026-12-01T09:00:01Z'
-    NotificationStatus:
-      title: NotificationStatus
-      description: |
-        Result of checking the notification's conditions.
-
-        - `active` — no event has been selected for the notification.
-        - `success` — the conditions were met before the deadline.
-        - `deadline_exceeded` — the deadline passed before the conditions were met.
+    OrdinaryNotificationStatus:
+      title: OrdinaryNotificationStatus
+      description: Condition result for a notification outside DLQ.
       type: string
       enum:
         - active
@@ -760,7 +771,7 @@ components:
       example: trying_to_deliver
     Notification:
       title: Notification
-      description: Notification parameters.
+      description: Notification parameters and status outside DLQ.
       type: object
       additionalProperties: false
       required:
@@ -775,7 +786,7 @@ components:
         external_id:
           $ref: '#/components/schemas/ExternalId'
         notification_status:
-          $ref: '#/components/schemas/NotificationStatus'
+          $ref: '#/components/schemas/OrdinaryNotificationStatus'
         delivery_status:
           $ref: '#/components/schemas/DeliveryStatus'
         notification_params:
@@ -789,6 +800,62 @@ components:
           type: string
           format: date-time
           example: '2026-11-13T10:00:00Z'
+    DLQNotification:
+      title: DLQNotification
+      description: |
+        A notification stopped because stored conditions needed for processing are invalid.
+        The original data remains in storage but is not returned as notification_params.
+        No callback is sent and delivery_status is absent.
+      type: object
+      additionalProperties: false
+      required:
+        - notification_id
+        - external_id
+        - notification_status
+        - deadline_dt
+        - start_dt
+        - stop_dt
+        - dlq_reason
+        - dlq_dt
+      properties:
+        notification_id:
+          $ref: '#/components/schemas/NotificationId'
+        external_id:
+          $ref: '#/components/schemas/ExternalId'
+        notification_status:
+          type: string
+          enum:
+            - dlq
+        deadline_dt:
+          type: string
+          format: date-time
+          example: '2026-12-01T18:00:00Z'
+        start_dt:
+          description: Moment when the notification was created.
+          type: string
+          format: date-time
+          example: '2026-11-13T10:00:00Z'
+        stop_dt:
+          description: Moment when processing stopped; equal to dlq_dt.
+          type: string
+          format: date-time
+          example: '2026-11-13T10:00:10Z'
+        dlq_reason:
+          description: Safe reason code; does not contain stored data or parser details.
+          type: string
+          enum:
+            - invalid_stored_conditions
+        dlq_dt:
+          description: Moment when the notification entered DLQ.
+          type: string
+          format: date-time
+          example: '2026-11-13T10:00:10Z'
+    NotificationRead:
+      title: NotificationRead
+      description: Ordinary notification parameters or terminal DLQ metadata.
+      oneOf:
+        - $ref: '#/components/schemas/Notification'
+        - $ref: '#/components/schemas/DLQNotification'
     NotificationUpdate:
       title: NotificationUpdate
       description: |

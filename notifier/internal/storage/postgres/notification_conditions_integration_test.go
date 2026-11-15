@@ -67,7 +67,7 @@ func TestGetClaimedNotificationConditionsIntegration(t *testing.T) {
 	if _, err := pool.Exec(ctx, "UPDATE notifier.t_notification SET data = '{}' WHERE id = $1", id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.GetClaimedNotificationConditions(ctx, claim); err == nil || errors.Is(err, core.ErrNotificationNotFound) {
+	if _, err := store.GetClaimedNotificationConditions(ctx, claim); !errors.Is(err, core.ErrInvalidStoredConditions) {
 		t.Errorf("GetClaimedNotificationConditions with invalid JSON shape = %v, want decode error", err)
 	}
 

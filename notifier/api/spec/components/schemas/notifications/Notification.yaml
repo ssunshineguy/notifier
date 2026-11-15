@@ -1,5 +1,5 @@
 title: Notification
-description: Notification parameters.
+description: Notification parameters and status outside DLQ.
 type: object
 additionalProperties: false
 required:
@@ -14,7 +14,7 @@ properties:
   external_id:
     $ref: ./ExternalId.yaml
   notification_status:
-    $ref: ./NotificationStatus.yaml
+    $ref: ./OrdinaryNotificationStatus.yaml
   delivery_status:
     $ref: ./DeliveryStatus.yaml
   notification_params:

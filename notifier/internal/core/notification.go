@@ -34,7 +34,13 @@ type NotificationDetails struct {
 	Start              time.Time
 	NotificationStatus string
 	DeliveryStatus     string
+	Stop               *time.Time
+	DLQAt              *time.Time
+	DLQReason          string
 }
+
+// ErrInvalidStoredConditions means saved conditions cannot be evaluated.
+var ErrInvalidStoredConditions = errors.New("invalid stored conditions")
 
 // ErrNotificationNotFound means no notification matched the lookup.
 var ErrNotificationNotFound = errors.New("notification not found")

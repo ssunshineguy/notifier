@@ -21,9 +21,12 @@ ON CONFLICT ON CONSTRAINT uq_notification_client_id_external_id DO NOTHING
 RETURNING id`
 
 const selectNotification = `
-SELECT id, external_id, data, deadline_dt, start_dt, notification_status, COALESCE(delivery_status, '')
-FROM notifier.t_notification
-WHERE id = $1 AND client_id = $2`
+SELECT notification.id, notification.external_id, notification.data,
+       notification.deadline_dt, notification.start_dt, notification.notification_status,
+       COALESCE(notification.delivery_status, ''), notification.stop_dt, dlq.created_dt, COALESCE(dlq.reason, '')
+FROM notifier.t_notification AS notification
+LEFT JOIN notifier.t_dlq AS dlq ON dlq.notification_id = notification.id
+WHERE notification.id = $1 AND notification.client_id = $2`
 
 const selectNotificationID = `
 SELECT id FROM notifier.t_notification
@@ -81,12 +84,17 @@ func (s *Store) GetNotification(ctx context.Context, notificationID uuid.UUID, c
 		&notification.Start,
 		&notification.NotificationStatus,
 		&notification.DeliveryStatus,
+		&notification.Stop, &notification.DLQAt, &notification.DLQReason,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return core.NotificationDetails{}, core.ErrNotificationNotFound
 	}
 	if err != nil {
 		return core.NotificationDetails{}, fmt.Errorf("query notification: %w", err)
+	}
+
+	if notification.NotificationStatus == core.NotificationDLQ {
+		return notification, nil
 	}
 
 	var conditions []conditionJSON[*json.RawMessage]

@@ -47,8 +47,9 @@ type Handler interface {
 	//
 	// Returns the parameters of a notification owned by the client, including a stopped notification while
 	// its record is retained. The response includes the condition result and, once a callback attempt is
-	// recorded, the delivery status. An invalid `notification_id` returns `400`. A missing notification or
-	// one owned by another client returns `404`.
+	// recorded, the delivery status. A DLQ response instead contains stop_dt, dlq_dt and the safe
+	// dlq_reason code; notification_params and delivery_status are absent. An invalid `notification_id`
+	// returns `400`. A missing notification or one owned by another client returns `404`.
 	//
 	// GET /v1/notifications/{notification_id}
 	GetNotification(ctx context.Context, params GetNotificationParams) (GetNotificationRes, error)
@@ -56,8 +57,8 @@ type Handler interface {
 	//
 	// Replaces the trigger conditions of a notification that has not stopped. The deadline and other
 	// parameters cannot be changed. If the client's notification is stopped, the request returns `400`
-	// with the problem title "Incorrect notification status". An unexpired worker reservation returns
-	// `409`.
+	// with the problem title "Incorrect notification status", including notifications in DLQ. An unexpired
+	// worker reservation returns `409`.
 	//
 	// The change applies from the next check. Delivery of an already selected event, including retries,
 	// continues with the same event status.

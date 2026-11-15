@@ -1,0 +1,5 @@
+title: NotificationRead
+description: Ordinary notification parameters or terminal DLQ metadata.
+oneOf:
+  - $ref: ./Notification.yaml
+  - $ref: ./DLQNotification.yaml

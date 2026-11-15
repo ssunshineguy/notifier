@@ -16,6 +16,8 @@ type ProcessingStore interface {
 	GetClaimedNotificationConditions(context.Context, core.NotificationClaim) (core.NotificationConditions, error)
 	GetClaimedCallbackTarget(context.Context, core.NotificationClaim) (core.CallbackTarget, error)
 	SaveNotificationResult(context.Context, core.NotificationClaim, core.NotificationResult) error
+	MoveNotificationToDLQ(context.Context, core.NotificationClaim) error
+	RescheduleNotification(context.Context, core.NotificationClaim, time.Time) error
 }
 
 // Callback sends an event and returns an error if the recipient does not confirm delivery.
@@ -25,8 +27,9 @@ type Callback interface {
 
 // ProcessingSettings controls when to recheck conditions and how much time to reserve for saving a result.
 type ProcessingSettings struct {
-	ScheduledDelay     time.Duration
-	ResultWriteTimeout time.Duration
+	ScheduledDelay      time.Duration
+	TechnicalRetryDelay time.Duration
+	ResultWriteTimeout  time.Duration
 }
 
 // ProcessNotification checks or retries one claim and saves its next state.
@@ -40,8 +43,20 @@ func ProcessNotification(ctx context.Context, claim core.NotificationClaim, stor
 		logger.DebugContext(ctx, "Notification condition check", "outcome", "claim_unavailable")
 		return
 	}
-	if err != nil {
+	if errors.Is(err, core.ErrInvalidStoredConditions) {
+		err = store.MoveNotificationToDLQ(ctx, claim)
+		switch {
+		case errors.Is(err, core.ErrNotificationNotFound):
+			logger.DebugContext(ctx, "Move notification to DLQ", "outcome", "claim_unavailable")
+		case err != nil:
+			logger.WarnContext(ctx, "Move notification to DLQ", "outcome", "write_failed")
+		default:
+			logger.WarnContext(ctx, "Move notification to DLQ", "outcome", "invalid_stored_conditions")
+		}
+		return
+	} else if err != nil {
 		logger.WarnContext(ctx, "Notification condition check", "outcome", "load_failed")
+		reschedule(ctx, store, claim, settings.TechnicalRetryDelay)
 		return
 	}
 
@@ -57,7 +72,7 @@ func ProcessNotification(ctx context.Context, claim core.NotificationClaim, stor
 				}
 				saveResult(ctx, store, claim, core.NotificationResult{
 					NextScheduled: &next, FailedAttemptCount: notification.FailedAttemptCount, NotificationStatus: core.NotificationActive,
-				})
+				}, settings.TechnicalRetryDelay)
 				return
 			}
 			status = core.EventSuccess
@@ -77,11 +92,14 @@ func ProcessNotification(ctx context.Context, claim core.NotificationClaim, stor
 		default:
 			logger.WarnContext(ctx, "Notification callback", "outcome", "target_lookup_failed")
 		}
+		if !errors.Is(err, core.ErrNotificationNotFound) {
+			reschedule(ctx, store, claim, settings.TechnicalRetryDelay)
+		}
 		return
 	}
 	event := core.NotificationEvent{NotificationID: claim.ID, ExternalID: notification.ExternalID, Status: status}
 	if result, attempted := deliver(ctx, callback, target, requestID, event, notification.FailedAttemptCount, settings.ResultWriteTimeout); attempted {
-		saveResult(ctx, store, claim, result)
+		saveResult(ctx, store, claim, result, settings.TechnicalRetryDelay)
 	}
 }
 
@@ -119,7 +137,7 @@ func deliver(ctx context.Context, callback Callback, target core.CallbackTarget,
 	return core.AfterDelivery(event.Status, failedAttempts, err == nil, finishedAt), true
 }
 
-func saveResult(ctx context.Context, store ProcessingStore, claim core.NotificationClaim, result core.NotificationResult) {
+func saveResult(ctx context.Context, store ProcessingStore, claim core.NotificationClaim, result core.NotificationResult, retryDelay time.Duration) {
 	logger := logging.FromContext(ctx)
 	err := store.SaveNotificationResult(ctx, claim, result)
 	switch {
@@ -127,5 +145,19 @@ func saveResult(ctx context.Context, store ProcessingStore, claim core.Notificat
 		logger.DebugContext(ctx, "Save notification result", "outcome", "claim_unavailable")
 	case err != nil:
 		logger.WarnContext(ctx, "Save notification result", "outcome", "write_failed")
+		reschedule(ctx, store, claim, retryDelay)
+	}
+}
+
+func reschedule(ctx context.Context, store ProcessingStore, claim core.NotificationClaim, delay time.Duration) {
+	if ctx.Err() != nil {
+		return
+	}
+	err := store.RescheduleNotification(ctx, claim, time.Now().Add(delay))
+	switch {
+	case errors.Is(err, core.ErrNotificationNotFound):
+		logging.FromContext(ctx).DebugContext(ctx, "Reschedule notification", "outcome", "claim_unavailable")
+	case err != nil:
+		logging.FromContext(ctx).WarnContext(ctx, "Reschedule notification", "outcome", "write_failed")
 	}
 }

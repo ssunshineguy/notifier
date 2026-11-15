@@ -596,7 +596,7 @@ func encodeDeleteNotificationResponse(response DeleteNotificationRes, w http.Res
 
 func encodeGetNotificationResponse(response GetNotificationRes, w http.ResponseWriter) error {
 	switch response := response.(type) {
-	case *NotificationHeaders:
+	case *NotificationReadHeaders:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
 		// Encoding response headers.

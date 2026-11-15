@@ -76,9 +76,10 @@ func (d *InitialCheckDelaySeconds) UnmarshalYAML(value *yaml.Node) error {
 
 // Notification holds the notification rules shared by the api and worker modes.
 type Notification struct {
-	InitialCheckDelaySec InitialCheckDelaySeconds `yaml:"initial_check_delay_sec"`
-	ScheduledTimeSec     int                      `yaml:"scheduled_time_sec"`
-	LockDurationMS       int32                    `yaml:"lock_duration_ms"`
+	InitialCheckDelaySec   InitialCheckDelaySeconds `yaml:"initial_check_delay_sec"`
+	TechnicalRetryDelaySec int32                    `yaml:"technical_retry_delay_sec"`
+	ScheduledTimeSec       int                      `yaml:"scheduled_time_sec"`
+	LockDurationMS         int32                    `yaml:"lock_duration_ms"`
 }
 
 // Load reads shared settings and only the selected mode's DSN file.
@@ -102,7 +103,7 @@ func Load(path, mode, dsnPath string) (Config, error) {
 		Worker:       Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
 		InfoService:  InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database:     Database{MaxConns: 8, OperationTimeoutSec: 1},
-		Notification: Notification{InitialCheckDelaySec: 0, LockDurationMS: 2000},
+		Notification: Notification{InitialCheckDelaySec: 0, TechnicalRetryDelaySec: 10, LockDurationMS: 2000},
 	}
 	if err := decoder.Decode(&cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
@@ -131,6 +132,7 @@ func Load(path, mode, dsnPath string) (Config, error) {
 		value int
 	}{
 		{"notification.scheduled_time_sec", cfg.Notification.ScheduledTimeSec},
+		{"notification.technical_retry_delay_sec", int(cfg.Notification.TechnicalRetryDelaySec)},
 		{"database.max_conns", int(cfg.Database.MaxConns)},
 		{"database.operation_timeout_sec", int(cfg.Database.OperationTimeoutSec)},
 		{"api.max_in_flight", cfg.API.MaxInFlight},

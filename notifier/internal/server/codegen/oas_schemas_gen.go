@@ -354,6 +354,174 @@ func (*ContentTooLargeHeaders) deleteNotificationRes() {}
 func (*ContentTooLargeHeaders) getNotificationRes()    {}
 func (*ContentTooLargeHeaders) updateNotificationRes() {}
 
+// A notification stopped because stored conditions needed for processing are invalid. The original
+// data remains in storage but is not returned as notification_params. No callback is sent and
+// delivery_status is absent.
+// Ref: #/components/schemas/DLQNotification
+type DLQNotification struct {
+	NotificationID     NotificationId                    `json:"notification_id"`
+	ExternalID         ExternalId                        `json:"external_id"`
+	NotificationStatus DLQNotificationNotificationStatus `json:"notification_status"`
+	DeadlineDt         time.Time                         `json:"deadline_dt"`
+	// Moment when the notification was created.
+	StartDt time.Time `json:"start_dt"`
+	// Moment when processing stopped; equal to dlq_dt.
+	StopDt time.Time `json:"stop_dt"`
+	// Safe reason code; does not contain stored data or parser details.
+	DlqReason DLQNotificationDlqReason `json:"dlq_reason"`
+	// Moment when the notification entered DLQ.
+	DlqDt time.Time `json:"dlq_dt"`
+}
+
+// GetNotificationID returns the value of NotificationID.
+func (s *DLQNotification) GetNotificationID() NotificationId {
+	return s.NotificationID
+}
+
+// GetExternalID returns the value of ExternalID.
+func (s *DLQNotification) GetExternalID() ExternalId {
+	return s.ExternalID
+}
+
+// GetNotificationStatus returns the value of NotificationStatus.
+func (s *DLQNotification) GetNotificationStatus() DLQNotificationNotificationStatus {
+	return s.NotificationStatus
+}
+
+// GetDeadlineDt returns the value of DeadlineDt.
+func (s *DLQNotification) GetDeadlineDt() time.Time {
+	return s.DeadlineDt
+}
+
+// GetStartDt returns the value of StartDt.
+func (s *DLQNotification) GetStartDt() time.Time {
+	return s.StartDt
+}
+
+// GetStopDt returns the value of StopDt.
+func (s *DLQNotification) GetStopDt() time.Time {
+	return s.StopDt
+}
+
+// GetDlqReason returns the value of DlqReason.
+func (s *DLQNotification) GetDlqReason() DLQNotificationDlqReason {
+	return s.DlqReason
+}
+
+// GetDlqDt returns the value of DlqDt.
+func (s *DLQNotification) GetDlqDt() time.Time {
+	return s.DlqDt
+}
+
+// SetNotificationID sets the value of NotificationID.
+func (s *DLQNotification) SetNotificationID(val NotificationId) {
+	s.NotificationID = val
+}
+
+// SetExternalID sets the value of ExternalID.
+func (s *DLQNotification) SetExternalID(val ExternalId) {
+	s.ExternalID = val
+}
+
+// SetNotificationStatus sets the value of NotificationStatus.
+func (s *DLQNotification) SetNotificationStatus(val DLQNotificationNotificationStatus) {
+	s.NotificationStatus = val
+}
+
+// SetDeadlineDt sets the value of DeadlineDt.
+func (s *DLQNotification) SetDeadlineDt(val time.Time) {
+	s.DeadlineDt = val
+}
+
+// SetStartDt sets the value of StartDt.
+func (s *DLQNotification) SetStartDt(val time.Time) {
+	s.StartDt = val
+}
+
+// SetStopDt sets the value of StopDt.
+func (s *DLQNotification) SetStopDt(val time.Time) {
+	s.StopDt = val
+}
+
+// SetDlqReason sets the value of DlqReason.
+func (s *DLQNotification) SetDlqReason(val DLQNotificationDlqReason) {
+	s.DlqReason = val
+}
+
+// SetDlqDt sets the value of DlqDt.
+func (s *DLQNotification) SetDlqDt(val time.Time) {
+	s.DlqDt = val
+}
+
+// Safe reason code; does not contain stored data or parser details.
+type DLQNotificationDlqReason string
+
+const (
+	DLQNotificationDlqReasonInvalidStoredConditions DLQNotificationDlqReason = "invalid_stored_conditions"
+)
+
+// AllValues returns all DLQNotificationDlqReason values.
+func (DLQNotificationDlqReason) AllValues() []DLQNotificationDlqReason {
+	return []DLQNotificationDlqReason{
+		DLQNotificationDlqReasonInvalidStoredConditions,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DLQNotificationDlqReason) MarshalText() ([]byte, error) {
+	switch s {
+	case DLQNotificationDlqReasonInvalidStoredConditions:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DLQNotificationDlqReason) UnmarshalText(data []byte) error {
+	switch DLQNotificationDlqReason(data) {
+	case DLQNotificationDlqReasonInvalidStoredConditions:
+		*s = DLQNotificationDlqReasonInvalidStoredConditions
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DLQNotificationNotificationStatus string
+
+const (
+	DLQNotificationNotificationStatusDlq DLQNotificationNotificationStatus = "dlq"
+)
+
+// AllValues returns all DLQNotificationNotificationStatus values.
+func (DLQNotificationNotificationStatus) AllValues() []DLQNotificationNotificationStatus {
+	return []DLQNotificationNotificationStatus{
+		DLQNotificationNotificationStatusDlq,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DLQNotificationNotificationStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case DLQNotificationNotificationStatusDlq:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DLQNotificationNotificationStatus) UnmarshalText(data []byte) error {
+	switch DLQNotificationNotificationStatus(data) {
+	case DLQNotificationNotificationStatusDlq:
+		*s = DLQNotificationNotificationStatusDlq
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // DeleteNotificationOK is response for DeleteNotification operation.
 type DeleteNotificationOK struct {
 	XRequestID OptString
@@ -516,15 +684,15 @@ func (*NotFoundHeaders) deleteNotificationRes() {}
 func (*NotFoundHeaders) getNotificationRes()    {}
 func (*NotFoundHeaders) updateNotificationRes() {}
 
-// Notification parameters.
+// Notification parameters and status outside DLQ.
 // Ref: #/components/schemas/Notification
 type Notification struct {
-	NotificationID     NotificationId        `json:"notification_id"`
-	ExternalID         ExternalId            `json:"external_id"`
-	NotificationStatus OptNotificationStatus `json:"notification_status"`
-	DeliveryStatus     OptDeliveryStatus     `json:"delivery_status"`
-	NotificationParams NotificationParams    `json:"notification_params"`
-	DeadlineDt         time.Time             `json:"deadline_dt"`
+	NotificationID     NotificationId                `json:"notification_id"`
+	ExternalID         ExternalId                    `json:"external_id"`
+	NotificationStatus OptOrdinaryNotificationStatus `json:"notification_status"`
+	DeliveryStatus     OptDeliveryStatus             `json:"delivery_status"`
+	NotificationParams NotificationParams            `json:"notification_params"`
+	DeadlineDt         time.Time                     `json:"deadline_dt"`
 	// Moment when the notification was created.
 	StartDt time.Time `json:"start_dt"`
 }
@@ -540,7 +708,7 @@ func (s *Notification) GetExternalID() ExternalId {
 }
 
 // GetNotificationStatus returns the value of NotificationStatus.
-func (s *Notification) GetNotificationStatus() OptNotificationStatus {
+func (s *Notification) GetNotificationStatus() OptOrdinaryNotificationStatus {
 	return s.NotificationStatus
 }
 
@@ -575,7 +743,7 @@ func (s *Notification) SetExternalID(val ExternalId) {
 }
 
 // SetNotificationStatus sets the value of NotificationStatus.
-func (s *Notification) SetNotificationStatus(val OptNotificationStatus) {
+func (s *Notification) SetNotificationStatus(val OptOrdinaryNotificationStatus) {
 	s.NotificationStatus = val
 }
 
@@ -715,7 +883,6 @@ func (s *NotificationHeaders) SetResponse(val Notification) {
 	s.Response = val
 }
 
-func (*NotificationHeaders) getNotificationRes()    {}
 func (*NotificationHeaders) updateNotificationRes() {}
 
 type NotificationId uuid.UUID
@@ -751,60 +918,100 @@ func (*NotificationInProgressHeaders) updateNotificationRes() {}
 
 type NotificationParams []Condition
 
-// Result of checking the notification's conditions.
-//
-//   - `active` — no event has been selected for the notification.
-//   - `success` — the conditions were met before the deadline.
-//   - `deadline_exceeded` — the deadline passed before the conditions were met.
-//
-// Ref: #/components/schemas/NotificationStatus
-type NotificationStatus string
+// Ordinary notification parameters or terminal DLQ metadata.
+// Ref: #/components/schemas/NotificationRead
+// NotificationRead represents sum type.
+type NotificationRead struct {
+	// Type selects the active sum variant, switch on this field.
+	Type            NotificationReadType
+	Notification    Notification
+	DLQNotification DLQNotification
+}
 
+// NotificationReadType is oneOf type of NotificationRead.
+type NotificationReadType string
+
+// Possible values for NotificationReadType.
 const (
-	NotificationStatusActive           NotificationStatus = "active"
-	NotificationStatusSuccess          NotificationStatus = "success"
-	NotificationStatusDeadlineExceeded NotificationStatus = "deadline_exceeded"
+	NotificationNotificationRead    NotificationReadType = "Notification"
+	DLQNotificationNotificationRead NotificationReadType = "DLQNotification"
 )
 
-// AllValues returns all NotificationStatus values.
-func (NotificationStatus) AllValues() []NotificationStatus {
-	return []NotificationStatus{
-		NotificationStatusActive,
-		NotificationStatusSuccess,
-		NotificationStatusDeadlineExceeded,
-	}
+// IsNotification reports whether NotificationRead is Notification.
+func (s NotificationRead) IsNotification() bool { return s.Type == NotificationNotificationRead }
+
+// IsDLQNotification reports whether NotificationRead is DLQNotification.
+func (s NotificationRead) IsDLQNotification() bool { return s.Type == DLQNotificationNotificationRead }
+
+// SetNotification sets NotificationRead to Notification.
+func (s *NotificationRead) SetNotification(v Notification) {
+	s.Type = NotificationNotificationRead
+	s.Notification = v
 }
 
-// MarshalText implements encoding.TextMarshaler.
-func (s NotificationStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case NotificationStatusActive:
-		return []byte(s), nil
-	case NotificationStatusSuccess:
-		return []byte(s), nil
-	case NotificationStatusDeadlineExceeded:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
+// GetNotification returns Notification and true boolean if NotificationRead is Notification.
+func (s NotificationRead) GetNotification() (v Notification, ok bool) {
+	if !s.IsNotification() {
+		return v, false
 	}
+	return s.Notification, true
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *NotificationStatus) UnmarshalText(data []byte) error {
-	switch NotificationStatus(data) {
-	case NotificationStatusActive:
-		*s = NotificationStatusActive
-		return nil
-	case NotificationStatusSuccess:
-		*s = NotificationStatusSuccess
-		return nil
-	case NotificationStatusDeadlineExceeded:
-		*s = NotificationStatusDeadlineExceeded
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
+// NewNotificationNotificationRead returns new NotificationRead from Notification.
+func NewNotificationNotificationRead(v Notification) NotificationRead {
+	var s NotificationRead
+	s.SetNotification(v)
+	return s
 }
+
+// SetDLQNotification sets NotificationRead to DLQNotification.
+func (s *NotificationRead) SetDLQNotification(v DLQNotification) {
+	s.Type = DLQNotificationNotificationRead
+	s.DLQNotification = v
+}
+
+// GetDLQNotification returns DLQNotification and true boolean if NotificationRead is DLQNotification.
+func (s NotificationRead) GetDLQNotification() (v DLQNotification, ok bool) {
+	if !s.IsDLQNotification() {
+		return v, false
+	}
+	return s.DLQNotification, true
+}
+
+// NewDLQNotificationNotificationRead returns new NotificationRead from DLQNotification.
+func NewDLQNotificationNotificationRead(v DLQNotification) NotificationRead {
+	var s NotificationRead
+	s.SetDLQNotification(v)
+	return s
+}
+
+// NotificationReadHeaders wraps NotificationRead with response headers.
+type NotificationReadHeaders struct {
+	XRequestID OptString
+	Response   NotificationRead
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *NotificationReadHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *NotificationReadHeaders) GetResponse() NotificationRead {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *NotificationReadHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *NotificationReadHeaders) SetResponse(val NotificationRead) {
+	s.Response = val
+}
+
+func (*NotificationReadHeaders) getNotificationRes() {}
 
 // New trigger conditions of an existing notification. They replace the current ones entirely. Other
 // parameters (`external_id`, `deadline_dt`) cannot be changed.
@@ -915,38 +1122,38 @@ func (o OptDeliveryStatus) Or(d DeliveryStatus) DeliveryStatus {
 	return d
 }
 
-// NewOptNotificationStatus returns new OptNotificationStatus with value set to v.
-func NewOptNotificationStatus(v NotificationStatus) OptNotificationStatus {
-	return OptNotificationStatus{
+// NewOptOrdinaryNotificationStatus returns new OptOrdinaryNotificationStatus with value set to v.
+func NewOptOrdinaryNotificationStatus(v OrdinaryNotificationStatus) OptOrdinaryNotificationStatus {
+	return OptOrdinaryNotificationStatus{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptNotificationStatus is optional NotificationStatus.
-type OptNotificationStatus struct {
-	Value NotificationStatus
+// OptOrdinaryNotificationStatus is optional OrdinaryNotificationStatus.
+type OptOrdinaryNotificationStatus struct {
+	Value OrdinaryNotificationStatus
 	Set   bool
 }
 
-// IsSet returns true if OptNotificationStatus was set.
-func (o OptNotificationStatus) IsSet() bool { return o.Set }
+// IsSet returns true if OptOrdinaryNotificationStatus was set.
+func (o OptOrdinaryNotificationStatus) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptNotificationStatus) Reset() {
-	var v NotificationStatus
+func (o *OptOrdinaryNotificationStatus) Reset() {
+	var v OrdinaryNotificationStatus
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptNotificationStatus) SetTo(v NotificationStatus) {
+func (o *OptOrdinaryNotificationStatus) SetTo(v OrdinaryNotificationStatus) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptNotificationStatus) Get() (v NotificationStatus, ok bool) {
+func (o OptOrdinaryNotificationStatus) Get() (v OrdinaryNotificationStatus, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -954,7 +1161,7 @@ func (o OptNotificationStatus) Get() (v NotificationStatus, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptNotificationStatus) Or(d NotificationStatus) NotificationStatus {
+func (o OptOrdinaryNotificationStatus) Or(d OrdinaryNotificationStatus) OrdinaryNotificationStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1062,6 +1269,56 @@ func (s *OrConditionType) UnmarshalText(data []byte) error {
 	switch OrConditionType(data) {
 	case OrConditionTypeOr:
 		*s = OrConditionTypeOr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Condition result for a notification outside DLQ.
+// Ref: #/components/schemas/OrdinaryNotificationStatus
+type OrdinaryNotificationStatus string
+
+const (
+	OrdinaryNotificationStatusActive           OrdinaryNotificationStatus = "active"
+	OrdinaryNotificationStatusSuccess          OrdinaryNotificationStatus = "success"
+	OrdinaryNotificationStatusDeadlineExceeded OrdinaryNotificationStatus = "deadline_exceeded"
+)
+
+// AllValues returns all OrdinaryNotificationStatus values.
+func (OrdinaryNotificationStatus) AllValues() []OrdinaryNotificationStatus {
+	return []OrdinaryNotificationStatus{
+		OrdinaryNotificationStatusActive,
+		OrdinaryNotificationStatusSuccess,
+		OrdinaryNotificationStatusDeadlineExceeded,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrdinaryNotificationStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case OrdinaryNotificationStatusActive:
+		return []byte(s), nil
+	case OrdinaryNotificationStatusSuccess:
+		return []byte(s), nil
+	case OrdinaryNotificationStatusDeadlineExceeded:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrdinaryNotificationStatus) UnmarshalText(data []byte) error {
+	switch OrdinaryNotificationStatus(data) {
+	case OrdinaryNotificationStatusActive:
+		*s = OrdinaryNotificationStatusActive
+		return nil
+	case OrdinaryNotificationStatusSuccess:
+		*s = OrdinaryNotificationStatusSuccess
+		return nil
+	case OrdinaryNotificationStatusDeadlineExceeded:
+		*s = OrdinaryNotificationStatusDeadlineExceeded
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

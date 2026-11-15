@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -34,13 +35,31 @@ func (s *Store) GetClaimedNotificationConditions(ctx context.Context, claim core
 		return core.NotificationConditions{}, fmt.Errorf("load claimed notification conditions: %w", err)
 	}
 
+	if notification.NotificationStatus != core.NotificationActive || !time.Now().Before(notification.Deadline) {
+		return notification, nil
+	}
+
 	var conditions []conditionJSON[*json.RawMessage]
 	if err := json.Unmarshal(data, &conditions); err != nil {
-		return core.NotificationConditions{}, fmt.Errorf("decode notification params: %w", err)
+		return notification, core.ErrInvalidStoredConditions
+	}
+	if len(conditions) == 0 || len(conditions) > 10 {
+		return notification, core.ErrInvalidStoredConditions
 	}
 	notification.Params, err = conditionsFromJSON(conditions)
-	if err != nil {
-		return core.NotificationConditions{}, fmt.Errorf("map notification params: %w", err)
+	if err != nil || len(core.ValidateNotificationConditions(notification.Params)) != 0 || !validStoredGroups(notification.Params) {
+		return notification, core.ErrInvalidStoredConditions
 	}
 	return notification, nil
+}
+
+func validStoredGroups(conditions []core.Condition) bool {
+	for _, condition := range conditions {
+		if condition.Type == core.ConditionAnd || condition.Type == core.ConditionOr {
+			if len(condition.Conditions) < 2 || len(condition.Conditions) > 10 || !validStoredGroups(condition.Conditions) {
+				return false
+			}
+		}
+	}
+	return true
 }
