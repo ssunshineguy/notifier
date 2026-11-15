@@ -129,7 +129,7 @@ func TestGetNotification(t *testing.T) {
 				want := codegen.Notification{
 					NotificationID:     codegen.NotificationId(id),
 					ExternalID:         "order-42",
-					NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatus(tt.notificationStatus)),
+					NotificationStatus: codegen.NewOptOrdinaryNotificationStatus(codegen.OrdinaryNotificationStatus(tt.notificationStatus)),
 					DeadlineDt:         deadline,
 					StartDt:            start,
 					NotificationParams: codegen.NotificationParams{
@@ -226,5 +226,100 @@ func TestGetNotificationInvalidID(t *testing.T) {
 	}
 	if got, ok := problem.RequestID.Get(); !ok || got != requestID {
 		t.Errorf("body request_id = %q, want %q", got, requestID)
+	}
+}
+
+func TestGetDLQNotification(t *testing.T) {
+	id := uuid.New()
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	stopped := start.Add(time.Minute)
+	const owner = "dlq-owner"
+	for _, tc := range []struct {
+		name       string
+		change     func(*core.NotificationDetails)
+		wantStatus int
+	}{
+		{"invalid conditions omitted", func(n *core.NotificationDetails) {
+			n.Params = []core.Condition{{Type: "invalid-stored-type"}}
+		}, http.StatusOK},
+		{"unparsed conditions omitted", func(n *core.NotificationDetails) { n.Params = nil }, http.StatusOK},
+		{"missing stop time", func(n *core.NotificationDetails) { n.Stop = nil }, http.StatusInternalServerError},
+		{"missing DLQ time", func(n *core.NotificationDetails) { n.DLQAt = nil }, http.StatusInternalServerError},
+		{"unsafe reason rejected", func(n *core.NotificationDetails) { n.DLQReason = "private-parser-value" }, http.StatusInternalServerError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			details := core.NotificationDetails{
+				ID: id, ExternalID: "dlq-order", NotificationStatus: core.NotificationDLQ,
+				Start: start, Deadline: start.Add(time.Hour), Stop: &stopped, DLQAt: &stopped,
+				DLQReason: core.DLQInvalidStoredConditions,
+			}
+			tc.change(&details)
+			store := &notificationStoreStub{getNotification: func(_ context.Context, gotID uuid.UUID, gotOwner string) (core.NotificationDetails, error) {
+				if gotID != id || gotOwner != owner {
+					t.Fatalf("GET lookup did not preserve owner and ID")
+				}
+				return details, nil
+			}}
+			server, err := codegen.NewServer(NewHandler(store, time.Second), middleware.NewClientSecurity(clientSourceStub{client: core.Client{ID: owner}}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/notifications/"+id.String(), nil)
+			req.Header.Set("X-Client-ID", owner)
+			req.Header.Set("X-Request-ID", "dlq-request")
+			resp := httptest.NewRecorder()
+			server.ServeHTTP(resp, req)
+			if resp.Code != tc.wantStatus || resp.Header().Get("X-Request-ID") != "dlq-request" {
+				t.Fatalf("response = %d, request ID = %q", resp.Code, resp.Header().Get("X-Request-ID"))
+			}
+			if tc.wantStatus != http.StatusOK {
+				if strings.Contains(resp.Body.String(), "private-parser-value") {
+					t.Fatal("unsafe DLQ reason leaked")
+				}
+				return
+			}
+			if got, _, err := mime.ParseMediaType(resp.Header().Get("Content-Type")); err != nil || got != "application/json" {
+				t.Fatalf("Content-Type = %q", resp.Header().Get("Content-Type"))
+			}
+			var body map[string]json.RawMessage
+			if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if len(body) != 8 || body["notification_params"] != nil || body["delivery_status"] != nil {
+				t.Fatalf("DLQ response fields = %v", body)
+			}
+			var got codegen.NotificationRead
+			if err := json.Unmarshal(resp.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if !got.IsDLQNotification() {
+				t.Fatal("response is not the DLQ schema variant")
+			}
+			want := codegen.DLQNotification{
+				NotificationID: codegen.NotificationId(id), ExternalID: "dlq-order",
+				NotificationStatus: codegen.DLQNotificationNotificationStatusDlq,
+				DeadlineDt:         details.Deadline, StartDt: start, StopDt: stopped, DlqDt: stopped,
+				DlqReason: codegen.DLQNotificationDlqReasonInvalidStoredConditions,
+			}
+			if !reflect.DeepEqual(got.DLQNotification, want) {
+				t.Fatalf("DLQ response = %+v, want %+v", got.DLQNotification, want)
+			}
+		})
+	}
+}
+
+func TestNotificationReadRequiresVariantFields(t *testing.T) {
+	common := `"notification_id":"0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71","external_id":"contract","deadline_dt":"2026-12-01T18:00:00Z","start_dt":"2026-11-13T10:00:00Z"`
+	for _, suffix := range []string{
+		`,"notification_status":"active"`,
+		`,"notification_status":"success","delivery_status":"trying_to_deliver"`,
+		`,"notification_status":"dlq","notification_params":[]`,
+		`,"notification_status":"dlq","stop_dt":"2026-11-13T10:00:10Z","dlq_dt":"2026-11-13T10:00:10Z"`,
+		`,"notification_status":"dlq","stop_dt":"2026-11-13T10:00:10Z","dlq_dt":"2026-11-13T10:00:10Z","dlq_reason":"invalid_stored_conditions","delivery_status":"delivered"`,
+	} {
+		var got codegen.NotificationRead
+		if err := json.Unmarshal([]byte("{"+common+suffix+"}"), &got); err == nil {
+			t.Fatalf("invalid response accepted: %s", suffix)
+		}
 	}
 }

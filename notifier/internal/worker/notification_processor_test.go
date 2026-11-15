@@ -15,18 +15,25 @@ import (
 )
 
 type processingStoreStub struct {
-	notification core.NotificationConditions
-	target       core.CallbackTarget
-	targetErr    error
-	targetReads  int
-	targetClaim  core.NotificationClaim
-	results      []core.NotificationResult
-	savedClaim   core.NotificationClaim
-	writeErr     error
+	notification      core.NotificationConditions
+	loadErr           error
+	dlqClaims         []core.NotificationClaim
+	dlqErr            error
+	rescheduled       []time.Time
+	rescheduledClaims []core.NotificationClaim
+	rescheduleErr     error
+	target            core.CallbackTarget
+	targetErr         error
+	targetReads       int
+	targetClaim       core.NotificationClaim
+	results           []core.NotificationResult
+	savedClaim        core.NotificationClaim
+	writeErr          error
+	saveErr           error
 }
 
 func (s *processingStoreStub) GetClaimedNotificationConditions(context.Context, core.NotificationClaim) (core.NotificationConditions, error) {
-	return s.notification, nil
+	return s.notification, s.loadErr
 }
 
 func (s *processingStoreStub) GetClaimedCallbackTarget(_ context.Context, claim core.NotificationClaim) (core.CallbackTarget, error) {
@@ -39,7 +46,7 @@ func (s *processingStoreStub) SaveNotificationResult(ctx context.Context, claim 
 	s.results = append(s.results, result)
 	s.savedClaim = claim
 	s.writeErr = ctx.Err()
-	return s.writeErr
+	return errors.Join(s.writeErr, s.saveErr)
 }
 
 func TestProcessNotificationSavesNextState(t *testing.T) {
@@ -202,4 +209,15 @@ func TestDeletedNotificationDoesNotStartCallback(t *testing.T) {
 	if len(store.results) != 0 {
 		t.Errorf("saved results = %v, want none after the reservation was lost", store.results)
 	}
+}
+
+func (s *processingStoreStub) MoveNotificationToDLQ(_ context.Context, claim core.NotificationClaim) error {
+	s.dlqClaims = append(s.dlqClaims, claim)
+	return s.dlqErr
+}
+
+func (s *processingStoreStub) RescheduleNotification(_ context.Context, claim core.NotificationClaim, next time.Time) error {
+	s.rescheduled = append(s.rescheduled, next)
+	s.rescheduledClaims = append(s.rescheduledClaims, claim)
+	return s.rescheduleErr
 }

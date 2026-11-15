@@ -29,6 +29,7 @@ func TestLogAPIRequests(t *testing.T) {
 	}{
 		{"GET at INFO", http.MethodGet, slog.LevelInfo, http.StatusOK, `{"notification_status":"active","external_id":"private-id"}`, false},
 		{"GET at DEBUG", http.MethodGet, slog.LevelDebug, http.StatusOK, `{"notification_status":"active","external_id":"private-id"}`, true},
+		{"DLQ at DEBUG", http.MethodGet, slog.LevelDebug, http.StatusOK, `{"notification_status":"dlq","external_id":"private-id","dlq_reason":"invalid_stored_conditions"}`, true},
 		{"POST at INFO", http.MethodPost, slog.LevelInfo, http.StatusOK, `{"notification_id":"0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71"}`, true},
 		{"GET failure at INFO", http.MethodGet, slog.LevelInfo, http.StatusNotFound, `{"type":"/problems/not-found","status":404,"detail":"private-detail"}`, true},
 		{"large body", http.MethodPost, slog.LevelInfo, http.StatusOK, strings.Repeat("x", 8193), true},
@@ -101,7 +102,11 @@ func TestLogAPIRequests(t *testing.T) {
 						t.Errorf("unexpected problem parameters: %v", body)
 					}
 				case tt.method == http.MethodGet:
-					if parameters["notification_status"] != "active" || parameters["external_id"] != "[redacted]" {
+					wantStatus := "active"
+					if tt.name == "DLQ at DEBUG" {
+						wantStatus = "dlq"
+					}
+					if parameters["notification_status"] != wantStatus || parameters["external_id"] != "[redacted]" {
 						t.Errorf("unexpected GET parameters: %v", body)
 					}
 				default:

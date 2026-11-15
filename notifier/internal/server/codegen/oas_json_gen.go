@@ -365,6 +365,289 @@ func (s *Condition) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *DLQNotification) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *DLQNotification) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("notification_id")
+		s.NotificationID.Encode(e)
+	}
+	{
+		e.FieldStart("external_id")
+		s.ExternalID.Encode(e)
+	}
+	{
+		e.FieldStart("notification_status")
+		s.NotificationStatus.Encode(e)
+	}
+	{
+		e.FieldStart("deadline_dt")
+		json.EncodeDateTime(e, s.DeadlineDt)
+	}
+	{
+		e.FieldStart("start_dt")
+		json.EncodeDateTime(e, s.StartDt)
+	}
+	{
+		e.FieldStart("stop_dt")
+		json.EncodeDateTime(e, s.StopDt)
+	}
+	{
+		e.FieldStart("dlq_reason")
+		s.DlqReason.Encode(e)
+	}
+	{
+		e.FieldStart("dlq_dt")
+		json.EncodeDateTime(e, s.DlqDt)
+	}
+}
+
+var jsonFieldsNameOfDLQNotification = [8]string{
+	0: "notification_id",
+	1: "external_id",
+	2: "notification_status",
+	3: "deadline_dt",
+	4: "start_dt",
+	5: "stop_dt",
+	6: "dlq_reason",
+	7: "dlq_dt",
+}
+
+// Decode decodes DLQNotification from json.
+func (s *DLQNotification) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DLQNotification to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "notification_id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.NotificationID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"notification_id\"")
+			}
+		case "external_id":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.ExternalID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_id\"")
+			}
+		case "notification_status":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.NotificationStatus.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"notification_status\"")
+			}
+		case "deadline_dt":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.DeadlineDt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deadline_dt\"")
+			}
+		case "start_dt":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.StartDt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"start_dt\"")
+			}
+		case "stop_dt":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.StopDt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stop_dt\"")
+			}
+		case "dlq_reason":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.DlqReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dlq_reason\"")
+			}
+		case "dlq_dt":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.DlqDt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dlq_dt\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode DLQNotification")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfDLQNotification) {
+					name = jsonFieldsNameOfDLQNotification[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *DLQNotification) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DLQNotification) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes DLQNotificationDlqReason as json.
+func (s DLQNotificationDlqReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes DLQNotificationDlqReason from json.
+func (s *DLQNotificationDlqReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DLQNotificationDlqReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch DLQNotificationDlqReason(v) {
+	case DLQNotificationDlqReasonInvalidStoredConditions:
+		*s = DLQNotificationDlqReasonInvalidStoredConditions
+	default:
+		*s = DLQNotificationDlqReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s DLQNotificationDlqReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DLQNotificationDlqReason) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes DLQNotificationNotificationStatus as json.
+func (s DLQNotificationNotificationStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes DLQNotificationNotificationStatus from json.
+func (s *DLQNotificationNotificationStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DLQNotificationNotificationStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch DLQNotificationNotificationStatus(v) {
+	case DLQNotificationNotificationStatusDlq:
+		*s = DLQNotificationNotificationStatusDlq
+	default:
+		*s = DLQNotificationNotificationStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s DLQNotificationNotificationStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DLQNotificationNotificationStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes DeliveryStatus as json.
 func (s DeliveryStatus) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -1062,44 +1345,173 @@ func (s *NotificationParams) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes NotificationStatus as json.
-func (s NotificationStatus) Encode(e *jx.Encoder) {
-	e.Str(string(s))
+// Encode encodes NotificationRead as json.
+func (s NotificationRead) Encode(e *jx.Encoder) {
+	switch s.Type {
+	case NotificationNotificationRead:
+		s.Notification.Encode(e)
+	case DLQNotificationNotificationRead:
+		s.DLQNotification.Encode(e)
+	}
 }
 
-// Decode decodes NotificationStatus from json.
-func (s *NotificationStatus) Decode(d *jx.Decoder) error {
+func (s NotificationRead) encodeFields(e *jx.Encoder) {
+	switch s.Type {
+	case NotificationNotificationRead:
+		s.Notification.encodeFields(e)
+	case DLQNotificationNotificationRead:
+		s.DLQNotification.encodeFields(e)
+	}
+}
+
+// Decode decodes NotificationRead from json.
+func (s *NotificationRead) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode NotificationStatus to nil")
+		return errors.New("invalid: unable to decode NotificationRead to nil")
 	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch NotificationStatus(v) {
-	case NotificationStatusActive:
-		*s = NotificationStatusActive
-	case NotificationStatusSuccess:
-		*s = NotificationStatusSuccess
-	case NotificationStatusDeadlineExceeded:
-		*s = NotificationStatusDeadlineExceeded
-	default:
-		*s = NotificationStatus(v)
+	// Sum type fields.
+	if typ := d.Next(); typ != jx.Object {
+		return errors.Errorf("unexpected json type %q", typ)
 	}
 
+	var found bool
+	if err := d.Capture(func(d *jx.Decoder) error {
+		return d.ObjBytes(func(d *jx.Decoder, key []byte) error {
+			switch string(key) {
+			case "delivery_status":
+				// Type-based discrimination: check if field has expected JSON type
+				if typ := d.Next(); typ != jx.String {
+					// Field exists but has wrong type, not a match for this variant
+					return d.Skip()
+				}
+				match := NotificationNotificationRead
+				if found && s.Type != match {
+					s.Type = ""
+					return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+				}
+				found = true
+				s.Type = match
+			case "dlq_dt":
+				match := DLQNotificationNotificationRead
+				if found && s.Type != match {
+					s.Type = ""
+					return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+				}
+				found = true
+				s.Type = match
+			case "dlq_reason":
+				// Type-based discrimination: check if field has expected JSON type
+				if typ := d.Next(); typ != jx.String {
+					// Field exists but has wrong type, not a match for this variant
+					return d.Skip()
+				}
+				match := DLQNotificationNotificationRead
+				if found && s.Type != match {
+					s.Type = ""
+					return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+				}
+				found = true
+				s.Type = match
+			case "notification_params":
+				// Type-based discrimination: check if field has expected JSON type
+				if typ := d.Next(); typ != jx.Array {
+					// Field exists but has wrong type, not a match for this variant
+					return d.Skip()
+				}
+				match := NotificationNotificationRead
+				if found && s.Type != match {
+					s.Type = ""
+					return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+				}
+				found = true
+				s.Type = match
+			case "stop_dt":
+				match := DLQNotificationNotificationRead
+				if found && s.Type != match {
+					s.Type = ""
+					return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+				}
+				found = true
+				s.Type = match
+			case "notification_status":
+				// Value-based discrimination: check enum value
+				if typ := d.Next(); typ != jx.String {
+					return d.Skip()
+				}
+				value, err := d.StrBytes()
+				if err != nil {
+					return err
+				}
+				switch string(value) {
+				case "active":
+					match := NotificationNotificationRead
+					if found && s.Type != match {
+						s.Type = ""
+						return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+					}
+					found = true
+					s.Type = match
+				case "deadline_exceeded":
+					match := NotificationNotificationRead
+					if found && s.Type != match {
+						s.Type = ""
+						return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+					}
+					found = true
+					s.Type = match
+				case "dlq":
+					match := DLQNotificationNotificationRead
+					if found && s.Type != match {
+						s.Type = ""
+						return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+					}
+					found = true
+					s.Type = match
+				case "success":
+					match := NotificationNotificationRead
+					if found && s.Type != match {
+						s.Type = ""
+						return errors.Errorf("multiple oneOf matches: (%v, %v)", s.Type, match)
+					}
+					found = true
+					s.Type = match
+				default:
+					// Unknown enum value, ignore and continue
+				}
+				return nil
+			}
+			return d.Skip()
+		})
+	}); err != nil {
+		return errors.Wrap(err, "capture")
+	}
+	if !found {
+		return errors.New("unable to detect sum type variant")
+	}
+	switch s.Type {
+	case NotificationNotificationRead:
+		if err := s.Notification.Decode(d); err != nil {
+			return err
+		}
+	case DLQNotificationNotificationRead:
+		if err := s.DLQNotification.Decode(d); err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("inferred invalid type: %s", s.Type)
+	}
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s NotificationStatus) MarshalJSON() ([]byte, error) {
+func (s NotificationRead) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotificationStatus) UnmarshalJSON(data []byte) error {
+func (s *NotificationRead) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1266,18 +1678,18 @@ func (s *OptDeliveryStatus) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes NotificationStatus as json.
-func (o OptNotificationStatus) Encode(e *jx.Encoder) {
+// Encode encodes OrdinaryNotificationStatus as json.
+func (o OptOrdinaryNotificationStatus) Encode(e *jx.Encoder) {
 	if !o.Set {
 		return
 	}
 	e.Str(string(o.Value))
 }
 
-// Decode decodes NotificationStatus from json.
-func (o *OptNotificationStatus) Decode(d *jx.Decoder) error {
+// Decode decodes OrdinaryNotificationStatus from json.
+func (o *OptOrdinaryNotificationStatus) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode OptNotificationStatus to nil")
+		return errors.New("invalid: unable to decode OptOrdinaryNotificationStatus to nil")
 	}
 	o.Set = true
 	if err := o.Value.Decode(d); err != nil {
@@ -1287,14 +1699,14 @@ func (o *OptNotificationStatus) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s OptNotificationStatus) MarshalJSON() ([]byte, error) {
+func (s OptOrdinaryNotificationStatus) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptNotificationStatus) UnmarshalJSON(data []byte) error {
+func (s *OptOrdinaryNotificationStatus) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1489,6 +1901,48 @@ func (s OrConditionType) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OrConditionType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes OrdinaryNotificationStatus as json.
+func (s OrdinaryNotificationStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes OrdinaryNotificationStatus from json.
+func (s *OrdinaryNotificationStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OrdinaryNotificationStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch OrdinaryNotificationStatus(v) {
+	case OrdinaryNotificationStatusActive:
+		*s = OrdinaryNotificationStatusActive
+	case OrdinaryNotificationStatusSuccess:
+		*s = OrdinaryNotificationStatusSuccess
+	case OrdinaryNotificationStatusDeadlineExceeded:
+		*s = OrdinaryNotificationStatusDeadlineExceeded
+	default:
+		*s = OrdinaryNotificationStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OrdinaryNotificationStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OrdinaryNotificationStatus) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

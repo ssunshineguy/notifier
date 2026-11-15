@@ -1,0 +1,49 @@
+title: DLQNotification
+description: |
+  A notification stopped because stored conditions needed for processing are invalid.
+  The original data remains in storage but is not returned as notification_params.
+  No callback is sent and delivery_status is absent.
+type: object
+additionalProperties: false
+required:
+  - notification_id
+  - external_id
+  - notification_status
+  - deadline_dt
+  - start_dt
+  - stop_dt
+  - dlq_reason
+  - dlq_dt
+properties:
+  notification_id:
+    $ref: ./NotificationId.yaml
+  external_id:
+    $ref: ./ExternalId.yaml
+  notification_status:
+    type: string
+    enum:
+      - dlq
+  deadline_dt:
+    type: string
+    format: date-time
+    example: "2026-12-01T18:00:00Z"
+  start_dt:
+    description: Moment when the notification was created.
+    type: string
+    format: date-time
+    example: "2026-11-13T10:00:00Z"
+  stop_dt:
+    description: Moment when processing stopped; equal to dlq_dt.
+    type: string
+    format: date-time
+    example: "2026-11-13T10:00:10Z"
+  dlq_reason:
+    description: Safe reason code; does not contain stored data or parser details.
+    type: string
+    enum:
+      - invalid_stored_conditions
+  dlq_dt:
+    description: Moment when the notification entered DLQ.
+    type: string
+    format: date-time
+    example: "2026-11-13T10:00:10Z"

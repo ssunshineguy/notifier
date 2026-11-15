@@ -228,7 +228,7 @@ func (w *loggedResponse) logBody() {
 	var body struct {
 		NotificationID     *uuid.UUID                 `json:"notification_id"`
 		ExternalID         json.RawMessage            `json:"external_id"`
-		NotificationStatus codegen.NotificationStatus `json:"notification_status"`
+		NotificationStatus string                     `json:"notification_status"`
 		NotificationParams codegen.NotificationParams `json:"notification_params"`
 		Deadline           *time.Time                 `json:"deadline_dt"`
 		Start              *time.Time                 `json:"start_dt"`

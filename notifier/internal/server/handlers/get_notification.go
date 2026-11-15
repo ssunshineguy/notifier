@@ -28,11 +28,31 @@ func (h *Handler) GetNotification(ctx context.Context, params codegen.GetNotific
 		return internalErrorResponse(requestID), nil
 	}
 
+	if notification.NotificationStatus == core.NotificationDLQ {
+		if notification.Stop == nil || notification.DLQAt == nil || notification.DLQReason != core.DLQInvalidStoredConditions {
+			return internalErrorResponse(requestID), nil
+		}
+		return &codegen.NotificationReadHeaders{
+			XRequestID: requestID,
+			Response: codegen.NewDLQNotificationNotificationRead(codegen.DLQNotification{
+				NotificationID:     codegen.NotificationId(notification.ID),
+				ExternalID:         codegen.ExternalId(notification.ExternalID),
+				NotificationStatus: codegen.DLQNotificationNotificationStatusDlq,
+				DeadlineDt:         notification.Deadline, StartDt: notification.Start,
+				StopDt: *notification.Stop, DlqDt: *notification.DLQAt,
+				DlqReason: codegen.DLQNotificationDlqReasonInvalidStoredConditions,
+			}),
+		}, nil
+	}
+
 	response := notificationResponse(requestID, notification)
 	if response == nil {
 		return internalErrorResponse(requestID), nil
 	}
-	return response, nil
+	return &codegen.NotificationReadHeaders{
+		XRequestID: requestID,
+		Response:   codegen.NewNotificationNotificationRead(response.Response),
+	}, nil
 }
 
 func notificationNotFoundResponse(requestID codegen.OptString) *codegen.NotFoundHeaders {
@@ -61,7 +81,7 @@ func notificationResponse(requestID codegen.OptString, notification core.Notific
 		Response: codegen.Notification{
 			NotificationID:     codegen.NotificationId(notification.ID),
 			ExternalID:         codegen.ExternalId(notification.ExternalID),
-			NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatus(notification.NotificationStatus)),
+			NotificationStatus: codegen.NewOptOrdinaryNotificationStatus(codegen.OrdinaryNotificationStatus(notification.NotificationStatus)),
 			DeliveryStatus:     deliveryStatus,
 			NotificationParams: conditions,
 			DeadlineDt:         notification.Deadline,

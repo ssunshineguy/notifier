@@ -1,0 +1,8 @@
+title: OrdinaryNotificationStatus
+description: Condition result for a notification outside DLQ.
+type: string
+enum:
+  - active
+  - success
+  - deadline_exceeded
+example: active

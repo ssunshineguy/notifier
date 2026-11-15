@@ -9,6 +9,10 @@ import (
 const (
 	// NotificationActive means the conditions have yet to trigger an event.
 	NotificationActive = "active"
+	// NotificationDLQ means required saved conditions cannot be processed.
+	NotificationDLQ = "dlq"
+	// DLQInvalidStoredConditions is a safe reason code without saved condition values.
+	DLQInvalidStoredConditions = "invalid_stored_conditions"
 	// EventSuccess means the worker observed that the conditions were met.
 	EventSuccess = "success"
 	// EventDeadlineExceeded means the deadline arrived before a condition match was observed.

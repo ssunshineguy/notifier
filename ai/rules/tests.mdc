@@ -92,4 +92,7 @@ implemented; their planned behavior is not evidence of current correctness.
 - POST conflict helper tests cover both the existing UUID response and the planned
   `/problems/notification-duplicate-disappeared` Problem. The latter's deterministic
   server race belongs to task 17; these helper tests do not establish its availability.
-  DLQ assertions remain a follow-up to the contract implemented in task 04.
+  DLQ storage/processor and HTTP response assertions are covered by Go tests in
+  `notifier/internal/storage/postgres/notification_dlq_integration_test.go` and
+  `notifier/internal/server/handlers/get_notification_test.go`. The callback-journal
+  end-to-end scenario is coordinated with task 10.

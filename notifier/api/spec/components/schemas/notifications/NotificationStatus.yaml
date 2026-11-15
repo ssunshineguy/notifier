@@ -5,9 +5,11 @@ description: |
   - `active` — no event has been selected for the notification.
   - `success` — the conditions were met before the deadline.
   - `deadline_exceeded` — the deadline passed before the conditions were met.
+  - `dlq` — invalid stored conditions stopped processing without a callback.
 type: string
 enum:
   - active
   - success
   - deadline_exceeded
+  - dlq
 example: active

@@ -27,12 +27,12 @@ func TestSplitStatusesFreshIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := provider.Up(t.Context()); err != nil {
+	if _, err := provider.UpTo(t.Context(), 2); err != nil {
 		t.Fatal(err)
 	}
 	assertFinalStatusSchema(t, db)
 	assertVersion(t, provider, 2)
-	if result, err := provider.Up(t.Context()); err != nil || len(result) != 0 {
+	if result, err := provider.UpTo(t.Context(), 2); err != nil || len(result) != 0 {
 		t.Fatalf("second Up = %d migrations, %v; want no work", len(result), err)
 	}
 }
@@ -53,7 +53,8 @@ func assertFinalStatusSchema(t *testing.T, db *sql.DB) {
 		SELECT count(*) FROM pg_constraint
 		WHERE conrelid = 'notifier.t_notification'::regclass AND convalidated AND conname IN (
 			'ck_notification_notification_status', 'ck_notification_delivery_status',
-			'ck_notification_notification_status_delivery_status', 'ck_notification_stop_dt_delivery_status'
+			'ck_notification_notification_status_delivery_status', 'ck_notification_stop_dt_delivery_status',
+			'ck_notification_notification_status_stop_dt'
 		)`).Scan(&validated); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +64,7 @@ func assertFinalStatusSchema(t *testing.T, db *sql.DB) {
 		AND table_name = 't_notification' AND column_name = 'stop_reason')`).Scan(&legacy); err != nil {
 		t.Fatal(err)
 	}
-	if columns != 2 || validated != 4 || legacy {
+	if columns != 2 || validated != 5 || legacy {
 		t.Fatalf("final schema: valid status columns=%d, validated checks=%d, legacy column=%t", columns, validated, legacy)
 	}
 }

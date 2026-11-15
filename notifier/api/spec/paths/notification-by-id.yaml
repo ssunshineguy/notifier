@@ -11,7 +11,9 @@ get:
     Returns the parameters of a notification owned by the client,
     including a stopped notification while its record is retained.
     The response includes the condition result and, once a callback
-    attempt is recorded, the delivery status. An invalid
+    attempt is recorded, the delivery status. A DLQ response instead contains
+    stop_dt, dlq_dt and the safe dlq_reason code; notification_params and
+    delivery_status are absent. An invalid
     `notification_id` returns `400`.
     A missing notification or one owned by another client returns `404`.
   responses:
@@ -23,18 +25,32 @@ get:
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/notifications/Notification.yaml
-          example:
-            notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
-            external_id: order-42-reminder
-            notification_status: success
-            delivery_status: trying_to_deliver
-            notification_params:
-              - type: time
-                operation: greater_than
-                value: "2026-12-01T09:00:00Z"
-            deadline_dt: "2026-12-01T18:00:00Z"
-            start_dt: "2026-11-13T10:00:00Z"
+            $ref: ../components/schemas/notifications/NotificationRead.yaml
+          examples:
+            ordinary:
+              summary: A selected event awaiting delivery
+              value:
+                notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                external_id: order-42-reminder
+                notification_status: success
+                delivery_status: trying_to_deliver
+                notification_params:
+                  - type: time
+                    operation: greater_than
+                    value: "2026-12-01T09:00:00Z"
+                deadline_dt: "2026-12-01T18:00:00Z"
+                start_dt: "2026-11-13T10:00:00Z"
+            dlq:
+              summary: Invalid stored conditions stopped processing
+              value:
+                notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+                external_id: order-42-reminder
+                notification_status: dlq
+                deadline_dt: "2026-12-01T18:00:00Z"
+                start_dt: "2026-11-13T10:00:00Z"
+                stop_dt: "2026-11-13T10:00:10Z"
+                dlq_reason: invalid_stored_conditions
+                dlq_dt: "2026-11-13T10:00:10Z"
     "400":
       $ref: ../components/responses/BadRequest.yaml
     "401":
@@ -59,7 +75,7 @@ put:
     Replaces the trigger conditions of a notification that has not stopped.
     The deadline and other parameters cannot be changed. If the client's
     notification is stopped, the request returns `400` with the problem title
-    "Incorrect notification status".
+    "Incorrect notification status", including notifications in DLQ.
     An unexpired worker reservation returns `409`.
 
     The change applies from the next check. Delivery of an already selected

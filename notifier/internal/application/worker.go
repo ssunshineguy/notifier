@@ -36,8 +36,9 @@ func RunWorker(ctx context.Context, cfg config.Config) error {
 		databaseTimeout := time.Duration(cfg.Database.OperationTimeoutSec) * time.Second
 		store := postgres.NewStore(pool, databaseTimeout)
 		processing := worker.ProcessingSettings{
-			ScheduledDelay:     time.Duration(cfg.Notification.ScheduledTimeSec) * time.Second,
-			ResultWriteTimeout: databaseTimeout,
+			TechnicalRetryDelay: time.Duration(cfg.Notification.TechnicalRetryDelaySec) * time.Second,
+			ScheduledDelay:      time.Duration(cfg.Notification.ScheduledTimeSec) * time.Second,
+			ResultWriteTimeout:  databaseTimeout,
 		}
 		settings := worker.Settings{
 			Workers:      cfg.Worker.Workers,

@@ -224,3 +224,11 @@ func TestProcessConditionsFetchesTimeAndPriceConcurrently(t *testing.T) {
 		<-done
 	})
 }
+
+func (conditionStoreFunc) MoveNotificationToDLQ(context.Context, core.NotificationClaim) error {
+	return nil
+}
+
+func (conditionStoreFunc) RescheduleNotification(context.Context, core.NotificationClaim, time.Time) error {
+	return nil
+}

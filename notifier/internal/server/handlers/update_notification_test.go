@@ -147,7 +147,7 @@ func TestUpdateNotification(t *testing.T) {
 				}
 				want := codegen.Notification{
 					NotificationID: codegen.NotificationId(id), ExternalID: "order-42",
-					NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatus(notificationStatus)),
+					NotificationStatus: codegen.NewOptOrdinaryNotificationStatus(codegen.OrdinaryNotificationStatus(notificationStatus)),
 					NotificationParams: codegen.NotificationParams{codegen.NewOrConditionCondition(codegen.OrCondition{
 						Type: codegen.OrConditionTypeOr,
 						Conditions: []codegen.Condition{

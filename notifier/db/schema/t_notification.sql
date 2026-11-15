@@ -18,8 +18,9 @@ CREATE TABLE notifier.t_notification (
     CONSTRAINT ck_notification_delivery_status CHECK ((delivery_status = ANY (ARRAY['trying_to_deliver'::text, 'delivered'::text, 'delivery_failed'::text]))),
     CONSTRAINT ck_notification_external_id CHECK (((length(external_id) >= 1) AND (length(external_id) <= 128))),
     CONSTRAINT ck_notification_failed_attempt_count CHECK ((failed_attempt_count >= 0)),
-    CONSTRAINT ck_notification_notification_status CHECK ((notification_status = ANY (ARRAY['active'::text, 'success'::text, 'deadline_exceeded'::text]))),
-    CONSTRAINT ck_notification_notification_status_delivery_status CHECK (((notification_status = 'active'::text) = (delivery_status IS NULL))),
+    CONSTRAINT ck_notification_notification_status CHECK ((notification_status = ANY (ARRAY['active'::text, 'success'::text, 'deadline_exceeded'::text, 'dlq'::text]))),
+    CONSTRAINT ck_notification_notification_status_delivery_status CHECK (((notification_status = ANY (ARRAY['active'::text, 'dlq'::text])) = (delivery_status IS NULL))),
+    CONSTRAINT ck_notification_notification_status_stop_dt CHECK (((notification_status <> 'dlq'::text) OR ((stop_dt IS NOT NULL) AND (next_scheduled_dt IS NULL) AND (lock_until_dt IS NULL)))),
     CONSTRAINT ck_notification_stop_dt_delivery_status CHECK (((delivery_status IS NULL) OR ((stop_dt IS NULL) = (delivery_status = 'trying_to_deliver'::text))))
 );
 

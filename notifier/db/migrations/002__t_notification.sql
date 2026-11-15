@@ -19,13 +19,16 @@ CREATE TABLE IF NOT EXISTS notifier.t_notification (
     CONSTRAINT ck_notification_deadline_dt_start_dt CHECK (deadline_dt > start_dt),
     CONSTRAINT ck_notification_failed_attempt_count CHECK (failed_attempt_count >= 0),
     CONSTRAINT ck_notification_notification_status
-        CHECK (notification_status IN ('active', 'success', 'deadline_exceeded')),
+        CHECK (notification_status IN ('active', 'success', 'deadline_exceeded', 'dlq')),
     CONSTRAINT ck_notification_delivery_status
         CHECK (delivery_status IN ('trying_to_deliver', 'delivered', 'delivery_failed')),
     CONSTRAINT ck_notification_notification_status_delivery_status
-        CHECK ((notification_status = 'active') = (delivery_status IS NULL)),
+        CHECK ((notification_status IN ('active', 'dlq')) = (delivery_status IS NULL)),
     CONSTRAINT ck_notification_stop_dt_delivery_status
-        CHECK (delivery_status IS NULL OR ((stop_dt IS NULL) = (delivery_status = 'trying_to_deliver')))
+        CHECK (delivery_status IS NULL OR ((stop_dt IS NULL) = (delivery_status = 'trying_to_deliver'))),
+    CONSTRAINT ck_notification_notification_status_stop_dt
+        CHECK (notification_status <> 'dlq' OR
+            (stop_dt IS NOT NULL AND next_scheduled_dt IS NULL AND lock_until_dt IS NULL))
 );
 
 CREATE INDEX IF NOT EXISTS ix_notification_next_scheduled_dt

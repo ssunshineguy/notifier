@@ -115,6 +115,69 @@ func (s Condition) Validate() error {
 	}
 }
 
+func (s *DLQNotification) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.ExternalID.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "external_id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.NotificationStatus.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "notification_status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.DlqReason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "dlq_reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s DLQNotificationDlqReason) Validate() error {
+	switch s {
+	case "invalid_stored_conditions":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s DLQNotificationNotificationStatus) Validate() error {
+	switch s {
+	case "dlq":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s DeliveryStatus) Validate() error {
 	switch s {
 	case "trying_to_deliver":
@@ -308,17 +371,44 @@ func (s NotificationParams) Validate() error {
 	return nil
 }
 
-func (s NotificationStatus) Validate() error {
-	switch s {
-	case "active":
+func (s NotificationRead) Validate() error {
+	switch s.Type {
+	case NotificationNotificationRead:
+		if err := s.Notification.Validate(); err != nil {
+			return err
+		}
 		return nil
-	case "success":
-		return nil
-	case "deadline_exceeded":
+	case DLQNotificationNotificationRead:
+		if err := s.DLQNotification.Validate(); err != nil {
+			return err
+		}
 		return nil
 	default:
-		return errors.Errorf("invalid value: %v", s)
+		return errors.Errorf("invalid type %q", s.Type)
 	}
+}
+
+func (s *NotificationReadHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *NotificationUpdate) Validate() error {
@@ -406,6 +496,19 @@ func (s *OrCondition) Validate() error {
 func (s OrConditionType) Validate() error {
 	switch s {
 	case "or":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s OrdinaryNotificationStatus) Validate() error {
+	switch s {
+	case "active":
+		return nil
+	case "success":
+		return nil
+	case "deadline_exceeded":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

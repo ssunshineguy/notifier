@@ -165,7 +165,7 @@ func TestSaveNotificationResultIntegration(t *testing.T) {
 		claim.LockUntil = claim.LockUntil.Add(time.Second)
 		reserve()
 		stored, err := store.GetClaimedNotificationConditions(ctx, claim)
-		if err != nil || stored.NotificationStatus != core.EventSuccess || stored.FailedAttemptCount != 1 || !reflect.DeepEqual(stored.Params, revised) {
+		if err != nil || stored.NotificationStatus != core.EventSuccess || stored.FailedAttemptCount != 1 || len(stored.Params) != 0 {
 			t.Fatalf("GetClaimedNotificationConditions on retry = %+v, %v", stored, err)
 		}
 	})
