@@ -10,16 +10,22 @@ CREATE TABLE IF NOT EXISTS notifier.t_notification (
     lock_until_dt        timestamptz NULL,
     failed_attempt_count smallint    NOT NULL DEFAULT 0,
     stop_dt              timestamptz NULL,
-    stop_reason          text        NULL,
+    notification_status  text        NOT NULL DEFAULT 'active',
+    delivery_status      text        NULL,
 
     CONSTRAINT pk_notification_id PRIMARY KEY (id),
     CONSTRAINT uq_notification_client_id_external_id UNIQUE (client_id, external_id),
     CONSTRAINT ck_notification_external_id CHECK (length(external_id) BETWEEN 1 AND 128),
     CONSTRAINT ck_notification_deadline_dt_start_dt CHECK (deadline_dt > start_dt),
     CONSTRAINT ck_notification_failed_attempt_count CHECK (failed_attempt_count >= 0),
-    CONSTRAINT ck_notification_stop_dt_stop_reason CHECK ((stop_dt IS NULL) = (stop_reason IS NULL)),
-    CONSTRAINT ck_notification_stop_reason
-        CHECK (stop_reason IN ('delivered', 'deadline_exceeded', 'delivery_failed', 'deleted'))
+    CONSTRAINT ck_notification_notification_status
+        CHECK (notification_status IN ('active', 'success', 'deadline_exceeded')),
+    CONSTRAINT ck_notification_delivery_status
+        CHECK (delivery_status IN ('trying_to_deliver', 'delivered', 'delivery_failed')),
+    CONSTRAINT ck_notification_notification_status_delivery_status
+        CHECK ((notification_status = 'active') = (delivery_status IS NULL)),
+    CONSTRAINT ck_notification_stop_dt_delivery_status
+        CHECK (delivery_status IS NULL OR ((stop_dt IS NULL) = (delivery_status = 'trying_to_deliver')))
 );
 
 CREATE INDEX IF NOT EXISTS ix_notification_next_scheduled_dt
