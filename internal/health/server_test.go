@@ -28,7 +28,7 @@ func TestServeStartsAndStopsBothListeners(t *testing.T) {
 	var serveErr error
 	go func() {
 		defer close(done)
-		serveErr = Serve(ctx, server, probePort, NewHandler(nil))
+		serveErr = Serve(ctx, server, probePort, NewHandler(nil), 0)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -143,7 +143,7 @@ func TestServeClosesServiceListenerIfProbePortIsOccupied(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := &http.Server{Addr: addr, ReadHeaderTimeout: time.Second}
-	err = Serve(t.Context(), server, probePort, NewHandler(nil))
+	err = Serve(t.Context(), server, probePort, NewHandler(nil), 0)
 	if !errors.Is(err, syscall.EADDRINUSE) {
 		t.Fatalf("Serve = %v, want address in use", err)
 	}

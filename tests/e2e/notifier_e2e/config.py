@@ -7,11 +7,15 @@ from pathlib import Path
 CALLBACK_URL = "http://emulator:8081/callback"
 
 INITIAL_CHECK_DELAY_SEC = int(os.environ.get("NOTIFIER_E2E_INITIAL_CHECK_DELAY_SEC", "0"))
+MAX_CONNECTIONS = int(os.environ.get("NOTIFIER_E2E_MAX_CONNECTIONS", "1024"))
 
-TIMEOUT_SECONDS = 0.5
+API_REQUEST_TIMEOUT_SECONDS = 0.3
+API_WRITE_TIMEOUT_SECONDS = 1.0
+TIMEOUT_SECONDS = API_REQUEST_TIMEOUT_SECONDS + API_WRITE_TIMEOUT_SECONDS + 0.7
+DATABASE_STATEMENT_TIMEOUT_SECONDS = 0.5
 DATABASE_CONNECT_ARGS = {
     "connect_timeout": 2,  # Psycopg enforces a two-second minimum for connecting.
-    "options": f"-c statement_timeout={int(TIMEOUT_SECONDS * 1000)}",
+    "options": f"-c statement_timeout={int(DATABASE_STATEMENT_TIMEOUT_SECONDS * 1000)}",
 }
 
 

@@ -54,7 +54,7 @@ func TestRunAPIWithAlreadyCanceledContext(t *testing.T) {
 func apiTestConfig() config.Config {
 	return config.Config{
 		API: config.API{
-			ListenAddr: "127.0.0.1:0", MaxInFlight: 1, RequestTimeoutMS: 1000,
+			ListenAddr: "127.0.0.1:0", MaxInFlight: 1, MaxConnections: 1024, RequestTimeoutMS: 300, WriteTimeoutMS: 1000, IdleTimeoutMS: 60000,
 		},
 		Database: config.Database{
 			DSN: "postgres://127.0.0.1:5432/notifier?sslmode=disable", MaxConns: 1,

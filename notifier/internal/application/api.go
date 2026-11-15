@@ -39,14 +39,17 @@ func RunAPI(ctx context.Context, cfg config.Config) error {
 	slotWaitTimeout := time.Duration(cfg.API.SlotWaitTimeoutMS) * time.Millisecond
 	limited := middleware.LimitInFlight(cfg.API.MaxInFlight, cfg.API.MaxQueued, slotWaitTimeout, router)
 	requestTimeout := time.Duration(cfg.API.RequestTimeoutMS) * time.Millisecond
+	writeTimeout := time.Duration(cfg.API.WriteTimeoutMS) * time.Millisecond
 	server := &http.Server{
 		Addr:              cfg.API.ListenAddr,
-		Handler:           middleware.LogAPIRequests(slog.Default(), bodylimit.Requests(middleware.RequestTimeout(requestTimeout, limited))),
+		Handler:           middleware.LogAPIRequests(slog.Default(), bodylimit.Requests(middleware.RequestTimeout(requestTimeout, writeTimeout, limited))),
 		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      requestTimeout + writeTimeout,
+		IdleTimeout:       time.Duration(cfg.API.IdleTimeoutMS) * time.Millisecond,
 	}
-	probes := middleware.LogAPIRequests(slog.Default(), middleware.RequestTimeout(requestTimeout, health.NewHandler(store.CheckConnection)))
+	probes := middleware.LogAPIRequests(slog.Default(), middleware.RequestTimeout(requestTimeout, writeTimeout, health.NewHandler(store.CheckConnection)))
 	slog.InfoContext(ctx, "starting API server", "address", server.Addr)
-	if err := health.Serve(ctx, server, "9080", probes); err != nil {
+	if err := health.Serve(ctx, server, "9080", probes, cfg.API.MaxConnections); err != nil {
 		return fmt.Errorf("serve API: %w", err)
 	}
 	return nil

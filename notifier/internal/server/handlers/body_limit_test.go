@@ -54,7 +54,7 @@ func TestNotificationBodyLimit(t *testing.T) {
 					req.Header.Set("X-Client-ID", "size-client")
 					req.Header.Set("X-Request-ID", "body-limit")
 					res := httptest.NewRecorder()
-					bodylimit.Requests(middleware.RequestTimeout(time.Second, router)).ServeHTTP(res, req)
+					bodylimit.Requests(middleware.RequestTimeout(time.Second, time.Second, router)).ServeHTTP(res, req)
 					if extra == 0 {
 						if res.Code != http.StatusOK {
 							t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
@@ -91,7 +91,7 @@ func TestIncompleteOversizedBodyReturns413(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			handler := bodylimit.Requests(middleware.RequestTimeout(5*time.Second, router))
+			handler := bodylimit.Requests(middleware.RequestTimeout(5*time.Second, time.Second, router))
 			server := httptest.NewServer(handler)
 			defer server.Close()
 			dialer := net.Dialer{Timeout: time.Second}
