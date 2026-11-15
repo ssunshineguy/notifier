@@ -52,12 +52,17 @@ func notificationResponse(requestID codegen.OptString, notification core.Notific
 	if !ok {
 		return nil
 	}
+	var deliveryStatus codegen.OptDeliveryStatus
+	if notification.DeliveryStatus != "" {
+		deliveryStatus.SetTo(codegen.DeliveryStatus(notification.DeliveryStatus))
+	}
 	return &codegen.NotificationHeaders{
 		XRequestID: requestID,
 		Response: codegen.Notification{
 			NotificationID:     codegen.NotificationId(notification.ID),
 			ExternalID:         codegen.ExternalId(notification.ExternalID),
-			NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatus(notification.Status)),
+			NotificationStatus: codegen.NewOptNotificationStatus(codegen.NotificationStatus(notification.NotificationStatus)),
+			DeliveryStatus:     deliveryStatus,
 			NotificationParams: conditions,
 			DeadlineDt:         notification.Deadline,
 			StartDt:            notification.Start,

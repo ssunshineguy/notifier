@@ -13,7 +13,7 @@ import (
 	"github.com/ssunshineguy/notifier/notifier/internal/server/middleware"
 )
 
-// UpdateNotification replaces the conditions of an active notification owned by the client.
+// UpdateNotification replaces the conditions of a notification owned by the client before it stops.
 func (h *Handler) UpdateNotification(ctx context.Context, req *codegen.NotificationUpdate, params codegen.UpdateNotificationParams) (codegen.UpdateNotificationRes, error) {
 	requestID := codegen.NewOptString(params.XRequestID)
 	client, ok := middleware.ClientFromContext(ctx)

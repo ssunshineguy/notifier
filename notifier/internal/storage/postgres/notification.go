@@ -21,7 +21,7 @@ ON CONFLICT ON CONSTRAINT uq_notification_client_id_external_id DO NOTHING
 RETURNING id`
 
 const selectNotification = `
-SELECT id, external_id, data, deadline_dt, start_dt, COALESCE(stop_reason, 'active')
+SELECT id, external_id, data, deadline_dt, start_dt, notification_status, COALESCE(delivery_status, '')
 FROM notifier.t_notification
 WHERE id = $1 AND client_id = $2`
 
@@ -68,14 +68,16 @@ func (s *Store) GetNotification(ctx context.Context, notificationID uuid.UUID, c
 	err := s.scanRow(ctx, "select_notification", selectNotification, []any{notificationID, clientID}, func() slog.Attr {
 		return slog.Group("notification",
 			slog.String("notification_id", notification.ID.String()),
-			slog.String("notification_status", notification.Status))
+			slog.String("notification_status", notification.NotificationStatus),
+			slog.String("delivery_status", notification.DeliveryStatus))
 	},
 		&notification.ID,
 		&notification.ExternalID,
 		&data,
 		&notification.Deadline,
 		&notification.Start,
-		&notification.Status,
+		&notification.NotificationStatus,
+		&notification.DeliveryStatus,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return core.NotificationDetails{}, core.ErrNotificationNotFound

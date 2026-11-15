@@ -12,8 +12,12 @@ type NotificationClaim struct {
 	LockUntil time.Time
 }
 
-// NotificationConditions holds the client and condition tree for an active claim.
+// NotificationConditions holds the inputs needed to check and deliver an active claim.
 type NotificationConditions struct {
-	ClientID string
-	Params   []Condition
+	ClientID           string
+	ExternalID         string
+	Params             []Condition
+	Deadline           time.Time
+	NotificationStatus string
+	FailedAttemptCount int
 }

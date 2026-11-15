@@ -13,7 +13,7 @@ import (
 )
 
 const selectClaimedNotificationConditions = `
-SELECT client_id, data
+SELECT client_id, external_id, data, deadline_dt, notification_status, failed_attempt_count
 FROM notifier.t_notification
 WHERE id = $1 AND stop_dt IS NULL
   AND lock_until_dt = $2 AND lock_until_dt > now()`
@@ -25,7 +25,8 @@ func (s *Store) GetClaimedNotificationConditions(ctx context.Context, claim core
 	err := s.scanRow(ctx, "select_claimed_notification_conditions", selectClaimedNotificationConditions,
 		[]any{claim.ID, claim.LockUntil},
 		func() slog.Attr { return slog.String("notification_id", claim.ID.String()) },
-		&notification.ClientID, &data)
+		&notification.ClientID, &notification.ExternalID, &data, &notification.Deadline,
+		&notification.NotificationStatus, &notification.FailedAttemptCount)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return core.NotificationConditions{}, core.ErrNotificationNotFound
 	}

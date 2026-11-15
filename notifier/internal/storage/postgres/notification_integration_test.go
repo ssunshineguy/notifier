@@ -23,6 +23,17 @@ import (
 	"github.com/ssunshineguy/notifier/notifier/internal/storage/postgres"
 )
 
+type notificationState struct {
+	name, notificationStatus, deliveryStatus string
+}
+
+var stoppedNotificationStates = [...]notificationState{
+	{"condition event delivered", core.EventSuccess, core.DeliveryDelivered},
+	{"deadline event delivered", core.EventDeadlineExceeded, core.DeliveryDelivered},
+	{"delivery exhausted", core.EventSuccess, core.DeliveryFailed},
+	{"legacy deleted", core.NotificationActive, ""},
+}
+
 func TestGetNotificationIntegration(t *testing.T) {
 	pool := startPostgres(t)
 	store := postgres.NewStore(pool, 2*time.Second)
@@ -54,15 +65,15 @@ func TestGetNotificationIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertStatus := func(t *testing.T, status string) {
+	assertStatus := func(t *testing.T, notificationStatus, deliveryStatus string) {
 		t.Helper()
 		got, err := store.GetNotification(t.Context(), id, owner)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.ID != id || got.ExternalID != externalID || got.Status != status ||
+		if got.ID != id || got.ExternalID != externalID || got.NotificationStatus != notificationStatus || got.DeliveryStatus != deliveryStatus ||
 			!got.Start.Equal(start) || !got.Deadline.Equal(deadline) || !reflect.DeepEqual(got.Params, conditions) {
-			t.Fatalf("unexpected notification for status %q: %+v", status, got)
+			t.Fatalf("unexpected notification for %q / %q: %+v", notificationStatus, deliveryStatus, got)
 		}
 	}
 	assertMissing := func(t *testing.T, notificationID uuid.UUID, clientID string) {
@@ -72,7 +83,7 @@ func TestGetNotificationIntegration(t *testing.T) {
 		}
 	}
 
-	t.Run("active", func(t *testing.T) { assertStatus(t, "active") })
+	t.Run("active", func(t *testing.T) { assertStatus(t, core.NotificationActive, "") })
 	t.Run("foreign owner and unknown ID", func(t *testing.T) {
 		assertMissing(t, id, "other-client")
 		assertMissing(t, uuid.New(), owner)
@@ -85,18 +96,18 @@ func TestGetNotificationIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertStatus(t, "active")
+		assertStatus(t, core.NotificationActive, "")
 	})
-	for _, status := range []string{"delivered", "deadline_exceeded", "delivery_failed", "deleted"} {
-		t.Run(status, func(t *testing.T) {
+	for _, state := range stoppedNotificationStates {
+		t.Run(state.name, func(t *testing.T) {
 			_, err := pool.Exec(t.Context(), `
 				UPDATE notifier.t_notification
-				SET stop_dt = now(), stop_reason = $1
-				WHERE id = $2`, status, id)
+				SET stop_dt = now(), notification_status = $1, delivery_status = NULLIF($2, '')
+				WHERE id = $3`, state.notificationStatus, state.deliveryStatus, id)
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertStatus(t, status)
+			assertStatus(t, state.notificationStatus, state.deliveryStatus)
 			assertMissing(t, id, "other-client")
 		})
 	}

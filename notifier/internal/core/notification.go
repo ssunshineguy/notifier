@@ -27,12 +27,13 @@ type Notification struct {
 
 // NotificationDetails holds a stored notification's parameters and lifecycle status.
 type NotificationDetails struct {
-	ID         uuid.UUID
-	ExternalID string
-	Params     []Condition
-	Deadline   time.Time
-	Start      time.Time
-	Status     string
+	ID                 uuid.UUID
+	ExternalID         string
+	Params             []Condition
+	Deadline           time.Time
+	Start              time.Time
+	NotificationStatus string
+	DeliveryStatus     string
 }
 
 // ErrNotificationNotFound means no notification matched the lookup.

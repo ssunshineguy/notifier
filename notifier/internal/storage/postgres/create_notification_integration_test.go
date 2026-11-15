@@ -60,7 +60,8 @@ func TestCreateNotificationIntegration(t *testing.T) {
 		t.Fatalf("create for another client = (%s, %v), want a separate notification", otherID, err)
 	}
 
-	if _, err := pool.Exec(ctx, "UPDATE notifier.t_notification SET stop_dt = now(), stop_reason = 'delivered' WHERE id = $1", id); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE notifier.t_notification
+		SET stop_dt = now(), notification_status = 'success', delivery_status = 'delivered' WHERE id = $1`, id); err != nil {
 		t.Fatal(err)
 	}
 	for clientID, wantID := range map[string]uuid.UUID{notification.ClientID: id, other.ClientID: otherID} {

@@ -57,15 +57,16 @@ func TestDeleteNotificationIntegration(t *testing.T) {
 		}
 	})
 
-	for _, status := range []string{"active", "delivered", "deadline_exceeded", "delivery_failed", "deleted"} {
-		t.Run(status, func(t *testing.T) {
+	states := append([]notificationState{{"active", core.NotificationActive, ""}}, stoppedNotificationStates[:]...)
+	for _, state := range states {
+		t.Run(state.name, func(t *testing.T) {
 			ctx := t.Context()
-			id := create(t, status)
-			if status != "active" {
+			id := create(t, state.name)
+			if state.name != "active" {
 				if _, err := pool.Exec(ctx, `
 					UPDATE notifier.t_notification
-					SET stop_dt = $1, stop_reason = $2, next_scheduled_dt = NULL
-					WHERE id = $3`, scheduled, status, id); err != nil {
+					SET stop_dt = $1, notification_status = $2, delivery_status = NULLIF($3, ''), next_scheduled_dt = NULL
+					WHERE id = $4`, scheduled, state.notificationStatus, state.deliveryStatus, id); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -84,7 +85,7 @@ func TestDeleteNotificationIntegration(t *testing.T) {
 			if _, err := store.UpdateNotification(ctx, id, owner, conditions); !errors.Is(err, core.ErrNotificationNotFound) {
 				t.Fatalf("PUT after DELETE = %v, want ErrNotificationNotFound", err)
 			}
-			if nextID := create(t, status); nextID == id {
+			if nextID := create(t, state.name); nextID == id {
 				t.Fatal("reusing the external ID returned the deleted notification ID")
 			}
 		})

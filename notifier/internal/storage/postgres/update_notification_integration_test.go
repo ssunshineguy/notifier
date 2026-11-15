@@ -45,20 +45,20 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertNotification := func(t *testing.T, status string, got core.NotificationDetails) {
+	assertNotification := func(t *testing.T, notificationStatus, deliveryStatus string, got core.NotificationDetails) {
 		t.Helper()
-		if got.ID != id || got.ExternalID != externalID || got.Status != status ||
+		if got.ID != id || got.ExternalID != externalID || got.NotificationStatus != notificationStatus || got.DeliveryStatus != deliveryStatus ||
 			!got.Start.Equal(start) || !got.Deadline.Equal(deadline) || !reflect.DeepEqual(got.Params, replacement) {
 			t.Fatalf("unexpected notification: %+v", got)
 		}
 	}
-	assertStored := func(t *testing.T, status string) {
+	assertStored := func(t *testing.T, notificationStatus, deliveryStatus string) {
 		t.Helper()
 		got, err := store.GetNotification(t.Context(), id, owner)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertNotification(t, status, got)
+		assertNotification(t, notificationStatus, deliveryStatus, got)
 
 		var gotScheduled, gotLock time.Time
 		var attempts int
@@ -79,9 +79,9 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertNotification(t, "active", got)
+			assertNotification(t, core.NotificationActive, "", got)
 		}
-		assertStored(t, "active")
+		assertStored(t, core.NotificationActive, "")
 	})
 	t.Run("foreign and missing", func(t *testing.T) {
 		if _, err := store.UpdateNotification(t.Context(), id, "another-client", original); !errors.Is(err, core.ErrNotificationNotFound) {
@@ -90,7 +90,7 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 		if _, err := store.UpdateNotification(t.Context(), uuid.New(), owner, original); !errors.Is(err, core.ErrNotificationNotFound) {
 			t.Fatalf("missing update = %v, want ErrNotificationNotFound", err)
 		}
-		assertStored(t, "active")
+		assertStored(t, core.NotificationActive, "")
 	})
 	t.Run("stop racing with update", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 4*time.Second)
@@ -104,7 +104,8 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 				t.Error(err)
 			}
 		}()
-		_, err = tx.Exec(ctx, `UPDATE notifier.t_notification SET stop_dt = now(), stop_reason = 'delivered' WHERE id = $1`, id)
+		_, err = tx.Exec(ctx, `UPDATE notifier.t_notification
+			SET stop_dt = now(), notification_status = 'success', delivery_status = 'delivered' WHERE id = $1`, id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -143,11 +144,13 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 		if err := <-done; !errors.Is(err, core.ErrNotificationStopped) {
 			t.Fatalf("racing update = %v, want ErrNotificationStopped", err)
 		}
-		assertStored(t, "delivered")
+		assertStored(t, core.EventSuccess, core.DeliveryDelivered)
 	})
-	for _, status := range []string{"delivered", "deadline_exceeded", "delivery_failed", "deleted"} {
-		t.Run(status, func(t *testing.T) {
-			_, err := pool.Exec(t.Context(), `UPDATE notifier.t_notification SET stop_dt = now(), stop_reason = $1 WHERE id = $2`, status, id)
+	for _, state := range stoppedNotificationStates {
+		t.Run(state.name, func(t *testing.T) {
+			_, err := pool.Exec(t.Context(), `UPDATE notifier.t_notification
+				SET stop_dt = now(), notification_status = $1, delivery_status = NULLIF($2, '') WHERE id = $3`,
+				state.notificationStatus, state.deliveryStatus, id)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -157,7 +160,7 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 			if _, err := store.UpdateNotification(t.Context(), id, "another-client", original); !errors.Is(err, core.ErrNotificationNotFound) {
 				t.Fatalf("foreign stopped update = %v, want ErrNotificationNotFound", err)
 			}
-			assertStored(t, status)
+			assertStored(t, state.notificationStatus, state.deliveryStatus)
 		})
 	}
 	t.Run("database error", func(t *testing.T) {
