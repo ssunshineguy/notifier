@@ -38,6 +38,13 @@ Examples that pass:
   rules or docs for that code, where its author will read them.
 - Several lines where one is enough.
 
+## Protected comments
+
+- Use `DND:` (Don't delete) at the start of the comment text to mark a protected comment.
+- Get explicit approval from the human task author before removing a `DND:` comment or its
+  marker. Approval must cover the specific removal, including when deleting the surrounding
+  code or file.
+
 ## Go
 
 - Exported identifiers and packages get a doc comment because Go tooling expects it. Keep it to one

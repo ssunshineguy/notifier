@@ -155,3 +155,70 @@ func TestServeClosesServiceListenerIfProbePortIsOccupied(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestRunWithProbesStartsAndStopsBackgroundService(t *testing.T) {
+	_, probeAddr := reserveLoopbackAddresses(t)
+	_, probePort, err := net.SplitHostPort(probeAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	workerStarted := make(chan struct{})
+	var runErr error
+	go func() {
+		defer close(done)
+		probes := NewHandler(func(context.Context) error { return errors.New("database unavailable") })
+		runErr = RunWithProbes(ctx, probePort, probes, func(ctx context.Context) {
+			close(workerStarted)
+			<-ctx.Done()
+		})
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(6 * time.Second):
+			t.Error("RunWithProbes did not stop during cleanup")
+		}
+	})
+
+	probeCtx, stopProbing := context.WithTimeout(t.Context(), 5*time.Second)
+	defer stopProbing()
+	select {
+	case <-workerStarted:
+	case <-done:
+		t.Fatalf("background service failed to start: %v", runErr)
+	case <-probeCtx.Done():
+		t.Fatal("background service did not start")
+	}
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+	assertListenerResponds(probeCtx, t, client, "http://"+probeAddr+"/health/live", http.StatusOK, done)
+	assertListenerResponds(probeCtx, t, client, "http://"+probeAddr+"/health/ready", http.StatusServiceUnavailable, done)
+
+	cancel()
+	select {
+	case <-done:
+		if runErr != nil {
+			t.Fatalf("RunWithProbes = %v after cancellation, want nil", runErr)
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("RunWithProbes did not stop after cancellation")
+	}
+	reopened, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", probeAddr)
+	if err != nil {
+		t.Fatalf("reopen probe listener: %v", err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRunWithProbesFailsIfBackgroundServiceExits(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	err := RunWithProbes(ctx, "0", NewHandler(nil), func(context.Context) {})
+	if err == nil || err.Error() != "background service stopped unexpectedly" {
+		t.Fatalf("RunWithProbes = %v, want an error for unexpected service exit", err)
+	}
+}

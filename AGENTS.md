@@ -32,15 +32,19 @@ The service is a single `notifier` binary that runs in different modes:
 
 Described in [README.md](README.md#структура-репозитория).
 
-`make up` starts the test emulator alongside Notifier API. Host-side e2e tests
-can reach it at `http://127.0.0.1:8081`. Services on the Compose network use
-`http://emulator:8081`. To run it on its own, use `go run ./emulator/cmd/emulator`.
+`make up` starts Notifier API, `notification_worker`, and the test emulator. Compose uses
+the checkout directory name as the project name. For checkouts with the same directory
+name, set a distinct `COMPOSE_PROJECT_NAME` in each local `.env`. Use a new project name
+if the checkout would otherwise reuse the old `notifier` project.
+`make up` prints the assigned loopback addresses for API, emulator and PostgreSQL.
+Services on the Compose network use `http://emulator:8081`. To run the emulator on its own,
+use `go run ./emulator/cmd/emulator`.
 The emulator OpenAPI source lives in `emulator/api/spec/` and the runtime code
 in `emulator/internal/`.
 
-Both services serve `/health/live` and `/health/ready` on internal loopback
-listeners. Notifier API uses port `9080` and the emulator uses `9081`.
-Compose runs the readiness checks inside each container.
+Notifier API, the emulator, and the worker serve `/health/live` and `/health/ready` on internal
+loopback listeners on ports `9080`, `9081`, and `9082` respectively. Compose runs the readiness
+checks inside each container and restarts the worker when it exits with an error.
 
 ## Where to look
 
@@ -97,7 +101,7 @@ Use the rules linked above for the layer you touch.
 Delegate to the applicable read-only reviewers from `ai/agents/` after each logical unit.
 Pass the user's task scope and explicit approvals, changed files, comparison base, and
 relevant test evidence. Use the named agent or give a reviewer the corresponding Markdown
-instructions.
+instructions. Pass the full diff to `comment-guard` so it can review deleted comments.
 
 | Guard | When |
 | --- | --- |
@@ -107,7 +111,7 @@ instructions.
 | `api-contract-guard` | After OpenAPI, generated API, or observable HTTP behavior changes. |
 | `test-coverage-guard` | After Go behavior, SQL, or Compose startup changes. |
 | `migration-guard` | After changes to `notifier/db/migrations` or `notifier/db/init`, before applying them. |
-| `comment-guard` | After adding or editing code comments. |
+| `comment-guard` | After adding, editing, or removing code comments, including in deleted files. Checks for explicit human approval when a `DND:` comment or marker is removed. |
 | `readme-guard` | After editing `README.md`. |
 
 Review each blocker and warn against the task scope. Fix confirmed findings and rerun affected

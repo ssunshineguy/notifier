@@ -6,6 +6,11 @@ gen:
 up:
 	docker compose up --build --wait
 	docker compose exec -T postgres psql -q -U postgres -d notifier -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/002_e2e_role.sql
+	@set -e; \
+		api=$$(docker compose port api 8080); \
+		emulator=$$(docker compose port emulator 8081); \
+		postgres=$$(docker compose port postgres 5432); \
+		printf 'Notifier API: http://%s\nEmulator: http://%s\nPostgreSQL: %s\n' "$$api" "$$emulator" "$$postgres"
 
 down:
 	docker compose down

@@ -9,15 +9,17 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ssunshineguy/notifier/internal/health"
 	"github.com/ssunshineguy/notifier/notifier/internal/config"
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
 	"github.com/ssunshineguy/notifier/notifier/internal/interactions/callback"
 	"github.com/ssunshineguy/notifier/notifier/internal/interactions/infoservice"
+	"github.com/ssunshineguy/notifier/notifier/internal/server/middleware"
 	"github.com/ssunshineguy/notifier/notifier/internal/storage/postgres"
 	"github.com/ssunshineguy/notifier/notifier/internal/worker"
 )
 
-// RunWorker owns the worker database pool and runs polling until shutdown.
+// RunWorker owns the worker database pool, polling, and probe listener.
 func RunWorker(ctx context.Context, cfg config.Config) error {
 	poolConfig, err := pgxpool.ParseConfig(cfg.Database.WorkerDSN)
 	if err != nil {
@@ -51,8 +53,13 @@ func RunWorker(ctx context.Context, cfg config.Config) error {
 	slog.InfoContext(ctx, "starting notification worker",
 		"workers", cfg.Worker.Workers, "batch_size", cfg.Worker.BatchSize,
 		"cycle_timeout_ms", cfg.Worker.CycleTimeoutMS, "lock_duration_ms", cfg.Notification.LockDurationMS)
-	worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
-		worker.ProcessNotification(ctx, claim, store, informationService, callbackClient, processing)
-	}, settings)
+	probes := middleware.LogAPIRequests(slog.Default(), health.NewHandler(store.CheckConnection))
+	if err := health.RunWithProbes(ctx, "9082", probes, func(ctx context.Context) {
+		worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
+			worker.ProcessNotification(ctx, claim, store, informationService, callbackClient, processing)
+		}, settings)
+	}); err != nil {
+		return fmt.Errorf("run worker: %w", err)
+	}
 	return nil
 }
