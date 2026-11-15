@@ -11,17 +11,18 @@ import (
 )
 
 var (
-	rn4AllowedHeaders = map[string]string{
+	rn6AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn1AllowedHeaders = map[string]string{
 		"GET": "X-Client-Id,X-Request-Id",
 	}
-	rn3AllowedHeaders = map[string]string{
+	rn5AllowedHeaders = map[string]string{
 		"GET": "X-Client-Id,X-Request-Id",
 	}
-	rn6AllowedHeaders = map[string]string{
+	rn4AllowedHeaders = map[string]string{
 		"DELETE": "X-Request-Id",
+		"GET":    "X-Request-Id",
 		"POST":   "Content-Type,X-Request-Id",
 	}
 	rn9AllowedHeaders = map[string]string{
@@ -97,7 +98,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "POST",
-							allowedHeaders: rn4AllowedHeaders,
+							allowedHeaders: rn6AllowedHeaders,
 							acceptPost:     "application/json",
 							acceptPatch:    "",
 						})
@@ -147,7 +148,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET",
-							allowedHeaders: rn3AllowedHeaders,
+							allowedHeaders: rn5AllowedHeaders,
 							acceptPost:     "",
 							acceptPatch:    "",
 						})
@@ -192,14 +193,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							s.handleResetCallbackOverrideRequest([1]string{
 								args[0],
 							}, elemIsEscaped, w, r)
+						case "GET":
+							s.handleGetReceivedCallbackRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
 						case "POST":
 							s.handleSetCallbackOverrideRequest([1]string{
 								args[0],
 							}, elemIsEscaped, w, r)
 						default:
 							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "DELETE,POST",
-								allowedHeaders: rn6AllowedHeaders,
+								allowedMethods: "DELETE,GET,POST",
+								allowedHeaders: rn4AllowedHeaders,
 								acceptPost:     "application/json",
 								acceptPatch:    "",
 							})
@@ -461,6 +466,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							r.name = ResetCallbackOverrideOperation
 							r.summary = "Reset a notification's callback response"
 							r.operationID = "resetCallbackOverride"
+							r.operationGroup = ""
+							r.pathPattern = "/v1/callback-overrides/{notification_id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "GET":
+							r.name = GetReceivedCallbackOperation
+							r.summary = "Read the last received callback for a notification"
+							r.operationID = "getReceivedCallback"
 							r.operationGroup = ""
 							r.pathPattern = "/v1/callback-overrides/{notification_id}"
 							r.args = args

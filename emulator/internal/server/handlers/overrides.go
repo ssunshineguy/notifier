@@ -46,7 +46,7 @@ func (h *Handler) ResetClientOverrides(_ context.Context, params codegen.ResetCl
 // SetCallbackOverride stores the status and delay for a notification.
 func (h *Handler) SetCallbackOverride(_ context.Context, req *codegen.CallbackOverride, params codegen.SetCallbackOverrideParams) (codegen.SetCallbackOverrideRes, error) {
 	delay := time.Duration(req.ResponseTimeout) * time.Millisecond
-	h.callbacks.SetCallback(uuid.UUID(params.NotificationID), int(req.StatusCode), delay)
+	h.callbacks.SetCallback(uuid.UUID(params.NotificationID), int(req.StatusCode), delay, req.CaptureEvent.Or(false))
 	return &codegen.OverrideApplied{XRequestID: codegen.NewOptString(params.XRequestID)}, nil
 }
 

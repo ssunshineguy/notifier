@@ -14,6 +14,13 @@ type Handler interface {
 	//
 	// GET /price
 	GetPrice(ctx context.Context, params GetPriceParams) (GetPriceRes, error)
+	// GetReceivedCallback implements getReceivedCallback operation.
+	//
+	// Returns the last event received while a callback override was configured for the notification with
+	// capture_event enabled. Returns 404 before any event is captured.
+	//
+	// GET /v1/callback-overrides/{notification_id}
+	GetReceivedCallback(ctx context.Context, params GetReceivedCallbackParams) (GetReceivedCallbackRes, error)
 	// GetTime implements getTime operation.
 	//
 	// Returns the client's configured time or the current time in UTC.
@@ -34,7 +41,7 @@ type Handler interface {
 	ReceiveNotificationEvent(ctx context.Context, req *NotificationEvent) (ReceiveNotificationEventRes, error)
 	// ResetCallbackOverride implements resetCallbackOverride operation.
 	//
-	// Restores 200 with no delay. Returns 200 even if no override exists.
+	// Restores 200 with no delay and removes any captured event. Returns 200 even if no override exists.
 	//
 	// DELETE /v1/callback-overrides/{notification_id}
 	ResetCallbackOverride(ctx context.Context, params ResetCallbackOverrideParams) (ResetCallbackOverrideRes, error)
@@ -46,7 +53,8 @@ type Handler interface {
 	ResetClientOverrides(ctx context.Context, params ResetClientOverridesParams) (ResetClientOverridesRes, error)
 	// SetCallbackOverride implements setCallbackOverride operation.
 	//
-	// Creates or replaces the response status and delay for the notification.
+	// Creates or replaces the response status and delay for the notification. Clears any previously
+	// captured event. Set capture_event to true to capture the latest event.
 	//
 	// POST /v1/callback-overrides/{notification_id}
 	SetCallbackOverride(ctx context.Context, req *CallbackOverride, params SetCallbackOverrideParams) (SetCallbackOverrideRes, error)

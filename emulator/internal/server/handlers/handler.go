@@ -15,10 +15,11 @@ type ClientStore interface {
 	ResetClient(clientID string)
 }
 
-// CallbackStore provides the response presets used by the callback endpoint.
+// CallbackStore provides response presets and callback capture for their notifications.
 type CallbackStore interface {
-	Callback(notificationID uuid.UUID) (int, time.Duration, bool)
-	SetCallback(notificationID uuid.UUID, status int, delay time.Duration)
+	CaptureCallback(notificationID uuid.UUID, externalID, status string, sentAt time.Time) (int, time.Duration, bool)
+	ReceivedCallback(notificationID uuid.UUID) (externalID, status string, sentAt time.Time, found bool)
+	SetCallback(notificationID uuid.UUID, status int, delay time.Duration, capture bool)
 	ResetCallback(notificationID uuid.UUID)
 }
 

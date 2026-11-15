@@ -1,12 +1,43 @@
 parameters:
   - $ref: ../../../../notifier/api/spec/components/parameters/NotificationId.yaml
   - $ref: ../../../../notifier/api/spec/components/parameters/RequestId.yaml
+get:
+  operationId: getReceivedCallback
+  tags:
+    - test-presets
+  summary: Read the last received callback for a notification
+  description: |
+    Returns the last event received while a callback override was configured
+    for the notification with capture_event enabled. Returns 404 before any event is captured.
+  responses:
+    "200":
+      description: The last event received for the callback override.
+      headers:
+        X-Request-ID:
+          $ref: ../../../../notifier/api/spec/components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../../../../notifier/api/spec/components/schemas/events/NotificationEvent.yaml
+          example:
+            notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+            external_id: order-42-reminder
+            notification_status: success
+            sent_dt: "2026-12-01T09:00:01Z"
+    "400":
+      $ref: ../components/responses/BadOverrideRequest.yaml
+    "404":
+      $ref: ../components/responses/ReceivedCallbackNotFound.yaml
+    "413":
+      $ref: ../../../../notifier/api/spec/components/responses/ContentTooLarge.yaml
 post:
   operationId: setCallbackOverride
   tags:
     - test-presets
   summary: Set the callback response for a notification
-  description: Creates or replaces the response status and delay for the notification.
+  description: |
+    Creates or replaces the response status and delay for the notification.
+    Clears any previously captured event. Set capture_event to true to capture the latest event.
   requestBody:
     description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
     required: true
@@ -17,6 +48,7 @@ post:
         example:
           status_code: 503
           response_timeout: 1500
+          capture_event: true
   responses:
     "200":
       $ref: ../components/responses/OverrideApplied.yaml
@@ -31,7 +63,9 @@ delete:
   tags:
     - test-presets
   summary: Reset a notification's callback response
-  description: Restores 200 with no delay. Returns 200 even if no override exists.
+  description: |
+    Restores 200 with no delay and removes any captured event.
+    Returns 200 even if no override exists.
   responses:
     "200":
       $ref: ../components/responses/OverrideApplied.yaml

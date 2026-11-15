@@ -5,6 +5,10 @@ type GetPriceRes interface {
 	getPriceRes()
 }
 
+type GetReceivedCallbackRes interface {
+	getReceivedCallbackRes()
+}
+
 type GetTimeRes interface {
 	getTimeRes()
 }

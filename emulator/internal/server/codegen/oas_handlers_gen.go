@@ -116,6 +116,95 @@ func (s *Server) handleGetPriceRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
+// handleGetReceivedCallbackRequest handles getReceivedCallback operation.
+//
+// Returns the last event received while a callback override was configured for the notification with
+// capture_event enabled. Returns 404 before any event is captured.
+//
+// GET /v1/callback-overrides/{notification_id}
+func (s *Server) handleGetReceivedCallbackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetReceivedCallbackOperation,
+			ID:   "getReceivedCallback",
+		}
+	)
+	params, err := decodeGetReceivedCallbackParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetReceivedCallbackRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetReceivedCallbackOperation,
+			OperationSummary: "Read the last received callback for a notification",
+			OperationID:      "getReceivedCallback",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "notification_id",
+					In:   "path",
+				}: params.NotificationID,
+				{
+					Name: "X-Request-ID",
+					In:   "header",
+				}: params.XRequestID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetReceivedCallbackParams
+			Response = GetReceivedCallbackRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetReceivedCallbackParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetReceivedCallback(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetReceivedCallback(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetReceivedCallbackResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetTimeRequest handles getTime operation.
 //
 // Returns the client's configured time or the current time in UTC.
@@ -296,7 +385,7 @@ func (s *Server) handleReceiveNotificationEventRequest(args [0]string, argsEscap
 
 // handleResetCallbackOverrideRequest handles resetCallbackOverride operation.
 //
-// Restores 200 with no delay. Returns 200 even if no override exists.
+// Restores 200 with no delay and removes any captured event. Returns 200 even if no override exists.
 //
 // DELETE /v1/callback-overrides/{notification_id}
 func (s *Server) handleResetCallbackOverrideRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -472,7 +561,8 @@ func (s *Server) handleResetClientOverridesRequest(args [1]string, argsEscaped b
 
 // handleSetCallbackOverrideRequest handles setCallbackOverride operation.
 //
-// Creates or replaces the response status and delay for the notification.
+// Creates or replaces the response status and delay for the notification. Clears any previously
+// captured event. Set capture_event to true to capture the latest event.
 //
 // POST /v1/callback-overrides/{notification_id}
 func (s *Server) handleSetCallbackOverrideRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

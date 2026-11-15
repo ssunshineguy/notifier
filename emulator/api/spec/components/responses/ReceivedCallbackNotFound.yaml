@@ -1,0 +1,13 @@
+description: No callback event has been captured for the notification.
+headers:
+  X-Request-ID:
+    $ref: ../../../../../notifier/api/spec/components/headers/RequestId.yaml
+content:
+  application/problem+json:
+    schema:
+      $ref: ../../../../../notifier/api/spec/components/schemas/common/Problem.yaml
+    example:
+      type: /problems/not-found
+      title: Callback event not found
+      status: 404
+      request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
