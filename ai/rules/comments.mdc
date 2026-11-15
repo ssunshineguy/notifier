@@ -10,11 +10,11 @@ Default to no comment. Names, types and small functions explain *what* the code 
 (README, OpenAPI spec, `AGENTS.md`, `ai/rules/`) explain *how the system works*. A comment is the
 last resort.
 
-## The only reason to comment
+## When a comment helps
 
-A comment protects a **deliberate decision that looks like a mistake** — something a reviewer or
-an agent would otherwise "fix" and break. It says what was decided and why, in one line, at the
-exact place.
+A comment explains a non-obvious reason, contract or invariant where a plausible edit could
+break it. A deliberate decision that looks like a mistake is one such case. State what must
+be preserved and why; keep general documentation in the docs and obvious semantics in names.
 
 Examples that pass:
 
@@ -32,24 +32,34 @@ Examples that pass:
 - Narration of the change or its history (`now uses`, `changed to`, `new`, `added for`).
 - Section banners and decorative separators.
 - Commented-out code.
-- Semantics and contracts (units, `NULL` meaning, mapping to an API field, what a counter counts):
-  put them into the name (`_sec`, `_ms`) or the docs, not into a comment.
-- Instructions for other code (`this index is used only if the query filters X`): put them into the
-  rules or docs for that code, where its author will read them.
+- Obvious semantics or contracts already expressed by the name or type. Prefer units in names
+  (`_sec`, `_ms`), but allow a local explanation when a non-obvious meaning or caller obligation
+  prevents a concrete mistake. Link to broader rules instead of copying them.
 - Several lines where one is enough.
 
 ## Protected comments
 
-- Use `DND:` (Don't delete) at the start of the comment text to mark a protected comment.
-- Get explicit approval from the human task author before removing a `DND:` comment or its
-  marker. Approval must cover the specific removal, including when deleting the surrounding
-  code or file.
+- Before adding a protective comment, the AI briefly explains to the user which plausible
+  mistaken edit it prevents and what would break. Give this rationale proactively; adding it
+  within the authorized task does not require separate approval for each comment.
+- Start its text with `DND:` (Don't delete) and a concrete reason or invariant. Example:
+  `// DND: Match the claimed lease so a stale worker cannot overwrite a newer reservation.`
+  A bare tag or “do not change” is not a reason. Do not blanket-tag the codebase.
+- Explicit human approval must cover deletion, marker removal or a change to the protected
+  decision, even if the comment text remains. This includes deletion of surrounding code or
+  files. Reuse a prior approval that already covers the same change and scope.
+- Moving the comment or improving wording with its marker and protected meaning intact needs
+  no new approval. Check both the text and the associated code.
+- The tag does not prove correctness or currency. Check the decision against current code and
+  contract; report stale or misleading reasoning instead of preserving it unquestioningly.
+- Preserve ordinary Go doc comment and `//nolint` formats. Do not prepend `DND:` mechanically
+  or use the tag to excuse a redundant comment.
 
 ## Go
 
 - Exported identifiers and packages get a doc comment because Go tooling expects it. Keep it to one
   sentence that starts with the name and adds information beyond the name.
-- Unexported code gets a comment only for the reason above.
+- Unexported code gets a comment only for a useful local reason, contract or invariant above.
 - `//nolint` always carries the reason: `//nolint:gosec // The path comes from the -config flag.`
 
 ## Scripts and configs
@@ -59,8 +69,8 @@ Examples that pass:
 ## SQL
 
 - `-- +goose Up` is a directive, not a comment.
-- No `-- ` comments and no `COMMENT ON` except for a deliberate decision that looks like a mistake
-  (see above). Tables, columns, constraints and indexes are explained by their names.
+- Use `-- ` comments or `COMMENT ON` only for a non-obvious local reason, contract or invariant
+  above. Names should explain ordinary table, column, constraint and index semantics.
 
 ## Language
 

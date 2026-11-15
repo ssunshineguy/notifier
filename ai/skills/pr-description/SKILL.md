@@ -12,7 +12,7 @@ Start the English title with an action verb and name the outcome. Write the desc
 
 1. **Why** explains the problem and the intended outcome in a short paragraph.
 2. **What's inside** groups changes by purpose and calls out effects on API clients, operators, or existing data.
-3. **Checks** lists commands actually run and the results of key scenarios. Report failed checks, unverified scenarios that matter to the change, and agreed exceptions explicitly.
+3. **Checks** lists commands actually run and the results of key scenarios. Report failed checks, unverified scenarios that matter to the change, and explicitly accepted warnings with the decision reference and remaining consequence. Keep accepted, fixed and rejected findings distinct under [guard outcomes](../../../AGENTS.md#guard-outcomes); do not describe accepted risk as fixed.
 4. **Test coverage** reports total Go statement coverage using the command below.
 5. **Manual steps before rollout** gives exact commands in execution order. Record rollout assumptions and exceptions with their consequences. Write `None` when no manual steps are required.
 

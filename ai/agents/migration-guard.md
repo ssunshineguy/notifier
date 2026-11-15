@@ -54,8 +54,12 @@ with the exact command: the same name and definition, with `CONCURRENTLY`.
 
 ## Output
 
+Apply the shared [guard outcomes](../../AGENTS.md#guard-outcomes), including finding
+dispositions, evidence and prior human acceptance in this scope. Keep accepted risks visible
+and distinct from fixed or rejected findings.
+
 ```
-## migration-guard: <PASS | FAIL>
+## migration-guard: <PASS | FAIL | ACCEPTED>
 
 ### Manual steps before rollout
 - notifier/db/migrations/003__x.sql:5 — run in production before the rollout:
@@ -71,5 +75,5 @@ with the exact command: the same name and definition, with `CONCURRENTLY`.
 - ...
 ```
 
-`FAIL` if there is at least one blocker or warn. Manual steps do not fail the review but must be
-shown to the owner. Omit empty sections.
+Use the shared status rules above; omit empty sections and explain any `N/A`.
+Manual rollout steps must be shown to the owner; listing them does not by itself fail review.

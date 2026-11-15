@@ -10,6 +10,11 @@ Trace affected routes from the service's `api/spec/openapi.yaml` and its path fi
 bundle, `internal/server/codegen`, and handlers or middleware. Check only behavior affected
 by the change. Use the supplied generation results and report unverified regeneration.
 
+For a new condition type, require a changed path or substantive N/A for every layer of the
+[condition checklist](../skills/add-endpoint/SKILL.md#new-condition-types). Own production API
+successes use `200`; errors retain contracted `4xx/5xx`. Emulator simulation of an external
+receiver response such as `201` is allowed, not a status-policy defect.
+
 ## What to report
 
 Give `file:line`, the mismatch and its client impact, and the smallest fix.
@@ -28,8 +33,12 @@ Give `file:line`, the mismatch and its client impact, and the smallest fix.
 
 ## Output
 
+Apply the shared [guard outcomes](../../AGENTS.md#guard-outcomes), including finding
+dispositions, evidence and prior human acceptance in this scope. Keep accepted risks visible
+and distinct from fixed or rejected findings.
+
 ```
-## api-contract-guard: <PASS | FAIL | N/A>
+## api-contract-guard: <PASS | FAIL | ACCEPTED | N/A>
 
 ### blocker
 - path/to/file:42 — mismatch and impact — fix
@@ -38,4 +47,4 @@ Give `file:line`, the mismatch and its client impact, and the smallest fix.
 - ...
 ```
 
-`FAIL` if there is a blocker or warn. Omit empty sections. Use `N/A` for changes outside the scope.
+Use the shared status rules above; omit empty sections and explain any `N/A`.
