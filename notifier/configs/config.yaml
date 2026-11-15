@@ -26,5 +26,6 @@ database:
   collector_dsn: postgres://notifier_collector:notifier_collector@postgres:5432/notifier?sslmode=disable
 
 notification:
+  initial_check_delay_sec: 0
   scheduled_time_sec: 10
   lock_duration_ms: 2000

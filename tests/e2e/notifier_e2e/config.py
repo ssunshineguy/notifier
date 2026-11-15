@@ -1,9 +1,12 @@
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 
 CALLBACK_URL = "http://emulator:8081/callback"
+
+INITIAL_CHECK_DELAY_SEC = int(os.environ.get("NOTIFIER_E2E_INITIAL_CHECK_DELAY_SEC", "0"))
 
 TIMEOUT_SECONDS = 0.5
 DATABASE_CONNECT_ARGS = {
