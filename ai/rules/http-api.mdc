@@ -1,9 +1,10 @@
 ---
 description: HTTP behavior for authentication, overload, timeouts and health
-globs: notifier/internal/server/**,notifier/internal/application/api.go,emulator/internal/server/**,emulator/internal/application/**,internal/health/**,internal/problem/**,docker-compose.yaml
+globs: notifier/internal/server/**,notifier/internal/application/api.go,notifier/internal/application/worker.go,emulator/internal/server/**,emulator/internal/application/**,internal/health/**,internal/problem/**,docker-compose.yaml
 paths:
   - notifier/internal/server/**
   - notifier/internal/application/api.go
+  - notifier/internal/application/worker.go
   - emulator/internal/server/**
   - emulator/internal/application/**
   - internal/health/**
@@ -20,4 +21,5 @@ alwaysApply: false
 - `RunAPI` wraps admission and the router with `RequestTimeout` so queue wait shares the request budget. Full queue or slot wait expiry returns `429`. Request deadline expiry returns `503`.
 - Serve `/health/live` and `/health/ready` only on the internal loopback listeners. Keep the probe ports unpublished in Compose.
 - Notifier API readiness executes `SELECT 1` under the configured database operation timeout. Its probe requests keep the HTTP request deadline and run outside admission. Emulator probes require only its HTTP server and initialized in-memory store.
+- Worker readiness executes `SELECT 1` through the worker's database pool under the configured database operation timeout. Worker liveness is independent of PostgreSQL.
 - Compose checks `/health/ready` from inside each container. Keep the route, loopback port and probe timeout aligned when changing startup.

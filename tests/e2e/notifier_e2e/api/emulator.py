@@ -3,8 +3,6 @@ from urllib.parse import quote
 
 from requests import Response, Session
 
-from notifier_e2e import config
-
 from .http_client import HttpClient
 
 
@@ -12,8 +10,8 @@ CLIENT_OVERRIDES_PATH = "/v1/client-overrides"
 
 
 class EmulatorClient:
-    def __init__(self, session: Session) -> None:
-        self._http = HttpClient(session, config.EMULATOR_URL)
+    def __init__(self, session: Session, *, base_url: str) -> None:
+        self._http = HttpClient(session, base_url)
 
     def get_time(self, client_id: str) -> Response:
         return self._http.request("GET", "/time", client_id=client_id)

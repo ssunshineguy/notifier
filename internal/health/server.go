@@ -59,6 +59,49 @@ func Serve(ctx context.Context, server *http.Server, probePort string, probes ht
 	return err
 }
 
+// RunWithProbes runs a background service with a loopback-only probe listener.
+func RunWithProbes(ctx context.Context, probePort string, probes http.Handler, run func(context.Context)) error {
+	if ctx.Err() != nil {
+		return nil
+	}
+	var config net.ListenConfig
+	listener, err := config.Listen(ctx, "tcp", net.JoinHostPort("127.0.0.1", probePort))
+	if err != nil {
+		return fmt.Errorf("listen for health probes: %w", err)
+	}
+
+	probeServer := &http.Server{
+		Handler:           probes,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	failures := make(chan error, 2)
+	var running sync.WaitGroup
+	running.Go(func() {
+		if err := probeServer.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
+			failures <- fmt.Errorf("serve health probes: %w", err)
+		}
+	})
+	running.Go(func() {
+		run(runCtx)
+		if runCtx.Err() == nil {
+			failures <- errors.New("background service stopped unexpectedly")
+		}
+	})
+
+	select {
+	case <-ctx.Done():
+	case err = <-failures:
+	}
+	cancel()
+	shutdownCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer stop()
+	err = errors.Join(err, shutdown(shutdownCtx, probeServer))
+	running.Wait()
+	return err
+}
+
 func shutdown(ctx context.Context, server *http.Server) error {
 	if err := server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shut down HTTP server: %w", errors.Join(err, server.Close()))

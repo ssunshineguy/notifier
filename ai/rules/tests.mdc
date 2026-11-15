@@ -32,8 +32,11 @@ alwaysApply: false
 - Run against the existing Compose stack. Start it with `make up`, install the test
   project with `python -m pip install -e tests/e2e` in a virtual environment, and run
   `python -m pytest tests/e2e`.
-- Use pytest, Requests, and SQLAlchemy Core with psycopg. Keep fixed Compose URLs, the
-  local `notifier_e2e` DSN, and timeouts in `tests/e2e/notifier_e2e/config.py`.
+- Use pytest, Requests, and SQLAlchemy Core with psycopg. Resolve the API, emulator and
+  PostgreSQL host ports once per test session with `docker compose port` from the checkout
+  root. Keep the Compose address lookup, local `notifier_e2e` DSN and timeouts in
+  `tests/e2e/notifier_e2e/config.py`. Start the stack and run pytest with the same
+  `COMPOSE_PROJECT_NAME` override when one is set.
   Use a 0.5-second HTTP connect/read timeout and PostgreSQL statement timeout.
   The psycopg connection timeout has a two-second minimum.
 - Keep connection setup and test record access in `db/`. Reuse `HttpClient` as the

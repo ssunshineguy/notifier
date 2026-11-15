@@ -3,7 +3,6 @@ from uuid import UUID
 
 from requests import Response, Session
 
-from notifier_e2e import config
 from notifier_e2e.support.matchers import assert_response
 
 from .http_client import HttpClient
@@ -13,8 +12,8 @@ JSON_CONTENT_TYPE = "application/json"
 
 
 class NotifierApiClient:
-    def __init__(self, session: Session, client_id: str) -> None:
-        self._http = HttpClient(session, config.NOTIFIER_API_URL)
+    def __init__(self, session: Session, client_id: str, *, base_url: str) -> None:
+        self._http = HttpClient(session, base_url)
         self._client_id = client_id
 
     def create_notification(

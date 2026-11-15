@@ -2,6 +2,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.engine import Engine
 
+from notifier_e2e.api.emulator import EmulatorClient
 from notifier_e2e.api.notifier_api import NotifierApiClient
 from notifier_e2e.db.client import Client
 from notifier_e2e.db.notification import Notification
@@ -14,11 +15,17 @@ from notifier_e2e.steps.notifications import (
 
 
 def test_notification_lifecycle(
-    notifier_api: NotifierApiClient, client: Client, database: Engine
+    notifier_api: NotifierApiClient,
+    emulator_api: EmulatorClient,
+    client: Client,
+    database: Engine,
 ) -> None:
     external_id = f"e2e-{uuid4().hex}"
-    original_params = [{"type": "price", "operation": "greater_than", "value": 0}]
-    replacement_params = [{"type": "price", "operation": "less_than", "value": 2**63 - 1}]
+    price = 100
+    emulator_api.set_client_override(client.client_id, "price", price).raise_for_status()
+    assert emulator_api.get_price(client.client_id).json()["price"] == price
+    original_params = [{"type": "price", "operation": "greater_than", "value": price}]
+    replacement_params = [{"type": "price", "operation": "greater_than", "value": price + 1}]
 
     created = notifier_api.create_notification(external_id, original_params)
     notification_id = UUID(created.json()["notification_id"])
