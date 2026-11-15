@@ -26,9 +26,25 @@ Notifier отправляет клиенту HTTP-уведомление, ког
 
 **Доставка рассчитана на at-least-once.** Клиент может получить повторный вызов с тем же `notification_id`, например если обработал уведомление, а Worker не получил ответ. При исчерпании повторов задача завершается с ошибкой доставки.
 
+## Спецификации API
+
+Исходные контракты: [Notifier — `openapi.yaml`](notifier/api/spec/openapi.yaml) и [эмулятор — `openapi.yaml`](emulator/api/spec/openapi.yaml). Типы условий, операторы, форматы, ограничения и JSON-примеры находятся в этих спецификациях; callback описан в [операции создания](notifier/api/spec/paths/notifications.yaml) и [схеме события](notifier/api/spec/components/schemas/events/NotificationEvent.yaml).
+
+HTML для просмотра в браузере можно получить из корня репозитория. Нужны Node.js и npm; команды проверены с Node.js `26.0.0` и Redocly CLI `2.78.0`. При первом запуске npm загружает указанную версию CLI:
+
+```bash
+mkdir -p bin/api-docs
+npx --yes @redocly/cli@2.78.0 build-docs notifier/api/spec/openapi.yaml --config build/openapi/redocly.yaml --inlineBundle --output bin/api-docs/notifier.html
+npx --yes @redocly/cli@2.78.0 build-docs emulator/api/spec/openapi.yaml --config build/openapi/redocly.yaml --inlineBundle --output bin/api-docs/emulator.html
+```
+
+Открой `bin/api-docs/notifier.html` или `bin/api-docs/emulator.html` в браузере. `--inlineBundle` включает скрипты визуализации в HTML; файлы в `bin/` не коммитятся. Генерация HTML не меняет контракты или Go-код.
+
 ## Диаграммы последовательности
 
 ### API
+
+Показаны основные сценарии запросов через Gateway и Auth Service.
 
 <details>
 <summary>Create</summary>
@@ -41,16 +57,15 @@ sequenceDiagram
     participant N as Notifier API
     participant DB as PostgreSQL
 
-    C->>G: Create<br/>OAuth, X-Request-ID<br/>Тело params с обязательным external_id
+    C->>G: POST /v1/notifications<br/>OAuth, X-Request-ID
     G->>A: Проверить OAuth<br/>X-Request-ID
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
-    G->>N: Create<br/>X-Client-ID, X-Request-ID<br/>Тело params
-    N->>N: Сгенерировать notification_id
-    N->>DB: INSERT INTO t_notification<br/>external_id, id = notification_id, data = params (JSONB)<br/>client_id = X-Client-ID, deadline_dt, start_dt = now()<br/>next_scheduled_dt = now() + initial_check_delay
-    DB-->>N: Запись создана
-    N-->>G: 200 OK, {notification_id}
-    G-->>C: 200 OK, {notification_id}
+    G->>N: POST /v1/notifications<br/>X-Client-ID, X-Request-ID
+    N->>DB: Создать нотификацию и назначить первую проверку
+    DB-->>N: notification_id
+    N-->>G: 200, notification_id
+    G-->>C: Ответ Notifier и X-Request-ID
 ```
 
 </details>
@@ -66,15 +81,15 @@ sequenceDiagram
     participant N as Notifier API
     participant DB as PostgreSQL
 
-    C->>G: Read notification_id<br/>OAuth, X-Request-ID
+    C->>G: GET /v1/notifications/{notification_id}<br/>OAuth, X-Request-ID
     G->>A: Проверить OAuth<br/>X-Request-ID
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
-    G->>N: Read notification_id<br/>X-Client-ID, X-Request-ID
-    N->>DB: SELECT data, deadline_dt, external_id, start_dt<br/>FROM t_notification WHERE id = notification_id<br/>AND client_id = X-Client-ID
-    DB-->>N: data (JSONB), deadline_dt, external_id, start_dt
-    N-->>G: 200 OK, {data, deadline_dt, external_id, start_dt}
-    G-->>C: 200 OK, {data, deadline_dt, external_id, start_dt}
+    G->>N: GET по notification_id<br/>X-Client-ID, X-Request-ID
+    N->>DB: Прочитать нотификацию по id и client_id
+    DB-->>N: Данные нотификации
+    N-->>G: 200, параметры и статусы нотификации
+    G-->>C: Ответ Notifier и X-Request-ID
 ```
 
 </details>
@@ -90,15 +105,15 @@ sequenceDiagram
     participant N as Notifier API
     participant DB as PostgreSQL
 
-    C->>G: Update notification_id<br/>OAuth, X-Request-ID<br/>Тело: только новые notification_params
+    C->>G: PUT /v1/notifications/{notification_id}<br/>OAuth, X-Request-ID<br/>Новые notification_params
     G->>A: Проверить OAuth<br/>X-Request-ID
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
-    G->>N: Update notification_id<br/>X-Client-ID, X-Request-ID<br/>Тело params
-    N->>DB: UPDATE t_notification SET data = params (JSONB)<br/>WHERE id = notification_id<br/>AND client_id = X-Client-ID AND stop_dt IS NULL
-    DB-->>N: Запись обновлена
-    N-->>G: 200 OK
-    G-->>C: 200 OK
+    G->>N: PUT по notification_id<br/>X-Client-ID, X-Request-ID
+    N->>DB: Проверить возможность изменения<br/>и заменить условия нотификации клиента
+    DB-->>N: Обновлённая нотификация
+    N-->>G: 200, параметры и статусы нотификации
+    G-->>C: Ответ Notifier и X-Request-ID
 ```
 
 </details>
@@ -114,15 +129,15 @@ sequenceDiagram
     participant N as Notifier API
     participant DB as PostgreSQL
 
-    C->>G: Delete notification_id<br/>OAuth, X-Request-ID
+    C->>G: DELETE /v1/notifications/{notification_id}<br/>OAuth, X-Request-ID
     G->>A: Проверить OAuth<br/>X-Request-ID
     A-->>G: client_id
     G->>G: Удалить OAuth и установить X-Client-ID = client_id
-    G->>N: Delete notification_id<br/>X-Client-ID, X-Request-ID
-    N->>DB: DELETE FROM t_notification<br/>WHERE id = notification_id AND client_id = X-Client-ID<br/>RETURNING id
-    DB-->>N: ID удалённой записи
-    N-->>G: 200 OK
-    G-->>C: 200 OK
+    G->>N: DELETE по notification_id<br/>X-Client-ID, X-Request-ID
+    N->>DB: Проверить возможность удаления<br/>и удалить нотификацию клиента
+    DB-->>N: Запись удалена
+    N-->>G: 200 без тела
+    G-->>C: Ответ Notifier и X-Request-ID
 ```
 
 </details>
@@ -136,67 +151,28 @@ sequenceDiagram
 sequenceDiagram
     participant W as Notifier Worker
     participant DB as PostgreSQL
-    participant G as Worker Goroutine
+    participant I as Information Services
     participant C as Client
-    participant I1 as Information Service 1
-    participant I2 as Information Service 2
 
-    W->>DB: BEGIN
-    W->>DB: SELECT id FROM t_notification<br/>WHERE next_scheduled_dt <= now() AND stop_dt IS NULL<br/>AND (lock_until_dt IS NULL OR lock_until_dt <= now())<br/>LIMIT число свободных слотов<br/>FOR UPDATE SKIP LOCKED
-    DB-->>W: ID выбранных записей
-    opt Есть выбранные записи
-        W->>DB: UPDATE выбранных записей<br/>SET lock_until_dt = now() + lock_duration<br/>RETURNING записи с lock_until_dt
-        DB-->>W: Пачка записей с выданным lock_until_dt
-    end
-    W->>DB: COMMIT
-    DB-->>W: Транзакция зафиксирована
-
-    opt Пачка непустая
-        loop Для каждой записи в пачке
-            W-)G: Передать запись и выданный lock_until_dt
+    W->>DB: Зарезервировать пачку нотификаций,<br/>для которых наступило время обработки
+    DB-->>W: ID и резервации
+    loop Обработка нотификаций в свободных слотах
+        W->>DB: Прочитать состояние нотификации под резервацией
+        DB-->>W: Условия, даты и сохранённый статус события
+        opt Нужна проверка условий
+            W->>I: Запросить данные нужных источников параллельно
+            I-->>W: Значения для проверки
+            W->>W: Проверить условия и deadline
         end
-
-        Note over G: Обработка одной записи в отдельной горутине
-        alt Повтор отправки, failed_attempt_count > 0
-            G->>G: Если deadline_dt <= now(), notification_status = 'deadline_exceeded'<br/>Иначе notification_status = 'success'
-            G->>C: Повторный Notify<br/>notification_id, notification_status
-            C-->>G: HTTP-ответ, если получен
-        else Проверка условия отправки
-            par Information Service 1
-                G->>I1: Запросить данные о событии
-                I1-->>G: Данные о событии
-            and Information Service 2
-                G->>I2: Запросить данные о событии
-                I2-->>G: Данные о событии
-            end
-            G->>G: Проверить условие отправки
-
-            alt Событие наступило
-                G->>C: Notify о событии<br/>notification_id, notification_status = 'success'
-                C-->>G: HTTP-ответ, если получен
-            else Условие не выполнено, deadline_dt ещё впереди
-                G->>G: Подготовить итог<br/>next_scheduled_dt = now() + scheduled_time
-            else Условие не выполнено, deadline_dt наступил
-                G->>C: Notify о дедлайне<br/>notification_id, notification_status = 'deadline_exceeded'
-                C-->>G: HTTP-ответ, если получен
-            end
+        alt Требуется отправка события
+            W->>DB: Прочитать callback target под действующей резервацией
+            DB-->>W: Адрес и timeout клиента
+            W->>C: POST callback<br/>NotificationEvent, X-Request-ID
+            C-->>W: Результат попытки доставки
+            W->>DB: Сохранить notification_status и delivery_status<br/>Завершить нотификацию или назначить повтор<br/>Освободить действующую резервацию
+        else Нужна следующая проверка
+            W->>DB: Сохранить дату следующей проверки<br/>и освободить действующую резервацию
         end
-
-        opt Выполнена попытка отправки
-            alt 2xx
-                G->>G: Подготовить итог<br/>next_scheduled_dt = NULL, stop_dt = now()<br/>stop_reason = 'delivered' для success<br/>stop_reason = 'deadline_exceeded' для deadline_exceeded
-            else 4xx, 5xx или Timeout
-                G->>G: Увеличить счётчик неудачных попыток<br/>failed_attempt_count = failed_attempt_count + 1<br/>Сохранить новое значение в итоговом UPDATE
-                alt Шагов повтора было меньше 13
-                    G->>G: Запланировать повтор после задержки<br/>next_scheduled_dt = now() + 2^(2+N) с, N — номер шага повтора (0…12)<br/>Каждый шаг — до 3 попыток подряд
-                else Лимит попыток исчерпан
-                    G->>G: Подготовить итог<br/>next_scheduled_dt = NULL, stop_dt = now()<br/>stop_reason = 'delivery_failed'
-                end
-            end
-        end
-
-        G->>DB: UPDATE t_notification<br/>SET поля результата, lock_until_dt = NULL<br/>WHERE id = ID записи AND stop_dt IS NULL<br/>AND lock_until_dt = выданный lock_until_dt<br/>AND lock_until_dt > now()
-        DB-->>G: 1 строка при успехе, 0 если резерв утрачен или запись остановлена
     end
 ```
 
@@ -227,8 +203,6 @@ sequenceDiagram
 
 </details>
 
-Пока остановленная нотификация хранится в базе, владелец может прочитать её через `GET`. Попытка обновить её через `PUT` возвращает `400` с заголовком ошибки `Incorrect notification status`. Для клиента `external_id` занят, пока запись хранится в базе. В этот период повторный `POST` с тем же `external_id` возвращает `409` с ID существующей нотификации. После удаления записи через API или Collector тот же `external_id` можно сразу использовать снова.
-
 ## Ограничения прототипа
 
 | Область | Допущение прототипа |
@@ -240,32 +214,92 @@ sequenceDiagram
 | Эксплуатация | За рамками прототипа остались трассировка, мониторинг, Sentry, Vault, динамическая конфигурация и эксперименты. |
 | Сборка и поставка | Предусмотрена локальная сборка Docker-образа. CI/CD за рамками прототипа. |
 
-## Локальный запуск
+**TODO — руководство обновления и восстановления:** вернуться после появления телеметрии очереди, callback, lease и ошибок сохранения; на её основе описать признаки сбоя, проверки результата обновления и восстановление незавершённой обработки.
 
-Нужны Docker Compose и `make`. `make up` запускает PostgreSQL, применяет миграции и ждёт готовности Notifier API и эмулятора. С хоста API доступен на `http://127.0.0.1:8080`, эмулятор — на `http://127.0.0.1:8081`. Внутри сети Compose адрес эмулятора — `http://emulator:8081`.
+## Локальный запуск и тестирование
+
+Python-тесты рассчитаны на macOS/Linux.
+
+Зависимости:
+
+- Docker с Compose
+- `make`
+- Go 1.27
+- Python 3.14 с `venv` и pip
+- Node.js
+- Redocly CLI в `PATH`
+- `golangci-lint` v2
+
+### Команды
+
+Все команды выполняются из корня репозитория.
+
+| Команда | Что делает |
+| --- | --- |
+| `make up` | Собирает образы, запускает PostgreSQL, применяет миграции, запускает API, worker и эмулятор; ждёт их готовности и выводит назначенные адреса. |
+| `make down` | Останавливает и удаляет контейнеры выбранного стенда, сохраняя данные PostgreSQL. |
+| `make reset` | Останавливает стенд и **удаляет его данные PostgreSQL** вместе с volume. |
+| `make migrate` | Применяет миграции и обновляет дампы схемы в `notifier/db/schema/`. |
+| `make psql` | Открывает консоль PostgreSQL локального стенда. |
+| `make gen` | Проверяет и собирает обе OpenAPI-спецификации, генерирует серверы и клиент Information Service, затем собирает Go-модуль. |
+| `make ai-setup` | Устанавливает локальные ссылки на AI-правила и skills, генерирует определения Codex guards. Нужен Python 3. |
+| `make ai-check` | Проверяет AI-файлы и актуальность локального setup без исправлений. Нужны выполненный `make ai-setup` и Python 3.11+. |
+| `docker compose ps -a` | Показывает состояние контейнеров выбранного стенда. |
+| `docker compose port api 8080` | Показывает текущий адрес API на хосте. Для эмулятора: `docker compose port emulator 8081`; для PostgreSQL: `docker compose port postgres 5432`. |
 
 ```bash
+export COMPOSE_PROJECT_NAME=notifier_dev
 make up
-make down      # остановить стенд, сохранив данные
 ```
 
-Для работы с локальной базой используй `make psql`. `make migrate` применяет миграции и обновляет дамп схемы, а `make reset` удаляет локальную базу.
+### Три уровня тестирования
 
-## Первая проверка уведомления
+| Уровень | Что проверяет | Как запустить |
+| --- | --- | --- |
+| 1. Модульные Go-тесты | Доменную логику, обработчики HTTP, middleware и работу компонентов с тестовыми зависимостями. Compose не нужен. | `go test ./...` |
+| 2. Интеграционные тесты PostgreSQL | Реальные SQL-запросы, миграции, ограничения и конкурентные изменения. Нужен Docker; тесты сами создают и удаляют отдельные контейнеры PostgreSQL. | `go test -tags=integration -count=1 ./notifier/internal/storage/postgres` |
+| 3. Сквозные API-тесты | HTTP-сценарии на работающем Compose-стенде и состояние PostgreSQL; тот же pytest-прогон включает изолированные тесты Python helpers. | После подготовки ниже: `tests/e2e/.venv/bin/python -m pytest tests/e2e` |
 
-`notification.initial_check_delay_sec` в [конфигурации](notifier/configs/config.yaml) задаёт задержку первой проверки в целых секундах: от `0` до `9223372036` включительно (предел `time.Duration` при переводе секунд в наносекунды). Например, `7200` откладывает проверку на два часа. Отрицательное значение или переполнение останавливает запуск с ошибкой конфигурации. Штатное значение указано в файле; при отсутствии параметра или значении `null` загрузчик использует такое же значение по умолчанию.
+Подготовка e2e-окружения:
 
-При создании API сохраняет `next_scheduled_dt = now + initial_check_delay`. Эта задержка не зависит от `notification.scheduled_time_sec` (интервала повторных проверок worker) и callback backoff. Первая дата не ограничивается deadline: если deadline раньше, worker при первой обработке уже просроченной активной записи выберет `deadline_exceeded`.
+```bash
+python3.14 -m venv tests/e2e/.venv
+tests/e2e/.venv/bin/python -m pip install -e tests/e2e
+make up
+tests/e2e/.venv/bin/python -m pytest tests/e2e
+```
 
-Новое значение применяется после перезапуска API с обновлённой конфигурацией, только к создаваемым после этого записям. В штатном Compose конфигурация входит в образ: для её обновления нужен `make up` с пересборкой. Hot reload нет. Сохранённые даты не переносятся; API продолжает выполнять INSERT, а worker — обрабатывать старую очередь. Задержка уменьшает новую нагрузку от проверок, но не приостанавливает работу с БД.
+Тесты сами получают адреса через `docker compose port`. Запускай их с тем же `COMPOSE_PROJECT_NAME`, с которым поднят стенд. Правила и переменные настройки — в [инструкции тестирования](ai/rules/tests.mdc#api-end-to-end-tests). Один успешный уровень не означает, что остальные тоже выполнены.
 
-## Тестирование
+Отдельная проверка миграций относится ко второму уровню: она использует PostgreSQL выбранного Compose-стенда, создаёт временную базу и удаляет её после теста:
 
-Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
+```bash
+NOTIFIER_MIGRATION_TEST_ADDR="$(docker compose port postgres 5432)" go test -tags=integration -count=1 ./notifier/db/migrations
+```
 
-Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./notifier/internal/storage/postgres`.
+Дополнительные проверки:
 
-Сквозные API-тесты на pytest запускаются на текущем Docker Compose. См. [правила запуска](ai/rules/tests.mdc). Если API запущен с другой задержкой первой проверки, передай её тестам через `NOTIFIER_E2E_INITIAL_CHECK_DELAY_SEC` в секундах; эта переменная задаёт ожидание теста, конфигурацию API она не меняет.
+| Команда | Что проверяет |
+| --- | --- |
+| `go test -race ./...` | Гонки данных; запускать при изменениях конкурентной обработки или жизненного цикла. |
+| `go vet ./...` | Типичные ошибки Go-кода статическим анализом. |
+| `golangci-lint run` | Соблюдение правил линтеров проекта. |
+| `golangci-lint fmt --diff` | Показывает необходимые изменения форматирования без записи файлов; проверь, что diff пуст. |
+| `git diff --check` | Ошибки пробелов и маркеры конфликтов в diff. |
+
+### Логи сервисов Docker
+
+```bash
+docker compose logs --tail=100 -f api
+```
+
+Команда показывает последние 100 строк API и продолжает выводить новые. `Ctrl+C` завершает просмотр, сервис продолжает работать. Вместо `api` укажи `notification_worker`, `emulator`, `postgres` или `migrate`. Несколько имён через пробел покажут их логи вместе; без имени выводятся все сервисы.
+
+```bash
+docker compose logs --since=10m notification_worker
+```
+
+Этот вариант выводит логи worker за последние 10 минут без ожидания новых строк.
 
 ## Структура репозитория
 
