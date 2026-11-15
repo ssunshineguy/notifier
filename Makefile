@@ -1,4 +1,4 @@
-.PHONY: gen up down reset migrate psql ai-setup
+.PHONY: gen up down reset migrate psql ai-setup ai-check
 
 gen:
 	./scripts/gen.sh
@@ -27,3 +27,6 @@ psql:
 
 ai-setup:
 	./scripts/ai-setup.sh
+
+ai-check:
+	python3 -B scripts/ai-check.py

@@ -86,6 +86,11 @@ With `python3` available, run `make ai-setup` after cloning, changing a guard, o
 It links Claude Code rules, skills and agents under `.claude/`, links Codex skills under
 `.agents/skills/`, and generates Codex agent definitions under `.codex/agents/`. These paths
 are local setup output.
+With Python 3.11 or newer (the development baseline is Python 3.14), run `make ai-check`
+to check canonical metadata, local links, generated TOML and installed setup without modifying
+the checkout. It generates temporary setups and checks drift and repeat generation.
+Workflow fixtures need a separate Codex reviewer run; see [AI checks](ai/checks/README.md)
+for the automated boundary, reviewer procedure and checker regression tests.
 Use the rules linked above for the layer you touch.
 
 ## Workflows
