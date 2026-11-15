@@ -190,7 +190,8 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 // Deletes a notification owned by the client, whether active or already stopped. After deletion, the
 // notification is no longer available through GET or PUT, and the client can reuse its `external_id`.
 // A missing notification or one owned by another client returns `404`, including a repeated DELETE
-// after successful deletion. An event that is already being delivered may still arrive.
+// after successful deletion. An event that is already being delivered may still arrive. An unexpired
+// worker reservation on a notification that has not stopped returns `409`.
 //
 // DELETE /v1/notifications/{notification_id}
 func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -459,7 +460,8 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 //
 // Replaces the trigger conditions of a notification that has not stopped. The deadline and other
 // parameters cannot be changed. If the client's notification is stopped, the request returns `400`
-// with the problem title "Incorrect notification status".
+// with the problem title "Incorrect notification status". An unexpired worker reservation returns
+// `409`.
 //
 // The change applies from the next check. Delivery of an already selected event, including retries,
 // continues with the same event status.

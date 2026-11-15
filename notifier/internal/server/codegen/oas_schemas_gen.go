@@ -689,6 +689,35 @@ func (*NotificationHeaders) updateNotificationRes() {}
 
 type NotificationId uuid.UUID
 
+// NotificationInProgressHeaders wraps Problem with response headers.
+type NotificationInProgressHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *NotificationInProgressHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *NotificationInProgressHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *NotificationInProgressHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *NotificationInProgressHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*NotificationInProgressHeaders) deleteNotificationRes() {}
+func (*NotificationInProgressHeaders) updateNotificationRes() {}
+
 type NotificationParams []Condition
 
 // Result of checking the notification's conditions.

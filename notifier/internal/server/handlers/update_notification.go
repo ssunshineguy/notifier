@@ -37,6 +37,8 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *codegen.Notificat
 	switch {
 	case errors.Is(err, core.ErrNotificationNotFound):
 		return notificationNotFoundResponse(requestID), nil
+	case errors.Is(err, core.ErrNotificationReserved):
+		return notificationInProgressResponse(requestID), nil
 	case errors.Is(err, core.ErrNotificationStopped):
 		return &codegen.BadRequestHeaders{
 			XRequestID: requestID,
@@ -56,4 +58,16 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *codegen.Notificat
 		return internalErrorResponse(requestID), nil
 	}
 	return response, nil
+}
+
+func notificationInProgressResponse(requestID codegen.OptString) *codegen.NotificationInProgressHeaders {
+	return &codegen.NotificationInProgressHeaders{
+		XRequestID: requestID,
+		Response: codegen.Problem{
+			Type:      "/problems/notification-in-progress",
+			Title:     "Notification is being processed",
+			Status:    http.StatusConflict,
+			RequestID: requestID,
+		},
+	}
 }

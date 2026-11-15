@@ -65,7 +65,8 @@ func TestDeleteNotificationIntegration(t *testing.T) {
 			if state.name != "active" {
 				if _, err := pool.Exec(ctx, `
 					UPDATE notifier.t_notification
-					SET stop_dt = $1, notification_status = $2, delivery_status = NULLIF($3, ''), next_scheduled_dt = NULL
+					SET stop_dt = $1, notification_status = $2, delivery_status = NULLIF($3, ''), next_scheduled_dt = NULL,
+					    lock_until_dt = clock_timestamp() + interval '1 minute'
 					WHERE id = $4`, scheduled, state.notificationStatus, state.deliveryStatus, id); err != nil {
 					t.Fatal(err)
 				}
