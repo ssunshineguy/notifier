@@ -7,6 +7,7 @@ import (
 
 	"github.com/ogen-go/ogen/ogenerrors"
 
+	"github.com/ssunshineguy/notifier/internal/bodylimit"
 	"github.com/ssunshineguy/notifier/internal/problem"
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
 )
@@ -21,6 +22,10 @@ func HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, er
 		!errors.Is(securityErr, ogenerrors.ErrSecurityRequirementIsNotSatisfied) &&
 		!errors.Is(securityErr, core.ErrClientNotFound) {
 		status = http.StatusInternalServerError
+	}
+
+	if bodylimit.IsExceeded(err) {
+		status = http.StatusRequestEntityTooLarge
 	}
 
 	problem.WriteError(ctx, w, r, status)

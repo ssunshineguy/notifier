@@ -115,7 +115,7 @@ def assert_problem_response(response: Response, *, expected_type: str | None = N
     _require(type(body["status"]) is int and body["status"] == response.status_code, "Problem status", response)
     if "request_id" in body:
         _require(body["request_id"] == response.request.headers.get("X-Request-ID"), "Problem request_id", response)
-    if expected_type in {"/problems/notification-in-progress", "/problems/notification-duplicate-disappeared"}:
+    if expected_type in {"/problems/notification-in-progress", "/problems/notification-duplicate-disappeared", "/problems/content-too-large"}:
         _require("request_id" in body, "Problem request_id", response)
     if "detail" in body:
         _require(isinstance(body["detail"], str), "Problem detail", response)

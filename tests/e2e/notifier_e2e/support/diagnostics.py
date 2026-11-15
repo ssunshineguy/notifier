@@ -8,7 +8,7 @@ PROBLEM_TYPES = frozenset({
     "/problems/validation-error", "/problems/unauthorized", "/problems/not-found",
     "/problems/incorrect-notification-status", "/problems/notification-in-progress",
     "/problems/notification-duplicate-disappeared", "/problems/too-many-requests",
-    "/problems/internal-error", "/problems/request-timeout",
+    "/problems/internal-error", "/problems/request-timeout", "/problems/content-too-large",
 })
 
 

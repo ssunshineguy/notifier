@@ -18,6 +18,7 @@ alwaysApply: false
 | `notifier/internal/application` | Wire dependencies and own their lifecycle. See `database.go` for shared pool bootstrap; each mode owns pool shutdown. `api.go` wires the ogen server and middleware. |
 | `internal/logging` | Carry request loggers in context and provide redaction attributes. |
 | `internal/problem` | Write Problem Details responses for both services' HTTP middleware. |
+| `internal/bodylimit` | Share the HTTP body byte limit and bound request reads before generated decoders. |
 | `notifier/internal/core` | Domain types and rules. Keep them independent of other internal packages and I/O. Pass in time when a rule depends on it. |
 | `notifier/internal/server/handlers` | Map ogen requests to domain inputs, call domain logic and storage interfaces, map outcomes to typed responses. |
 | `notifier/internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |

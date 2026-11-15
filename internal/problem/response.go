@@ -25,6 +25,12 @@ func WriteError(ctx context.Context, w http.ResponseWriter, r *http.Request, sta
 	case http.StatusBadRequest:
 		response.Type = "/problems/validation-error"
 		response.Title = "Request validation failed"
+	case http.StatusRequestEntityTooLarge:
+		response.Type = "/problems/content-too-large"
+		response.Title = "Request body exceeds the byte limit"
+		if r.ProtoMajor == 1 {
+			w.Header().Set("Connection", "close")
+		}
 	case http.StatusUnauthorized:
 		response.Type = "/problems/unauthorized"
 	case http.StatusInternalServerError:

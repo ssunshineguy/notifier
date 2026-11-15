@@ -77,6 +77,38 @@ func encodeGetPriceResponse(response GetPriceRes, w http.ResponseWriter) error {
 
 		return nil
 
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
 	default:
 		return errors.Errorf("unexpected response type: %T", response)
 	}
@@ -148,6 +180,38 @@ func encodeGetTimeResponse(response GetTimeRes, w http.ResponseWriter) error {
 
 		return nil
 
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
 	default:
 		return errors.Errorf("unexpected response type: %T", response)
 	}
@@ -183,6 +247,38 @@ func encodeReceiveNotificationEventResponse(response ReceiveNotificationEventRes
 
 		e := new(jx.Encoder)
 		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
 		if _, err := e.WriteTo(w); err != nil {
 			return errors.Wrap(err, "write")
 		}
@@ -309,6 +405,38 @@ func encodeResetCallbackOverrideResponse(response ResetCallbackOverrideRes, w ht
 
 		return nil
 
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
 	default:
 		return errors.Errorf("unexpected response type: %T", response)
 	}
@@ -373,6 +501,38 @@ func encodeResetClientOverridesResponse(response ResetClientOverridesRes, w http
 
 		return nil
 
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
 	default:
 		return errors.Errorf("unexpected response type: %T", response)
 	}
@@ -428,6 +588,38 @@ func encodeSetCallbackOverrideResponse(response SetCallbackOverrideRes, w http.R
 			}
 		}
 		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
 
 		e := new(jx.Encoder)
 		response.Response.Encode(e)
@@ -524,6 +716,38 @@ func encodeSetClientOverrideResponse(response SetClientOverrideRes, w http.Respo
 			}
 		}
 		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ContentTooLargeHeaders:
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "X-Request-ID" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "X-Request-ID",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					if val, ok := response.XRequestID.Get(); ok {
+						return e.EncodeValue(conv.StringToString(val))
+					}
+					return nil
+				}); err != nil {
+					return errors.Wrap(err, "encode X-Request-ID header")
+				}
+			}
+		}
+		w.WriteHeader(413)
 
 		e := new(jx.Encoder)
 		response.Response.Encode(e)

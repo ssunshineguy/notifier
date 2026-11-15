@@ -12,6 +12,17 @@ info:
     Test controls store overrides in the emulator process. Restarting the
     process clears all overrides.
 
+    ## Body size
+
+    JSON request bodies are limited to 32768 bytes (32 KiB), including whitespace
+    and escape sequences. This is an explicit byte limit in addition to field
+    validation; it does not accept every textual representation of the same object.
+    Oversized bodies return `413` when their declared length or decoder read
+    exceeds the limit, including chunked requests. Authentication or other checks
+    may reject a request before its body is read.
+    Notifier applies the same byte limit to Information Service response bodies;
+    exceeding it is a data-fetch error, not a usable time or price.
+
 servers:
   - url: http://localhost:8081
     description: Local emulator

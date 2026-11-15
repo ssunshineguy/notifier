@@ -42,6 +42,15 @@ info:
     Events are delivered at least once. The client must deduplicate them by
     `notification_id`.
 
+    ## Body size
+
+    JSON request bodies are limited to 32768 bytes (32 KiB), including whitespace
+    and escape sequences. This is an explicit byte limit in addition to field
+    validation; it does not accept every textual representation of the same object.
+    Oversized bodies return `413` when their declared length or decoder read
+    exceeds the limit, including chunked requests. Authentication or other checks
+    may reject a request before its body is read.
+
 servers:
   - url: http://localhost:8080
     description: Local docker compose

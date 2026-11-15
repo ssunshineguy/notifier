@@ -21,3 +21,5 @@ get:
             price: 19990
     "400":
       $ref: ../components/responses/BadInformationRequest.yaml
+    "413":
+      $ref: ../../../../notifier/api/spec/components/responses/ContentTooLarge.yaml

@@ -22,6 +22,7 @@ type Client struct {
 // NewClient builds an Information Service client using the configured address and request budgets.
 func NewClient(settings config.InfoService) (*Client, error) {
 	httpClient := &http.Client{
+		Transport: responseLimitTransport{base: http.DefaultTransport},
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},

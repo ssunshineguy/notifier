@@ -323,6 +323,37 @@ func NewOrConditionCondition(v OrCondition) Condition {
 	return s
 }
 
+// ContentTooLargeHeaders wraps Problem with response headers.
+type ContentTooLargeHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *ContentTooLargeHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *ContentTooLargeHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *ContentTooLargeHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ContentTooLargeHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*ContentTooLargeHeaders) createNotificationRes() {}
+func (*ContentTooLargeHeaders) deleteNotificationRes() {}
+func (*ContentTooLargeHeaders) getNotificationRes()    {}
+func (*ContentTooLargeHeaders) updateNotificationRes() {}
+
 // DeleteNotificationOK is response for DeleteNotification operation.
 type DeleteNotificationOK struct {
 	XRequestID OptString
