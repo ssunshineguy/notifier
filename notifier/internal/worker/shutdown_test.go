@@ -27,8 +27,6 @@ func TestRunDrainsCallbackAndResultAfterStop(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		stopCtx, stop := context.WithCancel(t.Context())
 		defer stop()
-		processingCtx, cancelProcessing := context.WithCancel(t.Context())
-		defer cancelProcessing()
 		claim := core.NotificationClaim{ID: uuid.New(), LockUntil: time.Now().Add(defaultSettings.LockDuration)}
 		var claimCalls atomic.Int32
 		claims := claimFunc(func(context.Context, int, time.Duration) ([]core.NotificationClaim, error) {
@@ -57,7 +55,7 @@ func TestRunDrainsCallbackAndResultAfterStop(t *testing.T) {
 		})
 		done := make(chan struct{})
 		go func() {
-			worker.Run(stopCtx, processingCtx, claims, func(ctx context.Context, claim core.NotificationClaim) {
+			worker.Run(stopCtx, claims, func(ctx context.Context, claim core.NotificationClaim) {
 				worker.ProcessNotification(ctx, claim, store, nil, callback, worker.ProcessingSettings{ResultWriteTimeout: time.Second})
 			}, defaultSettings)
 			close(done)
@@ -121,22 +119,28 @@ func TestRunStopsClaimsAcrossCyclesWhileHandlerDrains(t *testing.T) {
 		release := make(chan struct{})
 		done := make(chan struct{})
 		go func() {
-			worker.Run(stopCtx, t.Context(), claims, func(ctx context.Context, _ core.NotificationClaim) {
+			worker.Run(stopCtx, claims, func(ctx context.Context, _ core.NotificationClaim) {
 				started <- ctx
 				<-release
 			}, settings)
 			close(done)
 		}()
 
-		processingCtx := <-started
+		cycleCtx := <-started
+		time.Sleep(settings.CycleTimeout / 2)
+		stoppedAt := time.Now()
 		stop()
-		time.Sleep(3 * settings.CycleTimeout)
+		<-cycleCtx.Done()
+		if elapsed := time.Since(stoppedAt); elapsed != settings.CycleTimeout/2 {
+			t.Errorf("cycle ended %v after stop, want the remaining %v", elapsed, settings.CycleTimeout/2)
+		}
+		time.Sleep(2 * settings.CycleTimeout)
 		synctest.Wait()
 		if calls := calls.Load(); calls != 1 {
 			t.Errorf("claims after stop = %d, want 1", calls)
 		}
-		if processingCtx.Err() != context.DeadlineExceeded {
-			t.Errorf("cycle context error = %v, want deadline exceeded", processingCtx.Err())
+		if cycleCtx.Err() != context.DeadlineExceeded {
+			t.Errorf("cycle context error = %v, want deadline exceeded", cycleCtx.Err())
 		}
 		select {
 		case <-done:
@@ -163,7 +167,7 @@ func TestRunSkipsClaimReturnedAfterStop(t *testing.T) {
 		})
 		done := make(chan struct{})
 		go func() {
-			worker.Run(stopCtx, t.Context(), claims, func(context.Context, core.NotificationClaim) {
+			worker.Run(stopCtx, claims, func(context.Context, core.NotificationClaim) {
 				t.Error("processor started for a claim returned after stop")
 			}, defaultSettings)
 			close(done)
@@ -185,7 +189,7 @@ func TestRunWithAlreadyCanceledStopDoesNotClaim(t *testing.T) {
 		t.Error("claim started after stop")
 		return nil, nil
 	})
-	worker.Run(stopCtx, t.Context(), claims, func(context.Context, core.NotificationClaim) {
+	worker.Run(stopCtx, claims, func(context.Context, core.NotificationClaim) {
 		t.Error("processor started after stop")
 	}, defaultSettings)
 }

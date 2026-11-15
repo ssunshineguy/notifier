@@ -75,7 +75,7 @@ services:
     secrets:
       - source: worker_dsn
         target: database_dsn
-    stop_grace_period: 11s
+    stop_grace_period: 10s
     restart: on-failure
     depends_on:
       migrate:

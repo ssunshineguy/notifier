@@ -33,7 +33,11 @@ func TestDatabasePoolPreservesSettings(t *testing.T) {
 
 func TestModeWiringRejectsMissingAndInvalidDSN(t *testing.T) {
 	for name, run := range map[string]func(context.Context, config.Config) error{
-		"api": RunAPI, "worker": RunWorker, "migrate": Migrate,
+		"api": RunAPI,
+		"worker": func(ctx context.Context, cfg config.Config) error {
+			return RunWorker(ctx, cfg, func() {})
+		},
+		"migrate": Migrate,
 	} {
 		for _, dsn := range []string{"", " \t\n", "postgres://role:synthetic-secret@localhost:invalid/notifier"} {
 			t.Run(name, func(t *testing.T) {
@@ -58,7 +62,7 @@ func TestRunWorkerWithOnlyItsDSN(t *testing.T) {
 		Worker:       config.Worker{Workers: 1, BatchSize: 1, CycleTimeoutMS: 100},
 		Notification: config.Notification{ScheduledTimeSec: 1, LockDurationMS: 100},
 	}
-	if err := RunWorker(ctx, cfg); err != nil {
+	if err := RunWorker(ctx, cfg, cancel); err != nil {
 		t.Fatalf("RunWorker with a canceled context = %v, want nil", err)
 	}
 }

@@ -23,8 +23,9 @@ type Settings struct {
 	LockDuration time.Duration
 }
 
-// Run stops polling when ctx is canceled and drains handlers within processingCtx.
-func Run(ctx, processingCtx context.Context, store Store, process func(context.Context, core.NotificationClaim), settings Settings) {
+// Run stops polling when ctx is canceled and lets handlers finish within their original cycle deadlines.
+func Run(ctx context.Context, store Store, process func(context.Context, core.NotificationClaim), settings Settings) {
+	cycleParent := context.WithoutCancel(ctx)
 	var loops sync.WaitGroup
 	for range settings.Workers {
 		loops.Go(func() {
@@ -32,18 +33,16 @@ func Run(ctx, processingCtx context.Context, store Store, process func(context.C
 			var handlers sync.WaitGroup
 			slotFreed := make(chan struct{}, 1)
 			defer handlers.Wait()
-			for ctx.Err() == nil && processingCtx.Err() == nil {
+			for ctx.Err() == nil {
 				if int(busy.Load()) == settings.BatchSize {
 					select {
 					case <-ctx.Done():
-						return
-					case <-processingCtx.Done():
 						return
 					case <-slotFreed:
 						continue
 					}
 				}
-				cycleCtx, cancel := context.WithTimeout(processingCtx, settings.CycleTimeout)
+				cycleCtx, cancel := context.WithTimeout(cycleParent, settings.CycleTimeout)
 				batchDone := runCycle(ctx, cycleCtx, store, process, settings, &busy, &handlers, slotFreed)
 				select {
 				case <-ctx.Done():
