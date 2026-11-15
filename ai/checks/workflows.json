@@ -1,0 +1,144 @@
+[
+  {
+    "id": "python-only",
+    "fixture": "ai/checks/fixtures/python-only.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "test-coverage-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "Python-only tooling code requires full API e2e; a successful unit test alone leaves a blocker. Scope and README reviews still apply."
+  },
+  {
+    "id": "emulator-201",
+    "fixture": "ai/checks/fixtures/emulator-201.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "api-contract-guard"
+    ],
+    "expected_status": "PASS",
+    "expected": "An emulator fixture may simulate external receiver HTTP 201; do not normalize it to 200 or apply the production-success rule to it."
+  },
+  {
+    "id": "migration-locks",
+    "fixture": "ai/checks/fixtures/migration-locks.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "migration-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "Reject validation in automatic goose and the retained ACCESS EXCLUSIVE lock across its scan; both independent execution outside goose and a real DDL commit are required."
+  },
+  {
+    "id": "migration-automatic-validation",
+    "fixture": "ai/checks/fixtures/migration-automatic-validation.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "migration-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "Reject VALIDATE in a second goose file even when the DDL committed, all execution budgets exist, and no strong lock is retained; a separate transaction does not make automatic validation permissible."
+  },
+  {
+    "id": "migration-separated",
+    "fixture": "ai/checks/fixtures/migration-separated.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "migration-guard"
+    ],
+    "expected_status": "PASS",
+    "expected": "Accept bounded short goose DDL followed by an independently operated validation runbook outside goose and service startup, with completion/retry/version gates and explicitly synthetic PostgreSQL evidence."
+  },
+  {
+    "id": "readme-drift",
+    "fixture": "ai/checks/fixtures/readme-drift.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "A documented command removed by the diff is a README blocker even when README is unchanged; propose the exact scoped correction before editing."
+  },
+  {
+    "id": "accepted-warn",
+    "fixture": "ai/checks/fixtures/accepted-warn.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "ACCEPTED",
+    "expected": "Keep the redundant-comment warning visible as accepted with the exact human decision and consequence; do not relabel it fixed or request the same approval again."
+  },
+  {
+    "id": "unaccepted-warn",
+    "fixture": "ai/checks/fixtures/unaccepted-warn.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "The same warning without explicit human acceptance remains open; AI approval, silence and an unrelated acceptance cannot waive it."
+  },
+  {
+    "id": "useful-dnd",
+    "fixture": "ai/checks/fixtures/useful-dnd.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "PASS",
+    "expected": "Accept a useful DND explanation of the lease invariant with a prior AI rationale; no separate approval is required to add it."
+  },
+  {
+    "id": "moved-dnd",
+    "fixture": "ai/checks/fixtures/moved-dnd.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "PASS",
+    "expected": "Moving DND within the same guarded code with marker and protected meaning intact needs no new human approval."
+  },
+  {
+    "id": "removed-dnd",
+    "fixture": "ai/checks/fixtures/removed-dnd.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "Deleting the protective comment without approval is a blocker even when the guarded code remains unchanged."
+  },
+  {
+    "id": "unmarked-dnd",
+    "fixture": "ai/checks/fixtures/unmarked-dnd.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "Removing only DND requires explicit approval even when the reason and protected code are unchanged."
+  },
+  {
+    "id": "empty-dnd",
+    "fixture": "ai/checks/fixtures/empty-dnd.md",
+    "guards": [
+      "scope-guard",
+      "readme-guard",
+      "comment-guard"
+    ],
+    "expected_status": "FAIL",
+    "expected": "A bare DND marker gives no useful reason and lacks a prior rationale; its warning remains open without human acceptance."
+  }
+]
