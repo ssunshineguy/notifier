@@ -143,6 +143,39 @@ func TestCallbackStopsWaitingWhenCanceled(t *testing.T) {
 	})
 }
 
+func TestReceivedCallbackBelongsToOverride(t *testing.T) {
+	router, err := NewRouter()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := callbackOverrides + firstNotification
+	request(t, router, http.MethodGet, callbackOverrides+"invalid", "", "", 400, "")
+	const preset = `{"status_code":200,"response_timeout":0,"capture_event":true}`
+	request(t, router, http.MethodGet, path, "", "", 404, "")
+	request(t, router, http.MethodPost, path, "", `{"status_code":200,"response_timeout":0}`, 200, "")
+	request(t, router, http.MethodPost, "/callback", "", event(firstNotification), 200, "")
+	request(t, router, http.MethodGet, path, "", "", 404, "")
+	request(t, router, http.MethodPost, path, "", preset, 200, "")
+	request(t, router, http.MethodGet, path, "", "", 404, "")
+	request(t, router, http.MethodPost, "/callback", "", event(otherNotification), 200, "")
+	request(t, router, http.MethodGet, path, "", "", 404, "")
+
+	first := event(firstNotification)
+	latest := strings.Replace(first, `"external_id":"test"`, `"external_id":"latest"`, 1)
+	request(t, router, http.MethodPost, "/callback", "", first, 200, "")
+	request(t, router, http.MethodGet, path, "", "", 200, first)
+	request(t, router, http.MethodPost, "/callback", "", latest, 200, "")
+	request(t, router, http.MethodGet, path, "", "", 200, latest)
+	request(t, router, http.MethodPost, path, "", `{"status_code":200,"response_timeout":0,"capture_event":"true"}`, 400, "")
+	request(t, router, http.MethodGet, path, "", "", 200, latest)
+
+	request(t, router, http.MethodPost, path, "", preset, 200, "")
+	request(t, router, http.MethodGet, path, "", "", 404, "")
+	request(t, router, http.MethodPost, "/callback", "", first, 200, "")
+	request(t, router, http.MethodDelete, path, "", "", 200, "")
+	request(t, router, http.MethodGet, path, "", "", 404, "")
+}
+
 func TestPresetCachesAreIndependent(t *testing.T) {
 	router, err := NewRouter()
 	if err != nil {
@@ -216,10 +249,11 @@ func TestConcurrentPresetRequests(t *testing.T) {
 			<-start
 			notificationID := fmt.Sprintf("0193a1f4-6c2e-7d55-9b1a-%012d", id)
 			path := callbackOverrides + notificationID
-			const body = `{"status_code":201,"response_timeout":0}`
+			const body = `{"status_code":201,"response_timeout":0,"capture_event":true}`
 			for range 10 {
 				request(t, router, http.MethodPost, path, "", body, 200, "")
 				request(t, router, http.MethodPost, "/callback", "", event(notificationID), 201, "")
+				request(t, router, http.MethodGet, path, "", "", 200, event(notificationID))
 				request(t, router, http.MethodDelete, path, "", "", 200, "")
 				request(t, router, http.MethodPost, "/callback", "", event(notificationID), 200, "")
 			}

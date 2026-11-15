@@ -22,6 +22,16 @@ func (UnimplementedHandler) GetPrice(ctx context.Context, params GetPriceParams)
 	return r, ht.ErrNotImplemented
 }
 
+// GetReceivedCallback implements getReceivedCallback operation.
+//
+// Returns the last event received while a callback override was configured for the notification with
+// capture_event enabled. Returns 404 before any event is captured.
+//
+// GET /v1/callback-overrides/{notification_id}
+func (UnimplementedHandler) GetReceivedCallback(ctx context.Context, params GetReceivedCallbackParams) (r GetReceivedCallbackRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetTime implements getTime operation.
 //
 // Returns the client's configured time or the current time in UTC.
@@ -48,7 +58,7 @@ func (UnimplementedHandler) ReceiveNotificationEvent(ctx context.Context, req *N
 
 // ResetCallbackOverride implements resetCallbackOverride operation.
 //
-// Restores 200 with no delay. Returns 200 even if no override exists.
+// Restores 200 with no delay and removes any captured event. Returns 200 even if no override exists.
 //
 // DELETE /v1/callback-overrides/{notification_id}
 func (UnimplementedHandler) ResetCallbackOverride(ctx context.Context, params ResetCallbackOverrideParams) (r ResetCallbackOverrideRes, _ error) {
@@ -66,7 +76,8 @@ func (UnimplementedHandler) ResetClientOverrides(ctx context.Context, params Res
 
 // SetCallbackOverride implements setCallbackOverride operation.
 //
-// Creates or replaces the response status and delay for the notification.
+// Creates or replaces the response status and delay for the notification. Clears any previously
+// captured event. Set capture_event to true to capture the latest event.
 //
 // POST /v1/callback-overrides/{notification_id}
 func (UnimplementedHandler) SetCallbackOverride(ctx context.Context, req *CallbackOverride, params SetCallbackOverrideParams) (r SetCallbackOverrideRes, _ error) {

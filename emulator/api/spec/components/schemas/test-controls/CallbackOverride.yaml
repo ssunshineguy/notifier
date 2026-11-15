@@ -17,3 +17,8 @@ properties:
     minimum: 0
     maximum: 2147483647
     example: 1500
+  capture_event:
+    description: Store the latest event received for this override so tests can read it back.
+    type: boolean
+    default: false
+    example: true

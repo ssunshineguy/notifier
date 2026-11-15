@@ -7,6 +7,7 @@ type OperationName = string
 
 const (
 	GetPriceOperation                 OperationName = "GetPrice"
+	GetReceivedCallbackOperation      OperationName = "GetReceivedCallback"
 	GetTimeOperation                  OperationName = "GetTime"
 	ReceiveNotificationEventOperation OperationName = "ReceiveNotificationEvent"
 	ResetCallbackOverrideOperation    OperationName = "ResetCallbackOverride"

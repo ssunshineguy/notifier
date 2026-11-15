@@ -154,6 +154,143 @@ func decodeGetPriceParams(args [0]string, argsEscaped bool, r *http.Request) (pa
 	return params, nil
 }
 
+// GetReceivedCallbackParams is parameters of getReceivedCallback operation.
+type GetReceivedCallbackParams struct {
+	// Identifier of the notification.
+	NotificationID NotificationId
+	// Identifier of the request for tracing. Returned in the response header and in error bodies.
+	XRequestID string
+}
+
+func unpackGetReceivedCallbackParams(packed middleware.Parameters) (params GetReceivedCallbackParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "notification_id",
+			In:   "path",
+		}
+		params.NotificationID = packed[key].(NotificationId)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Request-ID",
+			In:   "header",
+		}
+		params.XRequestID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeGetReceivedCallbackParams(args [1]string, argsEscaped bool, r *http.Request) (params GetReceivedCallbackParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: notification_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "notification_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				var paramsDotNotificationIDVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotNotificationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.NotificationID = NotificationId(paramsDotNotificationIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "notification_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Request-ID.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Request-ID",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.XRequestID = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.XRequestID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Request-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetTimeParams is parameters of getTime operation.
 type GetTimeParams struct {
 	// Identifier of the request for tracing. Returned in the response header and in error bodies.

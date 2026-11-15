@@ -64,6 +64,7 @@ func (s *BadOverrideRequestHeaders) SetResponse(val Problem) {
 	s.Response = val
 }
 
+func (*BadOverrideRequestHeaders) getReceivedCallbackRes()   {}
 func (*BadOverrideRequestHeaders) resetCallbackOverrideRes() {}
 func (*BadOverrideRequestHeaders) resetClientOverridesRes()  {}
 func (*BadOverrideRequestHeaders) setCallbackOverrideRes()   {}
@@ -75,6 +76,8 @@ type CallbackOverride struct {
 	StatusCode CallbackOverrideStatusCode `json:"status_code"`
 	// Delay in milliseconds before returning the configured status. Zero returns immediately.
 	ResponseTimeout int32 `json:"response_timeout"`
+	// Store the latest event received for this override so tests can read it back.
+	CaptureEvent OptBool `json:"capture_event"`
 }
 
 // GetStatusCode returns the value of StatusCode.
@@ -87,6 +90,11 @@ func (s *CallbackOverride) GetResponseTimeout() int32 {
 	return s.ResponseTimeout
 }
 
+// GetCaptureEvent returns the value of CaptureEvent.
+func (s *CallbackOverride) GetCaptureEvent() OptBool {
+	return s.CaptureEvent
+}
+
 // SetStatusCode sets the value of StatusCode.
 func (s *CallbackOverride) SetStatusCode(val CallbackOverrideStatusCode) {
 	s.StatusCode = val
@@ -95,6 +103,11 @@ func (s *CallbackOverride) SetStatusCode(val CallbackOverrideStatusCode) {
 // SetResponseTimeout sets the value of ResponseTimeout.
 func (s *CallbackOverride) SetResponseTimeout(val int32) {
 	s.ResponseTimeout = val
+}
+
+// SetCaptureEvent sets the value of CaptureEvent.
+func (s *CallbackOverride) SetCaptureEvent(val OptBool) {
+	s.CaptureEvent = val
 }
 
 // HTTP status returned by POST /callback.
@@ -340,6 +353,7 @@ func (s *ContentTooLargeHeaders) SetResponse(val Problem) {
 }
 
 func (*ContentTooLargeHeaders) getPriceRes()                 {}
+func (*ContentTooLargeHeaders) getReceivedCallbackRes()      {}
 func (*ContentTooLargeHeaders) getTimeRes()                  {}
 func (*ContentTooLargeHeaders) receiveNotificationEventRes() {}
 func (*ContentTooLargeHeaders) resetCallbackOverrideRes()    {}
@@ -472,7 +486,81 @@ func (s *NotificationEvent) SetSentDt(val time.Time) {
 	s.SentDt = val
 }
 
+// NotificationEventHeaders wraps NotificationEvent with response headers.
+type NotificationEventHeaders struct {
+	XRequestID OptString
+	Response   NotificationEvent
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *NotificationEventHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *NotificationEventHeaders) GetResponse() NotificationEvent {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *NotificationEventHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *NotificationEventHeaders) SetResponse(val NotificationEvent) {
+	s.Response = val
+}
+
+func (*NotificationEventHeaders) getReceivedCallbackRes() {}
+
 type NotificationId uuid.UUID
+
+// NewOptBool returns new OptBool with value set to v.
+func NewOptBool(v bool) OptBool {
+	return OptBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBool is optional bool.
+type OptBool struct {
+	Value bool
+	Set   bool
+}
+
+// IsSet returns true if OptBool was set.
+func (o OptBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBool) SetTo(v bool) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBool) Get() (v bool, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
 
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
@@ -687,6 +775,34 @@ func (*ReceiveNotificationEventOK) receiveNotificationEventRes() {}
 type ReceiveNotificationEventServiceUnavailable Problem
 
 func (*ReceiveNotificationEventServiceUnavailable) receiveNotificationEventRes() {}
+
+// ReceivedCallbackNotFoundHeaders wraps Problem with response headers.
+type ReceivedCallbackNotFoundHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *ReceivedCallbackNotFoundHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *ReceivedCallbackNotFoundHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *ReceivedCallbackNotFoundHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ReceivedCallbackNotFoundHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*ReceivedCallbackNotFoundHeaders) getReceivedCallbackRes() {}
 
 // Ref: #/components/schemas/Time
 type Time struct {
