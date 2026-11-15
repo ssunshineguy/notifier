@@ -72,3 +72,18 @@ implemented; their planned behavior is not evidence of current correctness.
 - Use `conftest.py` to manage the engine, HTTP sessions, and test data. Give each test
   a unique client, commit fixtures before calling the API, and clean up only that
   client's records. Add shared matchers and bounded waiters when a scenario uses them.
+
+- PUT/DELETE business steps retry only the exact reservation Problem for at most five
+  monotonic seconds, sleeping up to 100 ms between attempts. Each attempt uses the
+  remaining budget as a wall-clock deadline in addition to the connect/read timeouts.
+  These synchronous steps require the main Python thread on POSIX (macOS/Linux), with
+  no active `ITIMER_REAL` timer; an incompatible environment fails before sending the
+  mutation. Single API calls and the HTTP transport do not retry.
+- API failure diagnostics are bounded to 2 KiB and include only safe response metadata
+  and selected Problem fields. Register assertion rewriting for `support.matchers` and
+  `steps.notifications` before importing either module. Isolated helper tests run in
+  the same pytest suite as the Compose scenarios.
+- POST conflict helper tests cover both the existing UUID response and the planned
+  `/problems/notification-duplicate-disappeared` Problem. The latter's deterministic
+  server race belongs to task 17; these helper tests do not establish its availability.
+  DLQ assertions remain a follow-up to the contract implemented in task 04.
