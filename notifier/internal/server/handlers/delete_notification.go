@@ -23,6 +23,8 @@ func (h *Handler) DeleteNotification(ctx context.Context, params codegen.DeleteN
 	switch {
 	case errors.Is(err, core.ErrNotificationNotFound):
 		return notificationNotFoundResponse(requestID), nil
+	case errors.Is(err, core.ErrNotificationReserved):
+		return notificationInProgressResponse(requestID), nil
 	case err != nil:
 		return internalErrorResponse(requestID), nil
 	default:

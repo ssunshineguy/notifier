@@ -273,6 +273,7 @@ paths:
         The deadline and other parameters cannot be changed. If the client's
         notification is stopped, the request returns `400` with the problem title
         "Incorrect notification status".
+        An unexpired worker reservation returns `409`.
 
         The change applies from the next check. Delivery of an already selected
         event, including retries, continues with the same event status.
@@ -346,6 +347,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/NotificationInProgress'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -364,6 +367,8 @@ paths:
         notification or one owned by another client returns `404`, including a
         repeated DELETE after successful deletion. An event that is already
         being delivered may still arrive.
+        An unexpired worker reservation on a notification that has not stopped
+        returns `409`.
       responses:
         '200':
           description: The deletion request succeeded.
@@ -376,6 +381,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/NotificationInProgress'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -884,4 +891,20 @@ components:
             type: /problems/not-found
             title: Notification not found
             status: 404
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+    NotificationInProgress:
+      description: |
+        The notification has an unexpired reservation for background processing.
+        Retry after the reservation ends.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/notification-in-progress
+            title: Notification is being processed
+            status: 409
             request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20

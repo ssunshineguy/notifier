@@ -58,6 +58,7 @@ put:
     The deadline and other parameters cannot be changed. If the client's
     notification is stopped, the request returns `400` with the problem title
     "Incorrect notification status".
+    An unexpired worker reservation returns `409`.
 
     The change applies from the next check. Delivery of an already selected
     event, including retries, continues with the same event status.
@@ -131,6 +132,8 @@ put:
       $ref: ../components/responses/Unauthorized.yaml
     "404":
       $ref: ../components/responses/NotFound.yaml
+    "409":
+      $ref: ../components/responses/NotificationInProgress.yaml
     "429":
       $ref: ../components/responses/TooManyRequests.yaml
     "500":
@@ -150,6 +153,8 @@ delete:
     notification or one owned by another client returns `404`, including a
     repeated DELETE after successful deletion. An event that is already
     being delivered may still arrive.
+    An unexpired worker reservation on a notification that has not stopped
+    returns `409`.
   responses:
     "200":
       description: The deletion request succeeded.
@@ -162,6 +167,8 @@ delete:
       $ref: ../components/responses/Unauthorized.yaml
     "404":
       $ref: ../components/responses/NotFound.yaml
+    "409":
+      $ref: ../components/responses/NotificationInProgress.yaml
     "429":
       $ref: ../components/responses/TooManyRequests.yaml
     "500":

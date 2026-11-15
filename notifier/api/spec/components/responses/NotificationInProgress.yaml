@@ -1,0 +1,15 @@
+description: |
+  The notification has an unexpired reservation for background processing.
+  Retry after the reservation ends.
+headers:
+  X-Request-ID:
+    $ref: ../headers/RequestId.yaml
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/common/Problem.yaml
+    example:
+      type: /problems/notification-in-progress
+      title: Notification is being processed
+      status: 409
+      request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20

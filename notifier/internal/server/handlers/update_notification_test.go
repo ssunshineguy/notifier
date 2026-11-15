@@ -63,6 +63,10 @@ func TestUpdateNotification(t *testing.T) {
 	}{
 		{name: "replace conditions", calls: 1, status: 200},
 		{name: "replace conditions during retry", calls: 1, status: 200, retrying: true},
+		{
+			name: "reserved by worker", storeErr: fmt.Errorf("update: %w", core.ErrNotificationReserved), calls: 1, status: http.StatusConflict,
+			problem: "/problems/notification-in-progress", title: "Notification is being processed",
+		},
 		{name: "stopped", storeErr: fmt.Errorf("update: %w", core.ErrNotificationStopped), calls: 1, status: 400, problem: "/problems/incorrect-notification-status", title: "Incorrect notification status"},
 		{name: "missing", storeErr: fmt.Errorf("update: %w", core.ErrNotificationNotFound), calls: 1, status: 404, problem: "/problems/not-found"},
 		{name: "foreign", clientID: "other-client", storeErr: core.ErrNotificationNotFound, calls: 1, status: 404, problem: "/problems/not-found"},

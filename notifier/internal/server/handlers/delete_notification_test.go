@@ -39,8 +39,14 @@ func TestDeleteNotification(t *testing.T) {
 		wantCalls  int
 		wantStatus int
 		problem    string
+		title      string
 	}{
 		{name: "delete owned notification", rawID: id.String(), clientID: owner, requestID: requestID, wantCalls: 1, wantStatus: http.StatusOK},
+		{
+			name: "reserved by worker", rawID: id.String(), clientID: owner, requestID: requestID,
+			storeErr: fmt.Errorf("delete: %w", core.ErrNotificationReserved), wantCalls: 1, wantStatus: http.StatusConflict,
+			problem: "/problems/notification-in-progress", title: "Notification is being processed",
+		},
 		{name: "missing", rawID: unknownID.String(), clientID: owner, requestID: requestID, wantCalls: 1, wantStatus: http.StatusNotFound, problem: "/problems/not-found"},
 		{name: "foreign", rawID: id.String(), clientID: "other-client", requestID: requestID, wantCalls: 1, wantStatus: http.StatusNotFound, problem: "/problems/not-found"},
 		{name: "no client header", rawID: id.String(), requestID: requestID, wantStatus: http.StatusUnauthorized, problem: "/problems/unauthorized"},
@@ -110,7 +116,8 @@ func TestDeleteNotification(t *testing.T) {
 			if err := json.Unmarshal(resp.Body.Bytes(), &problem); err != nil {
 				t.Fatal(err)
 			}
-			if problem.Status != tt.wantStatus || problem.Type != tt.problem || problem.RequestID.Or("") != tt.requestID {
+			if problem.Status != tt.wantStatus || problem.Type != tt.problem || problem.RequestID.Or("") != tt.requestID ||
+				(tt.title != "" && problem.Title != tt.title) {
 				t.Errorf("unexpected problem: %+v", problem)
 			}
 			if problem.Detail.IsSet() || strings.Contains(resp.Body.String(), dbErr.Error()) {

@@ -26,7 +26,10 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 	start := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
 	deadline := start.Add(24 * time.Hour)
 	scheduled := start.Add(time.Minute)
-	lockUntil := start.Add(2 * time.Minute)
+	var lockUntil time.Time
+	if err := pool.QueryRow(ctx, "SELECT clock_timestamp() - interval '1 minute'").Scan(&lockUntil); err != nil {
+		t.Fatal(err)
+	}
 	original := []core.Condition{{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: start.Add(time.Hour)}}}
 	replacement := []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{
 		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: start.Add(2 * time.Hour)}},
@@ -73,7 +76,7 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 		}
 	}
 
-	t.Run("replace and repeat", func(t *testing.T) {
+	t.Run("replace and repeat after reservation expires", func(t *testing.T) {
 		for range 2 {
 			got, err := store.UpdateNotification(t.Context(), id, owner, replacement)
 			if err != nil {
