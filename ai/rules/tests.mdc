@@ -1,5 +1,5 @@
 ---
-description: Test changed Go behavior at the boundary that owns it
+description: Go tests and API end-to-end tests
 globs: notifier/cmd/**,notifier/internal/**,emulator/cmd/**,emulator/internal/**,internal/**,tests/**
 paths:
   - internal/**
@@ -26,3 +26,25 @@ alwaysApply: false
 - Use the existing `startPostgres(t)` helper. It uses a fresh Docker container with a random loopback port, applies the project's bootstrap SQL and migrations, and checks readiness with `SELECT 1`. The test connects as `notifier_api`. Keep containers, database state, and cleanup within the test.
 - Exercise the public store method. Use deterministic fixtures and verify returned values, ownership, and database errors relevant to the change. Seed state through existing store methods or targeted SQL in the disposable database. Keep dependent subtests serial.
 - Run `go test -tags=integration -count=1 ./notifier/internal/storage/postgres` for the store suite with Docker running. Run `go test ./...` for the default suite. A tagged test fails if its database cannot start.
+
+## API end-to-end tests
+
+- Run against the existing Compose stack. Start it with `make up`, install the test
+  project with `python -m pip install -e tests/e2e` in a virtual environment, and run
+  `python -m pytest tests/e2e`.
+- Use pytest, Requests, and SQLAlchemy Core with psycopg. Keep fixed Compose URLs, the
+  local `notifier_e2e` DSN, and timeouts in `tests/e2e/notifier_e2e/config.py`.
+  Use a 0.5-second HTTP connect/read timeout and PostgreSQL statement timeout.
+  The psycopg connection timeout has a two-second minimum.
+- Keep connection setup and test record access in `db/`. Reuse `HttpClient` as the
+  transport for the Notifier and emulator clients. Define repeated endpoint paths once
+  in the corresponding client module.
+- Put HTTP assertions in the API request method. Check the status, echoed
+  `X-Request-ID` where specified, media type, and response shape relevant to the operation.
+  Pass the expected status explicitly for an error scenario.
+- Use `steps/` for reusable actions and business checks, including read-back and
+  PostgreSQL assertions. Pass expected values as arguments. Keep the scenario order
+  and its expected data visible in the test.
+- Use `conftest.py` to manage the engine, HTTP sessions, and test data. Give each test
+  a unique client, commit fixtures before calling the API, and clean up only that
+  client's records. Add shared matchers and bounded waiters when a scenario uses them.
