@@ -52,7 +52,7 @@ Compose runs the readiness checks inside each container.
 | PostgreSQL runtime | `notifier/internal/storage/postgres/`, [architecture rules](ai/rules/architecture.mdc#postgresql-runtime) |
 | Migrations and bootstrap | `notifier/db/`, [migration rules](ai/rules/migrations.mdc) |
 | Request and SQL logging | `internal/logging/`, [logging rules](ai/rules/logging.mdc) |
-| Tests and verification | Colocated `*_test.go`, [test rules](ai/rules/tests.mdc) |
+| Tests and verification | Colocated `*_test.go`, API e2e tests in `tests/e2e/`, [test rules](ai/rules/tests.mdc) |
 
 ## Database
 
@@ -63,6 +63,8 @@ Follow `ai/rules/migrations.mdc`: naming, locks on existing tables, rerunnable s
 - Roles live in `notifier/db/init`: `notifier_migrator` owns the schema and runs migrations; every mode has
   its own role (`notifier_api`, `notifier_worker`, `notifier_collector`) with its own DSN in the config.
   Mode roles get CRUD on all tables through default privileges, so migrations contain no grants.
+- Local API e2e tests use `notifier_e2e` with the same object privileges as the mode roles.
+  `make up` applies `002_e2e_role.sql` to existing PostgreSQL volumes as well.
 - Queries for due notifications filter `stop_dt IS NULL AND next_scheduled_dt <= now()`:
   the partial index `ix_notification_next_scheduled_dt` is used only with both conditions.
 

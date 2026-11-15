@@ -5,6 +5,7 @@ gen:
 
 up:
 	docker compose up --build --wait
+	docker compose exec -T postgres psql -q -U postgres -d notifier -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/002_e2e_role.sql
 
 down:
 	docker compose down

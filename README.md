@@ -257,7 +257,9 @@ make down      # остановить стенд, сохранив данные
 
 Для тестов нужен Go 1.27. `go test ./...` запускает тесты доменной логики, HTTP-обработчиков и middleware. Для расчёта покрытия используй [команду из PR-скилла](ai/skills/pr-description/SKILL.md#test-coverage).
 
-Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./notifier/internal/storage/postgres`. Сквозные сценарии Playwright запланированы.
+Для интеграционных тестов PostgreSQL запусти Docker и выполни `go test -tags=integration -count=1 ./notifier/internal/storage/postgres`.
+
+Сквозные API-тесты на pytest запускаются на текущем Docker Compose. См. [правила запуска](ai/rules/tests.mdc).
 
 ## Структура репозитория
 
@@ -291,7 +293,7 @@ make down      # остановить стенд, сохранив данные
 │   ├── logging/                       # Контекст логирования и маскирование
 │   └── problem/                       # Ответы Problem Details
 ├── ai/                                # Правила, скиллы и гварды для Claude Code и Codex
-├── tests/e2e/                         # Заготовки сценариев и фикстур Playwright
+├── tests/e2e/                         # Сквозные API-тесты на pytest
 ├── build/                             # Dockerfile и общие настройки Redocly и ogen
 ├── scripts/                           # Скрипты генерации, схемы БД и настройки ИИ
 ├── docs/                              # Схемы и ADR
