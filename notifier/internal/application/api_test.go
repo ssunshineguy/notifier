@@ -15,9 +15,9 @@ import (
 
 func TestRunAPIRejectsInvalidDSN(t *testing.T) {
 	cfg := apiTestConfig()
-	cfg.Database.APIDSN = "postgres://localhost:invalid/notifier"
+	cfg.Database.DSN = "postgres://localhost:invalid/notifier"
 	err := application.RunAPI(t.Context(), cfg)
-	if err == nil || err.Error() != "invalid API database configuration" {
+	if err == nil || err.Error() != "configure api database: invalid database connection string" {
 		t.Fatalf("RunAPI = %v, want invalid database configuration", err)
 	}
 }
@@ -57,7 +57,7 @@ func apiTestConfig() config.Config {
 			ListenAddr: "127.0.0.1:0", MaxInFlight: 1, RequestTimeoutMS: 1000,
 		},
 		Database: config.Database{
-			APIDSN: "postgres://127.0.0.1:5432/notifier?sslmode=disable", MaxConns: 1,
+			DSN: "postgres://127.0.0.1:5432/notifier?sslmode=disable", MaxConns: 1,
 			OperationTimeoutSec: 1,
 		},
 		Notification: config.Notification{ScheduledTimeSec: 1},

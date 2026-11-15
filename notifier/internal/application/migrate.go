@@ -4,8 +4,10 @@ package application
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	// Registers the "pgx" driver for database/sql.
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -17,9 +19,12 @@ import (
 
 // Migrate applies all pending migrations.
 func Migrate(ctx context.Context, cfg config.Config) error {
-	db, err := sql.Open("pgx", cfg.Database.MigratorDSN)
+	if strings.TrimSpace(cfg.Database.DSN) == "" {
+		return errors.New("migrate database DSN is required")
+	}
+	db, err := sql.Open("pgx", cfg.Database.DSN)
 	if err != nil {
-		return fmt.Errorf("open database: %w", err)
+		return errors.New("invalid migrate database connection string")
 	}
 	defer func() {
 		if err := db.Close(); err != nil {

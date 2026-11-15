@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	notifier [-config path] [-listen-addr address] <mode>
+//	notifier [-config path] [-database-dsn-file path] [-listen-addr address] <mode>
 //
 // Modes: api, worker, collector, migrate.
 package main
@@ -40,18 +40,24 @@ func runWithLogging() error {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
 	err := run()
 	if err != nil {
-		slog.Error("notifier failed", "error_type", fmt.Sprintf("%T", err))
+		var databaseError *config.DatabaseConfigError
+		if errors.As(err, &databaseError) {
+			slog.Error("notifier failed", "error", databaseError.Error())
+		} else {
+			slog.Error("notifier failed", "error_type", fmt.Sprintf("%T", err))
+		}
 	}
 	return err
 }
 
 func run() error {
 	configPath := flag.String("config", "notifier/configs/config.yaml", "path to the config file")
+	dsnPath := flag.String("database-dsn-file", "", "path to the selected mode's DSN file (default: <mode>.dsn alongside config)")
 	listenAddr := flag.String("listen-addr", "", "override the API listen address")
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
 		// Nothing to recover from if usage cannot be printed.
-		_, _ = fmt.Fprintln(out, "Usage: notifier [-config path] [-listen-addr address] <api|worker|collector|migrate>")
+		_, _ = fmt.Fprintln(out, "Usage: notifier [-config path] [-database-dsn-file path] [-listen-addr address] <api|worker|collector|migrate>")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -65,7 +71,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := config.Load(*configPath, mode, *dsnPath)
 	if err != nil {
 		return err
 	}

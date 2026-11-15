@@ -11,16 +11,12 @@ import (
 )
 
 const validYAML = `database:
-  migrator_dsn: postgres://migrator@localhost/notifier
-  api_dsn: postgres://api@localhost/notifier
-  worker_dsn: postgres://worker@localhost/notifier
-  collector_dsn: postgres://collector@localhost/notifier
 notification:
   scheduled_time_sec: 10
 `
 
 func TestLoadDefaults(t *testing.T) {
-	got, err := config.Load(writeConfig(t, validYAML))
+	got, err := config.Load(writeConfig(t, validYAML), "api", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,10 +29,7 @@ func TestLoadDefaults(t *testing.T) {
 		InfoService: config.InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database: config.Database{
 			MaxConns: 8, OperationTimeoutSec: 1,
-			MigratorDSN:  "postgres://migrator@localhost/notifier",
-			APIDSN:       "postgres://api@localhost/notifier",
-			WorkerDSN:    "postgres://worker@localhost/notifier",
-			CollectorDSN: "postgres://collector@localhost/notifier",
+			DSN: "postgres://api@localhost/notifier",
 		},
 		Notification: config.Notification{InitialCheckDelaySec: 0, ScheduledTimeSec: 10, LockDurationMS: 2000},
 	}
@@ -63,7 +56,7 @@ infoservice:
   time_timeout_ms: 150
   price_timeout_ms: 350
 `
-	got, err := config.Load(writeConfig(t, yaml))
+	got, err := config.Load(writeConfig(t, yaml), "api", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +90,6 @@ func TestLoadRejectsInvalidSettings(t *testing.T) {
 	}{
 		{"unknown field", "scheduled_time_sec:", "scheduled_time_seconds:", "field scheduled_time_seconds not found"},
 		{"malformed YAML", "scheduled_time_sec: 10", "scheduled_time_sec: [", "parse config"},
-		{"missing API DSN", "api_dsn: postgres://api@localhost/notifier", "api_dsn: ''", "database.api_dsn is required"},
 		{"empty listen address", "notification:\n", "api:\n  listen_addr: ''\nnotification:\n", "api.listen_addr is required"},
 		{"invalid scheduling interval", "scheduled_time_sec: 10", "scheduled_time_sec: 0", "notification.scheduled_time_sec must be positive"},
 		{"zero pool limit", "database:\n", "database:\n  max_conns: 0\n", "database.max_conns must be positive"},
@@ -123,7 +115,7 @@ func TestLoadRejectsInvalidSettings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			yaml := strings.Replace(validYAML, tt.old, tt.new, 1)
-			_, err := config.Load(writeConfig(t, yaml))
+			_, err := config.Load(writeConfig(t, yaml), "api", "")
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("Load = %v, want error containing %q", err, tt.want)
 			}
@@ -132,7 +124,7 @@ func TestLoadRejectsInvalidSettings(t *testing.T) {
 }
 
 func TestLoadMissingFile(t *testing.T) {
-	_, err := config.Load(filepath.Join(t.TempDir(), "missing.yaml"))
+	_, err := config.Load(filepath.Join(t.TempDir(), "missing.yaml"), "api", "")
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Load = %v, want os.ErrNotExist", err)
 	}
@@ -142,6 +134,9 @@ func writeConfig(t *testing.T, yaml string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "api.dsn"), []byte("postgres://api@localhost/notifier"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return path

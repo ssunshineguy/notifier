@@ -57,8 +57,8 @@ func TestRunWithLoggingRedactsStartupError(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if err := runWithLogging(); err == nil || !strings.Contains(err.Error(), marker) {
-		t.Fatal("expected the original startup error to contain the synthetic value")
+	if err := runWithLogging(); err == nil || strings.Contains(err.Error(), marker) {
+		t.Fatal("expected a safe startup error without the synthetic value")
 	}
 
 	data, err := os.ReadFile(logFile.Name())
@@ -66,14 +66,14 @@ func TestRunWithLoggingRedactsStartupError(t *testing.T) {
 		t.Fatal(err)
 	}
 	var event struct {
-		Message   string `json:"msg"`
-		Level     string `json:"level"`
-		ErrorType string `json:"error_type"`
+		Message string `json:"msg"`
+		Level   string `json:"level"`
+		Error   string `json:"error"`
 	}
 	if err := json.Unmarshal(data, &event); err != nil {
 		t.Fatal(err)
 	}
-	if event.Message != "notifier failed" || event.Level != "ERROR" || event.ErrorType == "" || bytes.Contains(data, []byte(marker)) {
+	if event.Message != "notifier failed" || event.Level != "ERROR" || event.Error == "" || bytes.Contains(data, []byte(marker)) {
 		t.Fatal("expected a structured startup error without the synthetic value")
 	}
 }
@@ -118,10 +118,6 @@ func writeCLIConfig(t *testing.T, migratorDSN string) string {
   listen_addr: 127.0.0.1:8080:fixture
 database:
   min_conns: 0
-  migrator_dsn: ` + migratorDSN + `
-  api_dsn: postgres://127.0.0.1/notifier
-  worker_dsn: postgres://127.0.0.1/notifier
-  collector_dsn: postgres://127.0.0.1/notifier
 notification:
   scheduled_time_sec: 1
 `
@@ -129,5 +125,60 @@ notification:
 	if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	for _, mode := range []string{"api", "worker", "collector", "migrate"} {
+		dsn := cliTestMigratorDSN
+		if mode == "migrate" {
+			dsn = migratorDSN
+		}
+		if err := os.WriteFile(filepath.Join(filepath.Dir(path), mode+".dsn"), []byte(dsn), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return path
+}
+
+func TestRunUsesExplicitDSNFile(t *testing.T) {
+	configPath := writeCLIConfig(t, cliTestMigratorDSN)
+	if err := os.Remove(filepath.Join(filepath.Dir(configPath), "collector.dsn")); err != nil {
+		t.Fatal(err)
+	}
+	selected := filepath.Join(filepath.Dir(configPath), "api.dsn")
+	setCommandLine(t, "-config", configPath, "-database-dsn-file", selected, "collector")
+	if err := run(); err == nil || err.Error() != "mode \"collector\" is not implemented yet" {
+		t.Fatalf("run = %v, want unimplemented collector after successful config loading", err)
+	}
+}
+
+func TestRunWithLoggingExplainsMissingSelectedDSN(t *testing.T) {
+	for _, mode := range []string{"api", "worker", "collector", "migrate"} {
+		t.Run(mode, func(t *testing.T) {
+			configPath := writeCLIConfig(t, cliTestMigratorDSN)
+			if err := os.Remove(filepath.Join(filepath.Dir(configPath), mode+".dsn")); err != nil {
+				t.Fatal(err)
+			}
+			setCommandLine(t, "-config", configPath, mode)
+			logFile, err := os.CreateTemp(t.TempDir(), "stderr")
+			if err != nil {
+				t.Fatal(err)
+			}
+			previousStderr := os.Stderr
+			os.Stderr = logFile
+			t.Cleanup(func() {
+				os.Stderr = previousStderr
+				if err := logFile.Close(); err != nil {
+					t.Error(err)
+				}
+			})
+			if err := runWithLogging(); err == nil {
+				t.Fatal("missing selected DSN did not prevent startup")
+			}
+			data, err := os.ReadFile(logFile.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(data, []byte(mode+" database")) || !bytes.Contains(data, []byte("-database-dsn-file")) {
+				t.Fatalf("missing DSN log does not explain how to configure the selected mode: %s", data)
+			}
+		})
+	}
 }
