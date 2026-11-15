@@ -26,6 +26,7 @@ func TestLoadDefaults(t *testing.T) {
 			SlotWaitTimeoutMS: 100, RequestTimeoutMS: 300, WriteTimeoutMS: 1000, IdleTimeoutMS: 60000,
 		},
 		Worker:      config.Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
+		Collector:   config.Collector{BatchSize: 1000, RetentionDays: 365},
 		InfoService: config.InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database: config.Database{
 			MaxConns: 8, OperationTimeoutSec: 1,

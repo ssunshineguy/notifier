@@ -93,6 +93,21 @@ services:
       timeout: 4s
       retries: 10
 
+  collector:
+    image: "${COMPOSE_PROJECT_NAME}-notifier:local"
+    pull_policy: never
+    profiles: ["maintenance"]
+    command: ["-database-dsn-file", "/run/secrets/database_dsn", "collector"]
+    secrets:
+      - source: collector_dsn
+        target: database_dsn
+    stop_grace_period: 10s
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+
   emulator:
     build:
       context: .
@@ -123,3 +138,5 @@ secrets:
     file: ./notifier/configs/api.dsn
   worker_dsn:
     file: ./notifier/configs/worker.dsn
+  collector_dsn:
+    file: ./notifier/configs/collector.dsn

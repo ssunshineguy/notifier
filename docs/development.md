@@ -61,6 +61,20 @@ See [verify-local-api](../ai/skills/verify-local-api/SKILL.md) for in-container 
 local database. `make reset` deletes that project's data volume: it is an explicit
 reset operation, not a prerequisite or a routine cleanup command.
 
+## Run Collector
+
+After `make up`, use the same `COMPOSE_PROJECT_NAME` and run from the checkout root:
+
+```bash
+docker compose run --rm --no-deps -T collector
+```
+
+This permanently deletes ordinary stopped notifications older than the configured retention.
+Active notifications and DLQ are retained. See [configuration](configuration.md) for the
+retention and batch settings. The stack must be running with its migrations applied and
+Notifier image built; `--no-deps` does not start them. Collector runs once and exits. Its
+`maintenance` profile excludes it from normal stack startup. Run only one instance at a time.
+
 ## Checks and suites
 
 | Command | What it verifies | Required services / side effects |

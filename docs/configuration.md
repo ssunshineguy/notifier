@@ -17,7 +17,7 @@ copying numeric defaults into another document.
 
 | Parameter | Purpose | Unit | Mode | Constraints | When applied | Value source / implementation |
 | --- | --- | --- | --- | --- | --- | --- |
-| Positional mode | Select the process lifecycle | Name | All Notifier modes | Exactly one of `api`, `worker`, `collector`, `migrate`; Collector execution is pending task 05 | Startup | [Notifier CLI](../notifier/cmd/notifier/main.go) |
+| Positional mode | Select the process lifecycle | Name | All Notifier modes | Exactly one of `api`, `worker`, `collector`, `migrate` | Startup | [Notifier CLI](../notifier/cmd/notifier/main.go) |
 | `-config` | Select the shared YAML file | Path | All Notifier modes | Readable YAML with known keys; flags precede the mode | Startup | [Notifier CLI](../notifier/cmd/notifier/main.go), [loader](../notifier/internal/config/config.go) |
 | `-database-dsn-file` / `<mode>.dsn` | Select database credentials for this mode only | Path / connection string | All Notifier modes | Nonempty, parseable pgx DSN; default file is beside the selected YAML; another mode's file is not a fallback | Startup | [Loader](../notifier/internal/config/config.go); [Compose secret mounts](../docker-compose.yaml) |
 | `-listen-addr` | Override `api.listen_addr` | Host:port | API | Nonempty override; socket must be bindable; ignored by other Notifier modes | Startup, after YAML validation | [Notifier CLI](../notifier/cmd/notifier/main.go) |
@@ -34,15 +34,17 @@ copying numeric defaults into another document.
 | `worker.workers` | Set the number of independent polling loops | Loops | Worker | Positive integer | Startup | [YAML](../notifier/configs/config.yaml), [worker loop](../notifier/internal/worker/worker.go) |
 | `worker.batch_size` | Limit outstanding handlers per polling loop | Notifications per loop | Worker | Positive integer; maximum outstanding handlers is `workers × batch_size`; claims use free slots | Startup | [YAML](../notifier/configs/config.yaml), [worker loop](../notifier/internal/worker/worker.go) |
 | `worker.cycle_timeout_ms` | Bound one claim-and-processing cycle | Milliseconds | Worker | Positive int32; shared parent deadline for that cycle's handlers; must not exceed the lease | Startup | [YAML](../notifier/configs/config.yaml), [worker loop](../notifier/internal/worker/worker.go) |
+| `collector.batch_size` | Limit rows removed in one cleanup transaction | Rows | Collector | Positive whole integer | Startup; each batch in this invocation | [YAML](../notifier/configs/config.yaml), [loader](../notifier/internal/config/config.go), [cleanup query](../notifier/internal/storage/postgres/notification_collection.go) |
+| `collector.retention_days` | Retain ordinary stopped notifications for the configured period | Whole 24-hour days | Collector | Integer from 1 through 106751; measured from `stop_dt`; only rows strictly older than the cutoff are eligible; DLQ is retained indefinitely | Startup; cutoff is fixed once for the invocation | [YAML](../notifier/configs/config.yaml), [loader](../notifier/internal/config/config.go), [Collector wiring](../notifier/internal/application/collector.go), [cleanup query](../notifier/internal/storage/postgres/notification_collection.go) |
 | `notification.lock_duration_ms` | Reserve claimed rows until the persisted lease expires | Milliseconds | Worker | Positive int32 and at least `worker.cycle_timeout_ms`; expired or replaced claims cannot save results | Startup; each new claim stores its lease | [YAML](../notifier/configs/config.yaml), [claim query](../notifier/internal/storage/postgres/notification_claim.go), [result write](../notifier/internal/storage/postgres/notification_result.go) |
 | `notification.initial_check_delay_sec` | Schedule the first check after notification creation | Whole seconds | API | Integer from zero through `MaxInt64 / time.Second`; no fractional values; hours are allowed; first date is not clamped to deadline | Startup; only notifications subsequently created | [YAML](../notifier/configs/config.yaml), [loader](../notifier/internal/config/config.go), [creation](../notifier/internal/core/notification.go) |
 | `notification.scheduled_time_sec` | Schedule another condition check while the notification is active | Seconds | Worker | Positive integer; next recheck is capped at the notification deadline | Startup; each subsequently saved recheck | [YAML](../notifier/configs/config.yaml), [processor](../notifier/internal/worker/notification_processor.go) |
 | Technical retry policy | Retry processing failures before a callback | Policy / stored scheduling time | Worker | No independent setting in this baseline: load/target failures leave the claim to expire; an indeterminate Information Service check uses the ordinary recheck path; callback attempt count is unchanged | Each processing attempt; task 04 must replace this row with its implemented settings | [Processor](../notifier/internal/worker/notification_processor.go), [condition processor](../notifier/internal/worker/condition_processor.go) |
 | Callback retry/backoff policy | Schedule failed deliveries and stop after the attempt budget | Failed attempts / duration | Worker | Code-defined schedule; distinct from first check and condition recheck; exhausted attempts produce `delivery_failed`, not DLQ | After each attempted callback; stored retry dates are not recalculated automatically | [AfterDelivery](../notifier/internal/core/notification_delivery.go) |
-| Worker shutdown budget | Bound drain, probe shutdown and pool closure after stop/failure | Duration | Worker | Fixed overall 10-second budget; no YAML key; new claims stop on cancellation | Each shutdown | [Worker lifecycle](../notifier/internal/application/worker.go); Compose stop grace is in [Compose](../docker-compose.yaml) |
-| `database.min_conns` | Set the pool minimum for this process | Connections | API, worker | int32 from zero through `database.max_conns` | Startup; separate pool per process | [YAML](../notifier/configs/config.yaml), [pool wiring](../notifier/internal/application/database.go) |
-| `database.max_conns` | Set the pool maximum for this process | Connections | API, worker | Positive int32; YAML values override pool options from the DSN | Startup; separate pool per process | [YAML](../notifier/configs/config.yaml), [pool wiring](../notifier/internal/application/database.go) |
-| `database.operation_timeout_sec` | Bound one runtime SQL operation, including pool acquisition | Seconds | API, worker | Positive int32; an earlier parent deadline wins; also supplies the worker's desired result-write reserve | Startup | [YAML](../notifier/configs/config.yaml), [store](../notifier/internal/storage/postgres/store.go), [worker wiring](../notifier/internal/application/worker.go) |
+| Background shutdown budget | Bound process exit and pool closure after stop/failure | Duration | Worker, Collector | Fixed 10-second exit deadline; no YAML key; worker stops claims and drains within existing cycle deadlines; Collector cancels its current operation | Each shutdown | [CLI watchdog](../notifier/cmd/notifier/main.go), [worker lifecycle](../notifier/internal/application/worker.go), [Collector lifecycle](../notifier/internal/application/collector.go); Compose stop grace is in [Compose](../docker-compose.yaml) |
+| `database.min_conns` | Set the pool minimum for this process | Connections | API, worker, Collector | int32 from zero through `database.max_conns` | Startup; separate pool per process | [YAML](../notifier/configs/config.yaml), [pool wiring](../notifier/internal/application/database.go) |
+| `database.max_conns` | Set the pool maximum for this process | Connections | API, worker, Collector | Positive int32; YAML values override pool options from the DSN | Startup; separate pool per process | [YAML](../notifier/configs/config.yaml), [pool wiring](../notifier/internal/application/database.go) |
+| `database.operation_timeout_sec` | Bound one runtime SQL operation, including pool acquisition | Seconds | API, worker, Collector | Positive int32; an earlier parent deadline wins; also supplies the worker's desired result-write reserve | Startup | [YAML](../notifier/configs/config.yaml), [store](../notifier/internal/storage/postgres/store.go), [worker wiring](../notifier/internal/application/worker.go), [Collector wiring](../notifier/internal/application/collector.go) |
 | `infoservice.base_url` | Select the source of time and price data | Absolute URL | Worker | HTTP or HTTPS with a host; redirects are not followed | Startup | [YAML](../notifier/configs/config.yaml), [loader](../notifier/internal/config/config.go), [IS client](../notifier/internal/interactions/infoservice/client.go) |
 | `infoservice.time_timeout_ms` | Bound each time request | Milliseconds | Worker | Positive int32; cycle deadline can expire earlier | Startup; each outbound time call | [YAML](../notifier/configs/config.yaml), [IS client](../notifier/internal/interactions/infoservice/client.go) |
 | `infoservice.price_timeout_ms` | Bound each price request | Milliseconds | Worker | Positive int32; cycle deadline can expire earlier | Startup; each outbound price call | [YAML](../notifier/configs/config.yaml), [IS client](../notifier/internal/interactions/infoservice/client.go) |
@@ -83,10 +85,10 @@ mode's credentials. Compose mounts only the required file into each service, and
 excludes DSN files. The local role definitions are in `notifier/db/init`; this document does
 not reproduce credentials.
 
-Runtime pool and SQL timeout fields currently apply to API and worker. The `migrate` mode
-uses its own selected DSN through `database/sql` and goose; the runtime pgx pool settings and
-store operation timeout do not configure goose. Collector's runtime application is pending
-task 05.
+Runtime pool and SQL timeout fields apply to API, worker and Collector. Each Collector
+invocation opens its own pool with its selected Collector DSN. The `migrate` mode uses its own selected
+DSN through `database/sql` and goose; the runtime pgx pool settings and store operation timeout
+do not configure goose.
 
 The current local migration baseline creates the final notification schema directly in
 [002__t_notification.sql](../notifier/db/migrations/002__t_notification.sql). Existing volumes
@@ -95,12 +97,10 @@ those files. Use a new isolated Compose project for a fresh local baseline; do n
 permission to reset an existing volume. Follow the [migration rules](../ai/rules/migrations.mdc)
 for changes to an already-applied environment.
 
-## Pending task 04/05 reconciliation
+## Pending task 04 reconciliation
 
-This reference describes the checked-out baseline before the DLQ/technical-retry and Collector
-implementations. It is not a completed reference for those tasks. After their code is available:
+The technical-retry row still requires reconciliation with task 04's implementation:
 
-- Replace the technical-retry row with the actual independent settings, validation and application time.
-- Add Collector settings, its mode-specific pool/SQL usage and the agreed treatment of DLQ retention.
-- Verify the final configuration and migrations against the new runtime; do not infer parameter names,
-  retention values or DLQ fields from the plan alone.
+- Replace it with the actual independent settings, validation and application time.
+- Verify the configuration against that runtime; do not infer parameter names or DLQ fields
+  from the plan alone.

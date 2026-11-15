@@ -22,7 +22,7 @@ import (
 	"github.com/ssunshineguy/notifier/notifier/internal/config"
 )
 
-const workerShutdownTimeout = 10 * time.Second
+const backgroundShutdownTimeout = 10 * time.Second
 
 func main() {
 	if err := runWithLogging(); err != nil {
@@ -73,13 +73,13 @@ func run() error {
 
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
-	var stopWorker context.CancelFunc
-	if mode == "worker" {
-		ctx, stopWorker = context.WithCancel(ctx)
-		defer stopWorker()
+	var requestStop context.CancelFunc
+	if mode == "worker" || mode == "collector" {
+		ctx, requestStop = context.WithCancel(ctx)
+		defer requestStop()
 		// The process can be stuck in cleanup even after every work deadline has expired.
 		disarm := context.AfterFunc(ctx, func() {
-			time.Sleep(workerShutdownTimeout)
+			time.Sleep(backgroundShutdownTimeout)
 			os.Exit(1)
 		})
 		defer disarm()
@@ -99,9 +99,9 @@ func run() error {
 		}
 		return application.RunAPI(ctx, cfg)
 	case "worker":
-		return application.RunWorker(ctx, cfg, stopWorker)
+		return application.RunWorker(ctx, cfg, requestStop)
 	case "collector":
-		return fmt.Errorf("mode %q is not implemented yet", mode)
+		return application.RunCollector(ctx, cfg, requestStop)
 	default:
 		return fmt.Errorf("unknown mode %q", mode)
 	}
