@@ -9,33 +9,33 @@ import (
 	"github.com/google/uuid"
 )
 
-// AlreadyExistsHeaders wraps NotificationCreated with response headers.
-type AlreadyExistsHeaders struct {
+// AlreadyExistsApplicationJSONHeaders wraps NotificationCreated with response headers.
+type AlreadyExistsApplicationJSONHeaders struct {
 	XRequestID OptString
 	Response   NotificationCreated
 }
 
 // GetXRequestID returns the value of XRequestID.
-func (s *AlreadyExistsHeaders) GetXRequestID() OptString {
+func (s *AlreadyExistsApplicationJSONHeaders) GetXRequestID() OptString {
 	return s.XRequestID
 }
 
 // GetResponse returns the value of Response.
-func (s *AlreadyExistsHeaders) GetResponse() NotificationCreated {
+func (s *AlreadyExistsApplicationJSONHeaders) GetResponse() NotificationCreated {
 	return s.Response
 }
 
 // SetXRequestID sets the value of XRequestID.
-func (s *AlreadyExistsHeaders) SetXRequestID(val OptString) {
+func (s *AlreadyExistsApplicationJSONHeaders) SetXRequestID(val OptString) {
 	s.XRequestID = val
 }
 
 // SetResponse sets the value of Response.
-func (s *AlreadyExistsHeaders) SetResponse(val NotificationCreated) {
+func (s *AlreadyExistsApplicationJSONHeaders) SetResponse(val NotificationCreated) {
 	s.Response = val
 }
 
-func (*AlreadyExistsHeaders) createNotificationRes() {}
+func (*AlreadyExistsApplicationJSONHeaders) createNotificationRes() {}
 
 // Met when all nested conditions are met.
 // Ref: #/components/schemas/AndCondition
@@ -1186,6 +1186,34 @@ func (s *Problem) SetRequestID(val OptString) {
 func (s *Problem) SetErrors(val []FieldError) {
 	s.Errors = val
 }
+
+// ProblemHeaders wraps Problem with response headers.
+type ProblemHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *ProblemHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *ProblemHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *ProblemHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ProblemHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*ProblemHeaders) createNotificationRes() {}
 
 // RequestTimeoutHeaders wraps Problem with response headers.
 type RequestTimeoutHeaders struct {

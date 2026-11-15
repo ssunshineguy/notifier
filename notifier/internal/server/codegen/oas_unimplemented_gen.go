@@ -31,6 +31,11 @@ var _ Handler = UnimplementedHandler{}
 //
 // An `external_id` stays taken while the notification is stored, including after it is stopped.
 //
+// If a conflicting notification is concurrently deleted before its identifier can be read, creation
+// returns `409` with an `application/problem+json` body of type
+// `/problems/notification-duplicate-disappeared`. The server does not retry the INSERT or create a
+// replacement. The client may retry creation if it is still relevant.
+//
 // POST /v1/notifications
 func (UnimplementedHandler) CreateNotification(ctx context.Context, req *NotificationCreate, params CreateNotificationParams) (r CreateNotificationRes, _ error) {
 	return r, ht.ErrNotImplemented

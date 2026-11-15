@@ -81,6 +81,18 @@ func (h *Handler) CreateNotification(ctx context.Context, req *codegen.Notificat
 		if errors.As(err, &existsErr) {
 			return alreadyExistsResponse(requestID, existsErr.ID), nil
 		}
+		if errors.Is(err, core.ErrNotificationDuplicateDisappeared) {
+			return &codegen.ProblemHeaders{
+				XRequestID: requestID,
+				Response: codegen.Problem{
+					Type:      "/problems/notification-duplicate-disappeared",
+					Title:     "Duplicate notification was concurrently deleted",
+					Status:    http.StatusConflict,
+					Detail:    codegen.NewOptString("The conflicting notification was deleted before its identifier could be read. Retry creation if it is still relevant."),
+					RequestID: requestID,
+				},
+			}, nil
+		}
 		return internalErrorResponse(requestID), nil
 	}
 	return &codegen.NotificationCreatedHeaders{
@@ -89,8 +101,8 @@ func (h *Handler) CreateNotification(ctx context.Context, req *codegen.Notificat
 	}, nil
 }
 
-func alreadyExistsResponse(requestID codegen.OptString, id uuid.UUID) *codegen.AlreadyExistsHeaders {
-	return &codegen.AlreadyExistsHeaders{
+func alreadyExistsResponse(requestID codegen.OptString, id uuid.UUID) *codegen.AlreadyExistsApplicationJSONHeaders {
+	return &codegen.AlreadyExistsApplicationJSONHeaders{
 		XRequestID: requestID,
 		Response:   codegen.NotificationCreated{NotificationID: codegen.NotificationId(id)},
 	}

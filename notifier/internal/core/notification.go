@@ -45,6 +45,9 @@ var ErrNotificationStopped = errors.New("notification stopped")
 // ErrNotificationReserved means a worker has an unexpired reservation for the notification.
 var ErrNotificationReserved = errors.New("notification reserved")
 
+// ErrNotificationDuplicateDisappeared means a conflicting notification was deleted before its ID could be read.
+var ErrNotificationDuplicateDisappeared = errors.New("notification duplicate disappeared")
+
 // AlreadyExistsError reports that the client already has a notification with the same external ID.
 type AlreadyExistsError struct {
 	ID uuid.UUID

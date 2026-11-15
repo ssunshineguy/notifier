@@ -46,6 +46,11 @@ func recordError(string, error) {}
 //
 // An `external_id` stays taken while the notification is stored, including after it is stopped.
 //
+// If a conflicting notification is concurrently deleted before its identifier can be read, creation
+// returns `409` with an `application/problem+json` body of type
+// `/problems/notification-duplicate-disappeared`. The server does not retry the INSERT or create a
+// replacement. The client may retry creation if it is still relevant.
+//
 // POST /v1/notifications
 func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
