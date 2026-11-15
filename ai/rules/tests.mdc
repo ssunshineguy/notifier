@@ -58,8 +58,14 @@ implemented; their planned behavior is not evidence of current correctness.
   root. Keep the Compose address lookup, local `notifier_e2e` DSN and timeouts in
   `tests/e2e/notifier_e2e/config.py`. Start the stack and run pytest with the same
   `COMPOSE_PROJECT_NAME` override when one is set.
-  Use a 0.5-second HTTP connect/read timeout and PostgreSQL statement timeout.
-  The psycopg connection timeout has a two-second minimum.
+  Use a two-second HTTP connect/read timeout: 300 ms API processing, one second for
+  response writing, and 700 ms technical margin. Keep the PostgreSQL statement timeout at
+  0.5 seconds. Asynchronous business scenarios and bounded mutation retries have their own
+  overall deadlines; neither uses the 300 ms API processing budget. The psycopg connection
+  timeout has a two-second minimum.
+- The TCP saturation scenario uses `NOTIFIER_E2E_MAX_CONNECTIONS` when supplied, otherwise
+  the shipped connection cap of 1024. This variable describes the running API configuration;
+  it does not change the server.
 - Keep connection setup and test record access in `db/`. Reuse `HttpClient` as the
   transport for the Notifier and emulator clients. Define repeated endpoint paths once
   in the corresponding client module.

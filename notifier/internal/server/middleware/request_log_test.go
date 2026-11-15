@@ -215,7 +215,7 @@ func TestLogAPIRequestsRecordsTimeoutAndOverload(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() })
-			assertLoggedStatus(t, middleware.RequestTimeout(time.Second, next), http.StatusServiceUnavailable)
+			assertLoggedStatus(t, middleware.RequestTimeout(time.Second, time.Second, next), http.StatusServiceUnavailable)
 		})
 	})
 	t.Run("overload", func(t *testing.T) {
@@ -274,7 +274,7 @@ func TestLogAPIRequestsCountsStartLogInTimeout(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var sink slowStartLog
 		logger := slog.New(slog.NewJSONHandler(&sink, &slog.HandlerOptions{Level: slog.LevelDebug}))
-		handler := middleware.LogAPIRequests(logger, middleware.RequestTimeout(time.Second,
+		handler := middleware.LogAPIRequests(logger, middleware.RequestTimeout(time.Second, time.Second,
 			http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				deadline, ok := r.Context().Deadline()
 				if !ok || time.Until(deadline) != 250*time.Millisecond {
@@ -307,7 +307,7 @@ func TestRequestDiagnosticsKeepRequestID(t *testing.T) {
 		{
 			name:  "deadline and response write",
 			level: slog.LevelDebug,
-			next: middleware.RequestTimeout(time.Second, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			next: middleware.RequestTimeout(time.Second, time.Second, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = io.WriteString(w, "response")
 			})),
 			want: []string{"set request body read deadline", "write HTTP response"},

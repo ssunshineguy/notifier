@@ -50,7 +50,7 @@ func TestRequestTimeoutIncludesQueue(t *testing.T) {
 				go limited.ServeHTTP(httptest.NewRecorder(), held)
 				synctest.Wait()
 
-				handler := middleware.RequestTimeout(timeout, limited)
+				handler := middleware.RequestTimeout(timeout, time.Second, limited)
 				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/notifications", nil)
 				req.Header.Set("X-Request-ID", "test-request")
 				resp := httptest.NewRecorder()
@@ -91,7 +91,7 @@ func TestRequestTimeoutIncludesQueue(t *testing.T) {
 }
 
 func TestRequestTimeoutPreservesResponse(t *testing.T) {
-	handler := middleware.RequestTimeout(time.Second, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := middleware.RequestTimeout(time.Second, time.Second, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Request-ID", "normal-request")
 		w.WriteHeader(http.StatusCreated)
 		if _, err := w.Write([]byte("created")); err != nil {

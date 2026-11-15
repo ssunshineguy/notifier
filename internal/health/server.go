@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"golang.org/x/net/netutil"
 )
 
-// Serve runs the service and loopback probes with a shared shutdown budget.
-func Serve(ctx context.Context, server *http.Server, probePort string, probes http.Handler) error {
+// Serve limits public connections when maxConnections is positive; probes keep a separate listener.
+func Serve(ctx context.Context, server *http.Server, probePort string, probes http.Handler, maxConnections int) error {
 	if ctx.Err() != nil {
 		return nil
 	}
@@ -19,6 +21,9 @@ func Serve(ctx context.Context, server *http.Server, probePort string, probes ht
 	listener, err := config.Listen(ctx, "tcp", server.Addr)
 	if err != nil {
 		return err
+	}
+	if maxConnections > 0 {
+		listener = netutil.LimitListener(listener, maxConnections)
 	}
 	probeAddr := net.JoinHostPort("127.0.0.1", probePort)
 	probeListener, err := config.Listen(ctx, "tcp", probeAddr)

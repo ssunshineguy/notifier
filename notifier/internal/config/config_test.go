@@ -22,8 +22,8 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	want := config.Config{
 		API: config.API{
-			ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxQueued: 16,
-			SlotWaitTimeoutMS: 100, RequestTimeoutMS: 2000,
+			ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxConnections: 1024, MaxQueued: 16,
+			SlotWaitTimeoutMS: 100, RequestTimeoutMS: 300, WriteTimeoutMS: 1000, IdleTimeoutMS: 60000,
 		},
 		Worker:      config.Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
 		InfoService: config.InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
@@ -60,7 +60,7 @@ infoservice:
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantAPI := config.API{ListenAddr: "0.0.0.0:8081", MaxInFlight: 4, RequestTimeoutMS: 750}
+	wantAPI := config.API{ListenAddr: "0.0.0.0:8081", MaxInFlight: 4, MaxConnections: 1024, RequestTimeoutMS: 750, WriteTimeoutMS: 1000, IdleTimeoutMS: 60000}
 	if got.API != wantAPI {
 		t.Errorf("API = %+v, want %+v", got.API, wantAPI)
 	}

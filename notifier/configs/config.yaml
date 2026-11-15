@@ -2,9 +2,12 @@
 api:
   listen_addr: 127.0.0.1:8080
   max_in_flight: 16
+  max_connections: 1024
   max_queued: 16
   slot_wait_timeout_ms: 100
-  request_timeout_ms: 2000
+  request_timeout_ms: 300
+  write_timeout_ms: 1000
+  idle_timeout_ms: 60000
 
 worker:
   workers: 2

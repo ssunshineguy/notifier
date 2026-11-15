@@ -24,13 +24,16 @@ type Config struct {
 	Notification Notification `yaml:"notification"`
 }
 
-// API configures the HTTP listener and its request concurrency limit.
+// API configures HTTP connection budgets and request admission.
 type API struct {
 	ListenAddr        string `yaml:"listen_addr"`
 	MaxInFlight       int    `yaml:"max_in_flight"`
+	MaxConnections    int    `yaml:"max_connections"`
 	MaxQueued         int    `yaml:"max_queued"`
 	SlotWaitTimeoutMS int32  `yaml:"slot_wait_timeout_ms"`
 	RequestTimeoutMS  int32  `yaml:"request_timeout_ms"`
+	WriteTimeoutMS    int32  `yaml:"write_timeout_ms"`
+	IdleTimeoutMS     int32  `yaml:"idle_timeout_ms"`
 }
 
 // Worker sets polling and processing limits.
@@ -95,7 +98,7 @@ func Load(path, mode, dsnPath string) (Config, error) {
 	decoder.KnownFields(true)
 
 	cfg := Config{
-		API:          API{ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxQueued: 16, SlotWaitTimeoutMS: 100, RequestTimeoutMS: 2000},
+		API:          API{ListenAddr: "127.0.0.1:8080", MaxInFlight: 16, MaxConnections: 1024, MaxQueued: 16, SlotWaitTimeoutMS: 100, RequestTimeoutMS: 300, WriteTimeoutMS: 1000, IdleTimeoutMS: 60000},
 		Worker:       Worker{Workers: 2, BatchSize: 8, CycleTimeoutMS: 2000},
 		InfoService:  InfoService{BaseURL: "http://emulator:8081", TimeTimeoutMS: 200, PriceTimeoutMS: 200},
 		Database:     Database{MaxConns: 8, OperationTimeoutSec: 1},
@@ -131,7 +134,10 @@ func Load(path, mode, dsnPath string) (Config, error) {
 		{"database.max_conns", int(cfg.Database.MaxConns)},
 		{"database.operation_timeout_sec", int(cfg.Database.OperationTimeoutSec)},
 		{"api.max_in_flight", cfg.API.MaxInFlight},
+		{"api.max_connections", cfg.API.MaxConnections},
 		{"api.request_timeout_ms", int(cfg.API.RequestTimeoutMS)},
+		{"api.write_timeout_ms", int(cfg.API.WriteTimeoutMS)},
+		{"api.idle_timeout_ms", int(cfg.API.IdleTimeoutMS)},
 		{"worker.workers", cfg.Worker.Workers},
 		{"worker.batch_size", cfg.Worker.BatchSize},
 		{"worker.cycle_timeout_ms", int(cfg.Worker.CycleTimeoutMS)},

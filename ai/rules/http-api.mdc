@@ -22,6 +22,21 @@ alwaysApply: false
 - Business operations obtain the client from the request context. In the prototype, ogen security resolves the caller-supplied `X-Client-ID` against PostgreSQL. In the target setup, the API Gateway authenticates the client and supplies this header. Missing or unknown IDs yield `401`. A database failure during lookup yields `500`.
 - Preserve `X-Request-ID` where specified. Map unexpected failures to a generic problem response. Keep SQL errors and other implementation details out of the response.
 - `RunAPI` wraps admission and the router with `RequestTimeout` so queue wait shares the request budget. Full queue or slot wait expiry returns `429`. Request deadline expiry returns `503`.
+- API defaults and the shipped config use `request_timeout_ms: 300`, `write_timeout_ms: 1000`,
+  and `idle_timeout_ms: 60000`. Processing includes admission, body decoding, security lookup,
+  and storage; nested operations inherit the request deadline. The write budget starts when
+  the buffered result or timeout Problem is ready and remains active through the final flush.
+  `http.Server.WriteTimeout` initially allows processing plus writing; it must not expire at
+  the processing deadline and prevent the contracted `503`. Keep-alive idle wait is separate.
+- Emulator writes have a one-second budget starting at the first response write, after the
+  configured callback delay. Its initial server write deadline covers the full int32 delay
+  range plus reading and writing; do not truncate supported artificial delays to the API budget.
+- `api.max_connections` defaults to 1024; see the [local load measurement](../../tests/load/connection-limits.md).
+  It caps accepted public TCP connections, including active and idle ones,
+  through `netutil.LimitListener`. Keep probes on their independent listener outside this cap.
+  When full, the listener waits before accepting another connection; it does not emit an HTTP
+  `429` or `503`. Waiting in the kernel accept queue precedes the API processing deadline.
+  Keep the connection cap independent of request admission and retain the idle timeout.
 - Serve `/health/live` and `/health/ready` only on the internal loopback listeners. Keep the probe ports unpublished in Compose.
 - Notifier API readiness executes `SELECT 1` under the configured database operation timeout. Its probe requests keep the HTTP request deadline and run outside admission. Emulator probes require only its HTTP server and initialized in-memory store.
 - Worker readiness executes `SELECT 1` through the worker's database pool under the configured database operation timeout. Worker liveness is independent of PostgreSQL.

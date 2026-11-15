@@ -14,7 +14,7 @@ import (
 )
 
 // RequestTimeout sets a shared deadline for admission and processing.
-func RequestTimeout(timeout time.Duration, next http.Handler) http.Handler {
+func RequestTimeout(timeout, writeTimeout time.Duration, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started, ok := r.Context().Value(requestStartedKey{}).(time.Time)
 		if !ok {
@@ -41,14 +41,16 @@ func RequestTimeout(timeout time.Duration, next http.Handler) http.Handler {
 			if panicValue != nil {
 				panic(panicValue)
 			}
-			if ctx.Err() == nil {
+			if ctx.Err() == nil && time.Now().Before(deadline) {
+				setResponseWriteDeadline(ctx, controller, writeTimeout)
 				response.send(ctx, w)
 				return
 			}
 		case <-ctx.Done():
 		}
 
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) || !time.Now().Before(deadline) {
+			setResponseWriteDeadline(ctx, controller, writeTimeout)
 			if r.ProtoMajor == 1 {
 				w.Header().Set("Connection", "close")
 			}
@@ -59,6 +61,13 @@ func RequestTimeout(timeout time.Duration, next http.Handler) http.Handler {
 			})
 		}
 	})
+}
+
+// DND: Start the write budget after processing and retain it for net/http's final flush.
+func setResponseWriteDeadline(ctx context.Context, controller *http.ResponseController, timeout time.Duration) {
+	if err := controller.SetWriteDeadline(time.Now().Add(timeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		logging.FromContext(ctx).DebugContext(ctx, "set response write deadline", "error_type", fmt.Sprintf("%T", err))
+	}
 }
 
 type bufferedResponse struct {

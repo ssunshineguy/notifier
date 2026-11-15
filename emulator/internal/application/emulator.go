@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"regexp"
@@ -19,6 +20,11 @@ import (
 	"github.com/ssunshineguy/notifier/internal/health"
 	"github.com/ssunshineguy/notifier/internal/logging"
 	"github.com/ssunshineguy/notifier/internal/problem"
+)
+
+const (
+	responseWriteTimeout = time.Second
+	maxCallbackDelay     = time.Duration(math.MaxInt32) * time.Millisecond
 )
 
 var loggableRequestID = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
@@ -56,13 +62,15 @@ func Run(ctx context.Context, addr string) error {
 	}
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           router,
+		Handler:           responseTimeout(responseWriteTimeout, router),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       5 * time.Second,
-		IdleTimeout:       time.Minute,
-		BaseContext:       func(net.Listener) context.Context { return ctx },
+		// DND: Allow the full int32 callback delay; the response write budget starts at its first write.
+		WriteTimeout: maxCallbackDelay + 5*time.Second + responseWriteTimeout,
+		IdleTimeout:  time.Minute,
+		BaseContext:  func(net.Listener) context.Context { return ctx },
 	}
-	if err := health.Serve(ctx, server, "9081", health.NewHandler(nil)); err != nil {
+	if err := health.Serve(ctx, server, "9081", health.NewHandler(nil), 0); err != nil {
 		return fmt.Errorf("serve emulator: %w", err)
 	}
 	return nil

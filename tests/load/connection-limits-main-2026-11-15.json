@@ -1,0 +1,92 @@
+{
+  "started_utc": "2026-11-15T12:19:27.801336+00:00",
+  "compose_project": "notifier_5",
+  "api_memory_limit_mib": 256,
+  "api_cpu_limit": 1,
+  "clients": 32,
+  "target_requests_per_second": 100,
+  "duration_seconds": 10,
+  "http_timeout_seconds": 2.0,
+  "profile": "HTTP/1.1 GET 200 with client lookup and notification query; idle sockets complete a GET first",
+  "candidates": [
+    {
+      "max_connections": 1024,
+      "baseline": {
+        "idle_connections_confirmed_by_response": 0,
+        "idle_open_seconds": 0.0,
+        "resources_before_idle": {
+          "process_rss_kib": 15628,
+          "process_fds": 12,
+          "cgroup_memory_bytes": 12648448
+        },
+        "resources_after_idle": {
+          "process_rss_kib": 15628,
+          "process_fds": 12,
+          "cgroup_memory_bytes": 14274560
+        },
+        "load": {
+          "elapsed_seconds": 10.009,
+          "statuses": {
+            "200": 1024
+          },
+          "transport_errors": {},
+          "successful_clients": 32,
+          "successful_requests_per_second": 102.308,
+          "success_latency": {
+            "p50_ms": 6.57,
+            "p95_ms": 14.409,
+            "p99_ms": 17.502,
+            "max_ms": 20.177
+          },
+          "resources_with_clients_open": {
+            "process_rss_kib": 21088,
+            "process_fds": 48,
+            "cgroup_memory_bytes": 21757952
+          },
+          "health_with_clients_open": {
+            "live": 200,
+            "ready": 200
+          }
+        }
+      },
+      "ninety_percent_idle": {
+        "idle_connections_confirmed_by_response": 921,
+        "idle_open_seconds": 0.792,
+        "resources_before_idle": {
+          "process_rss_kib": 17680,
+          "process_fds": 12,
+          "cgroup_memory_bytes": 14811136
+        },
+        "resources_after_idle": {
+          "process_rss_kib": 40564,
+          "process_fds": 933,
+          "cgroup_memory_bytes": 42586112
+        },
+        "load": {
+          "elapsed_seconds": 10.009,
+          "statuses": {
+            "200": 1024
+          },
+          "transport_errors": {},
+          "successful_clients": 32,
+          "successful_requests_per_second": 102.303,
+          "success_latency": {
+            "p50_ms": 7.452,
+            "p95_ms": 13.366,
+            "p99_ms": 15.284,
+            "max_ms": 21.115
+          },
+          "resources_with_clients_open": {
+            "process_rss_kib": 51308,
+            "process_fds": 969,
+            "cgroup_memory_bytes": 55451648
+          },
+          "health_with_clients_open": {
+            "live": 200,
+            "ready": 200
+          }
+        }
+      }
+    }
+  ]
+}
