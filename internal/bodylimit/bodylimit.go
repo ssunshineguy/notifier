@@ -24,19 +24,26 @@ const Bytes int64 = 32 * 1024
 func Requests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stopReading := func() {
-			// DND: ogen closes the request before reporting decoder errors; abort the
-			// server body's implicit drain so an unfinished oversized stream still gets 413.
 			err := http.NewResponseController(w).SetReadDeadline(time.Now())
 			if err != nil && !errors.Is(err, http.ErrNotSupported) {
 				logging.FromContext(r.Context()).DebugContext(r.Context(), "stop oversized request body read", "error_type", fmt.Sprintf("%T", err))
 			}
 		}
 		if r.ContentLength > Bytes {
-			stopReading()
+			defer stopReading()
 			problem.WriteError(r.Context(), w, r, http.StatusRequestEntityTooLarge)
 			return
 		}
-		r.Body = &requestBody{ReadCloser: http.MaxBytesReader(w, r.Body, Bytes), stopReading: stopReading}
+		body := &requestBody{ReadCloser: http.MaxBytesReader(w, r.Body, Bytes)}
+		r.Body = body
+		// DND: Abort the implicit drain only after the response is committed. At chunked EOF,
+		// an expired read deadline cancels net/http's background read and the request context;
+		// doing this inside Read lets RequestTimeout discard the buffered 413.
+		defer func() {
+			if body.exceeded.Load() {
+				stopReading()
+			}
+		}()
 		next.ServeHTTP(w, r)
 	})
 }
@@ -49,16 +56,14 @@ func IsExceeded(err error) bool {
 
 type requestBody struct {
 	io.ReadCloser
-	stopReading func()
-	exceeded    atomic.Bool
+	exceeded atomic.Bool
 }
 
-// Read stops further socket reads before the decoder closes an oversized body.
+// Read records overflow so Close can leave cleanup until after the response.
 func (b *requestBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	if IsExceeded(err) {
 		b.exceeded.Store(true)
-		b.stopReading()
 	}
 	return n, err
 }

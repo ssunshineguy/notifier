@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -130,5 +132,158 @@ func TestIncompleteOversizedBodyReturns413(t *testing.T) {
 				t.Fatalf("response = %d %+v, close = %v", response.StatusCode, result, response.Close)
 			}
 		})
+	}
+}
+
+func TestCompleteOversizedChunkedBodyPreserves413AfterReadCancellation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	const requestID = "complete-oversized-body"
+	const payload = `{"external_id":"size-check","notification_params":[{"type":"price","operation":"greater_than","value":100}]}`
+	body := payload + strings.Repeat(" ", int(bodylimit.Bytes)-len(payload))
+	request := "POST /v1/notifications HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nX-Client-ID: size-client\r\nX-Request-ID: " + requestID + "\r\nTransfer-Encoding: chunked\r\n\r\n" +
+		fmt.Sprintf("%x\r\n%s\r\n1\r\n \r\n0\r\n\r\n", len(body), body)
+	store := &notificationStoreStub{id: uuid.New()}
+	router, err := codegen.NewServer(NewHandler(store, time.Second), middleware.NewClientSecurity(clientSourceStub{client: core.Client{ID: "size-client", MaxLifetime: time.Hour}}), codegen.WithErrorHandler(middleware.HandleError))
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestContexts := make(chan context.Context, 1)
+	handler := bodylimit.Requests(middleware.RequestTimeout(3*time.Second, time.Second, router))
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestContexts <- r.Context()
+		handler.ServeHTTP(w, r)
+	}))
+	listener := &readCancellationListener{
+		Listener: server.Listener, ctx: ctx, requestSize: len(request), requestContexts: requestContexts,
+		cancellation: make(chan error, 1),
+	}
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", server.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if err := conn.SetDeadline(time.Now().Add(4 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.WriteString(conn, request); err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-listener.cancellation:
+		if err != nil {
+			t.Fatalf("force background-read cancellation: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("read deadline did not cancel the background read")
+	}
+	if response.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, body = %q, want 413 after read cancellation", response.StatusCode, data)
+	}
+	var result problem.Response
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Type != "/problems/content-too-large" || result.Status != 413 || result.RequestID != requestID ||
+		response.Header.Get("Content-Type") != "application/problem+json" || response.Header.Get("X-Request-ID") != requestID || !response.Close {
+		t.Fatalf("unexpected problem: %+v, headers: %v, close: %v", result, response.Header, response.Close)
+	}
+	if len(store.saved) != 0 {
+		t.Fatal("oversized body reached storage")
+	}
+}
+
+type readCancellationListener struct {
+	net.Listener
+	ctx             context.Context
+	requestSize     int
+	requestContexts <-chan context.Context
+	cancellation    chan error
+}
+
+func (l *readCancellationListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &readCancellationConn{
+		Conn: conn, listener: l, backgroundRead: make(chan struct{}),
+	}, nil
+}
+
+type readCancellationConn struct {
+	net.Conn
+	listener       *readCancellationListener
+	request        *strings.Reader
+	backgroundRead chan struct{}
+	backgroundOnce sync.Once
+	cancelOnce     sync.Once
+}
+
+func (c *readCancellationConn) Read(p []byte) (int, error) {
+	if c.request == nil {
+		// DND: Keep the final chunk and EOF buffered together; packet arrival order
+		// must not decide whether net/http starts the background read under test.
+		request := make([]byte, c.listener.requestSize)
+		if _, err := io.ReadFull(c.Conn, request); err != nil {
+			return 0, err
+		}
+		c.request = strings.NewReader(string(request))
+	}
+	if c.request.Len() > 0 {
+		return c.request.Read(p)
+	}
+	c.backgroundOnce.Do(func() { close(c.backgroundRead) })
+	return c.Conn.Read(p)
+}
+
+func (c *readCancellationConn) SetReadDeadline(deadline time.Time) error {
+	if deadline.IsZero() || deadline.After(time.Now()) {
+		return c.Conn.SetReadDeadline(deadline)
+	}
+	var cancellationErr error
+	// DND: Force cancellation before returning the expired deadline call so the old
+	// response-loss race cannot pass just because the handler wins the scheduling race.
+	c.cancelOnce.Do(func() {
+		cancellationErr = c.cancelBackgroundRead(deadline)
+		c.listener.cancellation <- cancellationErr
+	})
+	return errors.Join(cancellationErr, c.Conn.SetReadDeadline(deadline))
+}
+
+func (c *readCancellationConn) cancelBackgroundRead(deadline time.Time) error {
+	select {
+	case <-c.backgroundRead:
+	case <-c.listener.ctx.Done():
+		return errors.New("background read did not start after chunked EOF")
+	}
+	if err := c.Conn.SetReadDeadline(deadline); err != nil {
+		return err
+	}
+	select {
+	case requestContext := <-c.listener.requestContexts:
+		select {
+		case <-requestContext.Done():
+			if !errors.Is(requestContext.Err(), context.Canceled) {
+				return requestContext.Err()
+			}
+			return nil
+		case <-c.listener.ctx.Done():
+			return errors.New("request context was not canceled by the read timeout")
+		}
+	case <-c.listener.ctx.Done():
+		return errors.New("request handler did not start")
 	}
 }

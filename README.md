@@ -222,10 +222,13 @@ Python-тесты рассчитаны на macOS/Linux.
 
 Зависимости:
 
-- Docker с Compose
+- Docker с Compose v2+
 - `make`
+- Bash
+- Git
+- `curl`
 - Go 1.27
-- Python 3.14 с `venv` и pip
+- Python [3.14.4](.python-version) с `venv` и pip
 - Node.js
 - Redocly CLI в `PATH`
 - `golangci-lint` v2
@@ -242,6 +245,11 @@ Python-тесты рассчитаны на macOS/Linux.
 | `make migrate` | Применяет миграции и обновляет дампы схемы в `notifier/db/schema/`. |
 | `make psql` | Открывает консоль PostgreSQL локального стенда. |
 | `make gen` | Проверяет и собирает обе OpenAPI-спецификации, генерирует серверы и клиент Information Service, затем собирает Go-модуль. |
+| `make check` | Запускает Go-тесты, vet, lint, проверку форматирования и `git diff --check` без исправления файлов. |
+| `make test-integration` | Запускает интеграционные тесты адаптера PostgreSQL в отдельных Docker-контейнерах. |
+| `make setup-e2e` | Создаёт Python-окружение и устанавливает закреплённые зависимости e2e. |
+| `make test-e2e` | Проверяет версии зависимостей и запускает pytest на работающем Compose-стенде; пакеты не устанавливает. |
+| `make lock-e2e` | Обновляет закреплённые версии зависимостей в `tests/e2e/constraints.txt`. |
 | `make ai-setup` | Устанавливает локальные ссылки на AI-правила и skills, генерирует определения Codex guards. Нужен Python 3. |
 | `make ai-check` | Проверяет AI-файлы и актуальность локального setup без исправлений. Нужны выполненный `make ai-setup` и Python 3.11+. |
 | `docker compose ps -a` | Показывает состояние контейнеров выбранного стенда. |
@@ -252,21 +260,22 @@ export COMPOSE_PROJECT_NAME=notifier_dev
 make up
 ```
 
+Подробности запуска и проверок — в [руководстве разработки](docs/development.md); параметры — в [справочнике конфигурации](docs/configuration.md).
+
 ### Три уровня тестирования
 
 | Уровень | Что проверяет | Как запустить |
 | --- | --- | --- |
-| 1. Модульные Go-тесты | Доменную логику, обработчики HTTP, middleware и работу компонентов с тестовыми зависимостями. Compose не нужен. | `go test ./...` |
-| 2. Интеграционные тесты PostgreSQL | Реальные SQL-запросы, миграции, ограничения и конкурентные изменения. Нужен Docker; тесты сами создают и удаляют отдельные контейнеры PostgreSQL. | `go test -tags=integration -count=1 ./notifier/internal/storage/postgres` |
-| 3. Сквозные API-тесты | HTTP-сценарии на работающем Compose-стенде и состояние PostgreSQL; тот же pytest-прогон включает изолированные тесты Python helpers. | После подготовки ниже: `tests/e2e/.venv/bin/python -m pytest tests/e2e` |
+| 1. Модульные Go-тесты | Доменную логику, обработчики HTTP, middleware и работу компонентов с тестовыми зависимостями. Команда также запускает статические проверки; Compose не нужен. | `make check` |
+| 2. Интеграционные тесты PostgreSQL | Реальные SQL-запросы, миграции, ограничения и конкурентные изменения. Нужен Docker; тесты сами создают и удаляют отдельные контейнеры PostgreSQL. | `make test-integration` |
+| 3. Сквозные API-тесты | HTTP-сценарии на работающем Compose-стенде и состояние PostgreSQL; тот же pytest-прогон включает изолированные тесты Python helpers. | После подготовки ниже: `make test-e2e` |
 
 Подготовка e2e-окружения:
 
 ```bash
-python3.14 -m venv tests/e2e/.venv
-tests/e2e/.venv/bin/python -m pip install -e tests/e2e
+make setup-e2e
 make up
-tests/e2e/.venv/bin/python -m pytest tests/e2e
+make test-e2e
 ```
 
 Тесты сами получают адреса через `docker compose port`. Запускай их с тем же `COMPOSE_PROJECT_NAME`, с которым поднят стенд. Правила и переменные настройки — в [инструкции тестирования](ai/rules/tests.mdc#api-end-to-end-tests). Один успешный уровень не означает, что остальные тоже выполнены.

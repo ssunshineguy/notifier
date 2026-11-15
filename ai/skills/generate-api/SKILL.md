@@ -5,7 +5,7 @@ description: Regenerate and verify the bundled OpenAPI specs and ogen servers an
 
 # Generate the API
 
-Read `ai/rules/openapi.mdc`. From the repository root, with the Go version in `go.mod` and Redocly CLI available, run:
+Read `ai/rules/openapi.mdc` and the [generated boundaries](../../../docs/development.md#generation-boundaries). From the repository root, with the Go version in `go.mod` and Redocly CLI available, run:
 
 ```bash
 make gen

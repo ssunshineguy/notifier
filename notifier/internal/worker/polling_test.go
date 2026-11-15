@@ -34,7 +34,7 @@ func TestRunStartsNextBatchOnlyAfterEveryCurrentHandlerFinishes(t *testing.T) {
 		})
 		done := make(chan struct{})
 		go func() {
-			worker.Run(ctx, ctx, claims, func(ctx context.Context, claim core.NotificationClaim) {
+			worker.Run(ctx, claims, func(ctx context.Context, claim core.NotificationClaim) {
 				started <- ctx
 				if claim == first {
 					<-releaseFirst
@@ -87,7 +87,7 @@ func TestRunEmptyClaimAfterFastBatchStillWaitsForCycleDeadline(t *testing.T) {
 				return nil, nil
 			}
 		})
-		worker.Run(ctx, ctx, claims, func(context.Context, core.NotificationClaim) {
+		worker.Run(ctx, claims, func(context.Context, core.NotificationClaim) {
 			time.Sleep(100 * time.Millisecond)
 		}, defaultSettings)
 		if calls != 3 {
@@ -134,7 +134,7 @@ func TestRunOldBatchCompletionDoesNotWakeCurrentCycle(t *testing.T) {
 				})
 				done := make(chan struct{})
 				go func() {
-					worker.Run(ctx, ctx, claims, func(ctx context.Context, claim core.NotificationClaim) {
+					worker.Run(ctx, claims, func(ctx context.Context, claim core.NotificationClaim) {
 						switch claim {
 						case old:
 							<-releaseOld
@@ -207,7 +207,7 @@ func TestRunFastCurrentBatchDoesNotWaitForExpiredHandler(t *testing.T) {
 		})
 		done := make(chan struct{})
 		go func() {
-			worker.Run(ctx, ctx, claims, func(_ context.Context, claim core.NotificationClaim) {
+			worker.Run(ctx, claims, func(_ context.Context, claim core.NotificationClaim) {
 				switch claim {
 				case old:
 					<-releaseOld
@@ -256,7 +256,7 @@ func TestRunWaitsForFreeSlotAfterFullBatchExpires(t *testing.T) {
 				})
 				done := make(chan struct{})
 				go func() {
-					worker.Run(ctx, t.Context(), claims, func(ctx context.Context, claim core.NotificationClaim) {
+					worker.Run(ctx, claims, func(ctx context.Context, claim core.NotificationClaim) {
 						started <- ctx
 						if claim == first {
 							<-releaseFirst

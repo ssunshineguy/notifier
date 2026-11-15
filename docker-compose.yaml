@@ -1,7 +1,7 @@
 # DND: Keep the top-level name unset to isolate Compose stacks by checkout directory during parallel local development, especially with AI agents.
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     environment:
       # Superuser for notifier/db/init only; the service uses the roles created there.
       POSTGRES_USER: postgres
@@ -75,7 +75,7 @@ services:
     secrets:
       - source: worker_dsn
         target: database_dsn
-    stop_grace_period: 11s
+    stop_grace_period: 10s
     restart: on-failure
     depends_on:
       migrate:

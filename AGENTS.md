@@ -95,6 +95,11 @@ Use the rules linked above for the layer you touch.
 
 ## Workflows
 
+Use `make check`, `make test-integration`, `make setup-e2e` / `make test-e2e`, and
+`make ai-check` as the shared local entry points. Prerequisites, explicit dependency
+updates and generated boundaries are in [the development guide](docs/development.md).
+Checks do not format or repair files. Add race or generation checks for the affected area.
+
 | Task | Skill |
 | --- | --- |
 | Add or change an API operation or condition type | [add-endpoint](ai/skills/add-endpoint/SKILL.md) |
