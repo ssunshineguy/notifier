@@ -101,6 +101,7 @@ instructions.
 | --- | --- |
 | [`scope-guard`](ai/agents/scope-guard.md) | For every task diff. Checks that each change serves the requested outcome and any refactoring was explicitly authorized. |
 | `architecture-guard` | After production Go changes in `notifier/`, `emulator/`, or shared `internal/`. Checks package boundaries, runtime I/O, PostgreSQL and safe logging. |
+| [`go-guard`](ai/agents/go-guard.md) | After changes to handwritten Go code, including tests. Checks correctness, concurrency, reliability, security, and test coverage of changed behavior. |
 | `api-contract-guard` | After OpenAPI, generated API, or observable HTTP behavior changes. |
 | `test-coverage-guard` | After Go behavior, SQL, or Compose startup changes. |
 | `migration-guard` | After changes to `notifier/db/migrations` or `notifier/db/init`, before applying them. |
