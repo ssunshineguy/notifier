@@ -53,7 +53,7 @@ func TestRunStartsConfiguredWorkersAndBoundsEachBatch(t *testing.T) {
 		}
 		done := make(chan struct{})
 		go func() {
-			worker.Run(ctx, ctx, store, process, settings)
+			worker.Run(ctx, store, process, settings)
 			close(done)
 		}()
 
@@ -105,7 +105,7 @@ func TestRunStartsNextBatchImmediatelyAfterProcessing(t *testing.T) {
 			return nil, nil
 		})
 
-		worker.Run(ctx, ctx, store, func(_ context.Context, claim core.NotificationClaim) {
+		worker.Run(ctx, store, func(_ context.Context, claim core.NotificationClaim) {
 			if claim != first {
 				t.Errorf("processed claim = %+v, want %+v", claim, first)
 			}
@@ -144,7 +144,7 @@ func TestRunClaimsOnlyAvailableSlotsAfterCycleTimeout(t *testing.T) {
 			return nil, nil
 		})
 
-		worker.Run(ctx, ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
+		worker.Run(ctx, store, func(ctx context.Context, claim core.NotificationClaim) {
 			if claim != slow {
 				return
 			}
@@ -182,7 +182,7 @@ func TestRunSkipsClaimsWhileFullAndResumesWhenSlotFreed(t *testing.T) {
 		})
 		go func() {
 			defer close(done)
-			worker.Run(ctx, ctx, store, func(context.Context, core.NotificationClaim) {
+			worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
 				close(started)
 				<-release
 			}, defaultSettings)
@@ -217,7 +217,7 @@ func TestRunSkipsAClaimReturnedAfterDeadline(t *testing.T) {
 			cancel()
 			return nil, nil
 		})
-		worker.Run(ctx, ctx, store, func(context.Context, core.NotificationClaim) {
+		worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
 			t.Error("processor ran after the cycle expired")
 		}, defaultSettings)
 		if calls != 2 {
@@ -252,7 +252,7 @@ func TestRunWaitsBeforeRetryingEmptyOrFailedClaim(t *testing.T) {
 					cancel()
 					return nil, nil
 				})
-				worker.Run(ctx, ctx, store, func(context.Context, core.NotificationClaim) {
+				worker.Run(ctx, store, func(context.Context, core.NotificationClaim) {
 					t.Error("processor ran without a successful claim")
 				}, defaultSettings)
 				if calls != 2 {
