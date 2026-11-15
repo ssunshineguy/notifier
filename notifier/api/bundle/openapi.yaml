@@ -75,6 +75,12 @@ paths:
 
         An `external_id` stays taken while the notification is stored,
         including after it is stopped.
+
+        If a conflicting notification is concurrently deleted before its identifier
+        can be read, creation returns `409` with an `application/problem+json` body
+        of type `/problems/notification-duplicate-disappeared`. The server does not
+        retry the INSERT or create a replacement. The client may retry creation
+        if it is still relevant.
       parameters:
         - $ref: '#/components/parameters/RequestId'
       requestBody:
@@ -819,12 +825,16 @@ components:
     AlreadyExists:
       description: |
         A notification with this `external_id` already exists for the client.
-        This is not an error: creation is idempotent, and the body carries the
-        identifier of the existing notification.
+        The `application/json` body carries the identifier of the existing notification;
+        this is an idempotent result, not an error.
 
         The parameters of the repeated request are neither compared nor applied:
         the existing notification keeps its original parameters even if the
         request carries different ones.
+        If the conflicting notification is concurrently deleted before its identifier
+        can be read, the response is an `application/problem+json` error with type
+        `/problems/notification-duplicate-disappeared`. No replacement is created.
+        The client may retry creation if it is still relevant.
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestId'
@@ -834,6 +844,15 @@ components:
             $ref: '#/components/schemas/NotificationCreated'
           example:
             notification_id: 0193a1f4-6c2e-7d55-9b1a-3f0c2e8d4a71
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/notification-duplicate-disappeared
+            title: Duplicate notification was concurrently deleted
+            status: 409
+            detail: The conflicting notification was deleted before its identifier could be read. Retry creation if it is still relevant.
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
     TooManyRequests:
       description: The request queue is full or the wait for a processing slot expired.
       headers:

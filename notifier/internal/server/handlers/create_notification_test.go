@@ -366,6 +366,9 @@ func TestCreateNotificationDuplicate(t *testing.T) {
 		if got := resp.Header().Get("X-Request-ID"); got != request.requestID {
 			t.Errorf("X-Request-ID = %q, want %q", got, request.requestID)
 		}
+		if got := resp.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
+			t.Errorf("Content-Type = %q, want application/json; charset=utf-8", got)
+		}
 		var response codegen.NotificationCreated
 		if err := json.Unmarshal(resp.Body.Bytes(), &response); err != nil {
 			t.Fatal(err)
@@ -393,6 +396,8 @@ func TestCreateNotificationStorageError(t *testing.T) {
 		deadline string
 	}{
 		{name: "save", store: notificationStoreStub{saveErr: dbErr}},
+		{name: "canceled save", store: notificationStoreStub{saveErr: fmt.Errorf("insert notification: %w", context.Canceled)}},
+		{name: "lookup deadline", store: notificationStoreStub{saveErr: fmt.Errorf("read existing notification: %w", context.DeadlineExceeded)}},
 		{
 			name:     "lookup existing after validation failure",
 			store:    notificationStoreStub{lookupErr: dbErr},
@@ -443,5 +448,56 @@ func TestCreateNotificationStorageError(t *testing.T) {
 				t.Errorf("problem = %+v, want %+v", problem, want)
 			}
 		})
+	}
+}
+
+func TestCreateNotificationDuplicateDisappeared(t *testing.T) {
+	const requestID = "request-duplicate-disappeared"
+	client := core.Client{ID: "client-42", MaxLifetime: 24 * time.Hour}
+	store := &notificationStoreStub{
+		saveErr: fmt.Errorf("create notification: %w", core.ErrNotificationDuplicateDisappeared),
+	}
+	server, err := codegen.NewServer(
+		NewHandler(store, 10*time.Second),
+		middleware.NewClientSecurity(clientSourceStub{client: client}),
+		codegen.WithErrorHandler(middleware.HandleError),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := `{"external_id":"order-42","notification_params":[{"type":"time","operation":"greater_than","value":"2001-01-01T00:00:00Z"}]}`
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/notifications", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Client-ID", client.ID)
+	req.Header.Set("X-Request-ID", requestID)
+	resp := httptest.NewRecorder()
+	server.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409, body = %s", resp.Code, resp.Body)
+	}
+	if got := resp.Header().Get("Content-Type"); got != "application/problem+json" {
+		t.Errorf("Content-Type = %q, want application/problem+json", got)
+	}
+	if got := resp.Header().Get("X-Request-ID"); got != requestID {
+		t.Errorf("X-Request-ID = %q, want %q", got, requestID)
+	}
+	var problem map[string]any
+	if err := json.Unmarshal(resp.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"type":       "/problems/notification-duplicate-disappeared",
+		"title":      "Duplicate notification was concurrently deleted",
+		"status":     float64(http.StatusConflict),
+		"detail":     "The conflicting notification was deleted before its identifier could be read. Retry creation if it is still relevant.",
+		"request_id": requestID,
+	}
+	if !reflect.DeepEqual(problem, want) {
+		t.Errorf("problem = %+v, want %+v", problem, want)
+	}
+	if len(store.saved) != 0 {
+		t.Errorf("saved %d notifications, want 0", len(store.saved))
 	}
 }

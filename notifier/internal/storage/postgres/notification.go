@@ -29,7 +29,7 @@ const selectNotificationID = `
 SELECT id FROM notifier.t_notification
 WHERE client_id = $1 AND external_id = $2`
 
-// CreateNotification assigns a UUID v7 or returns *core.AlreadyExistsError with the existing ID.
+// CreateNotification assigns a UUID v7 or reports an existing or concurrently deleted duplicate.
 func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uuid.UUID, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -55,6 +55,9 @@ func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uu
 	var existing uuid.UUID
 	err = s.scanRow(ctx, "select_notification_id", selectNotificationID, []any{n.ClientID, n.ExternalID},
 		func() slog.Attr { return slog.String("notification_id", existing.String()) }, &existing)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, core.ErrNotificationDuplicateDisappeared
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("read existing notification: %w", err)
 	}
