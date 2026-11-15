@@ -1,6 +1,6 @@
 ---
-description: Go tests and API end-to-end tests
-globs: notifier/cmd/**,notifier/internal/**,emulator/cmd/**,emulator/internal/**,internal/**,tests/**
+description: Tests and verification for all code, including Python and tooling
+globs: notifier/cmd/**,notifier/internal/**,emulator/cmd/**,emulator/internal/**,internal/**,tests/**,scripts/**,Makefile,build/**,docker-compose.yaml
 paths:
   - internal/**
   - notifier/cmd/**
@@ -8,10 +8,22 @@ paths:
   - emulator/cmd/**
   - emulator/internal/**
   - tests/**
+  - scripts/**
+  - Makefile
+  - build/**
+  - docker-compose.yaml
 alwaysApply: false
 ---
 
 # Tests
+
+- Run the API e2e suite for every code change, including Go, Python, tests, scripts, tooling
+  and generated code. Python-only diffs and behavior-preserving code edits are not exempt.
+  Add or change a scenario for new behavior; existing scenarios may verify a pure refactor
+  that is authorized by the task. Unit tests or manual smoke checks do not replace e2e.
+- Prose-only changes do not require e2e. Run scope and README guards for every change,
+  even if README is unchanged; explain when it needs no edit. Apply the shared
+  [guard outcomes](../../AGENTS.md#guard-outcomes) before declaring completion.
 
 - Use colocated Go tests for domain rules and HTTP behavior. Pass a fixed time to domain tests. Use `httptest` and the existing consumer-side stubs for handlers and middleware.
 - Check the observable result and the changed failure case. For HTTP, verify the relevant status, content type, headers or body. For retries, duplicate creation, or cross-client access, verify the resulting state or absence of an unintended write.
@@ -19,6 +31,15 @@ alwaysApply: false
 - For changed PostgreSQL queries, test behavior that depends on the database with the real adapter. For Compose changes, verify the affected startup or runtime behavior on a disposable stack.
 - Run the relevant tests while implementing and `go test ./...` before handing off a Go change. Use `go test -race ./...` for concurrency or lifecycle changes. Report the manual scenarios actually run and any material verification gaps.
 - Use [PR coverage methodology](../skills/pr-description/SKILL.md#test-coverage) for percentages. Judge test adequacy by the changed behavior, including any runtime checks needed to verify it.
+
+## Business invariant verification
+
+Use the nine-row [guarantee → code → verification table](architecture.mdc#business-invariants)
+when a change touches notification state, claims, retries, deadlines, shutdown or conflicts.
+Inspect the named assertions, not just test names. Existing test references describe coverage,
+not a test run. Report commands actually run and distinguish partial evidence from a complete
+scenario. Target tasks 02/04/07 must add their specified checks and update the table when
+implemented; their planned behavior is not evidence of current correctness.
 
 ## PostgreSQL integration tests
 

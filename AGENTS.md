@@ -89,7 +89,7 @@ Use the rules linked above for the layer you touch.
 
 | Task | Skill |
 | --- | --- |
-| Add or change an API operation | [add-endpoint](ai/skills/add-endpoint/SKILL.md) |
+| Add or change an API operation or condition type | [add-endpoint](ai/skills/add-endpoint/SKILL.md) |
 | Regenerate the API bundle and ogen | [generate-api](ai/skills/generate-api/SKILL.md) |
 | Verify API behavior on a local Compose stack | [verify-local-api](ai/skills/verify-local-api/SKILL.md) |
 | Run guards and checks | [review-changes](ai/skills/review-changes/SKILL.md) |
@@ -100,7 +100,7 @@ Use the rules linked above for the layer you touch.
 
 Delegate to the applicable read-only reviewers from `ai/agents/` after each logical unit.
 Pass the user's task scope and explicit approvals, changed files, comparison base, and
-relevant test evidence. Use the named agent or give a reviewer the corresponding Markdown
+relevant test evidence and prior human risk acceptances in this scope. Use the named agent or give a reviewer the corresponding Markdown
 instructions. Pass the full diff to `comment-guard` so it can review deleted comments.
 
 | Guard | When |
@@ -109,13 +109,55 @@ instructions. Pass the full diff to `comment-guard` so it can review deleted com
 | `architecture-guard` | After production Go changes in `notifier/`, `emulator/`, or shared `internal/`. Checks package boundaries, runtime I/O, PostgreSQL and safe logging. |
 | [`go-guard`](ai/agents/go-guard.md) | After changes to handwritten Go code, including tests. Checks correctness, concurrency, reliability, security, and test coverage of changed behavior. |
 | `api-contract-guard` | After OpenAPI, generated API, or observable HTTP behavior changes. |
-| `test-coverage-guard` | After Go behavior, SQL, or Compose startup changes. |
+| `test-coverage-guard` | After any code change, including Python, tests, scripts, tooling and generated code, or SQL/Compose changes. Verify the mandatory e2e run even for behavior-preserving edits. |
 | `migration-guard` | After changes to `notifier/db/migrations` or `notifier/db/init`, before applying them. |
-| `comment-guard` | After adding, editing, or removing code comments, including in deleted files. Checks for explicit human approval when a `DND:` comment or marker is removed. |
-| `readme-guard` | After editing `README.md`. |
+| `comment-guard` | After adding, editing, or removing code comments, including in deleted files, or changing a decision protected by `DND:`. Check the full diff against the [DND policy](ai/rules/comments.mdc#protected-comments). |
+| `readme-guard` | For every task diff, even when `README.md` is unchanged. Check drift caused by this change; a reasoned “no README change required” is valid. |
 
-Review each blocker and warn against the task scope. Fix confirmed findings and rerun affected
-checks. Report any agreed exception or unverified behavior at handoff.
+Run e2e for **every code change**, including Python-only, test, script, tooling and generated-code
+changes. New behavior needs a new or updated scenario; an authorized pure refactor may use
+existing scenarios. Follow [test rules](ai/rules/tests.mdc) and
+[review-changes](ai/skills/review-changes/SKILL.md); prose-only changes do not require e2e.
+
+## Guard outcomes
+
+These rules apply to every guard and the final handoff:
+
+- Every confirmed **blocker** blocks completion. Fix it and recheck; human acceptance of a
+  warning cannot waive a confirmed blocker. If its fix is outside scope, report the dependency
+  and leave the task incomplete.
+- Every **warn** must be shown to the human task author and either fixed and rechecked or
+  explicitly accepted by that human. Silence, an AI decision, or merely listing it in a report
+  is not acceptance.
+- Reuse an explicit prior acceptance for the **same risk in the same scope** without asking
+  again. Record the decision reference or quoted approval and the remaining consequence.
+  An accepted risk remains visible as **accepted**, never **fixed**. Changed risks or scope
+  require a new decision.
+- Evaluate findings against the approved task and decisions. Reject a false finding with
+  concrete code, test or decision evidence; never silently drop it or downgrade its severity.
+  A previously agreed behavior is not a new defect just because a reviewer prefers another design.
+- Report each finding with its original severity, file/line, consequence, disposition
+  (`open`, `fixed`, `accepted`, or `rejected`), and evidence. Only warnings may be `accepted`.
+  For `fixed`, include the relevant recheck; for `rejected`, include the counter-evidence.
+- Use **FAIL** while any blocker or warn is unresolved, **ACCEPTED** when only explicitly
+  accepted warnings remain, and **PASS** when none remain (or all were fixed/rejected with
+  evidence). **N/A** requires a trigger-based reason; scope and README reviews always apply.
+  Keep `accepted`, `fixed`, and `rejected` findings distinct in the report. `info` is advisory.
+
+## Business invariants
+
+Use the [guarantee → code → verification table](ai/rules/architecture.mdc#business-invariants)
+and its [test guidance](ai/rules/tests.mdc#business-invariant-verification). Code and tests are
+the source of truth; targets linked to unfinished tasks are not implemented guarantees.
+When implementing a target, update the implementation and verification links together.
+
+Own production API successes use `200`; errors retain their contracted `4xx/5xx` responses.
+The emulator may simulate external receiver responses, including `201`; see
+[OpenAPI rules](ai/rules/openapi.mdc#operations).
+
+A new condition type must account for contract → generation → domain → storage when needed →
+worker/provider → emulator → tests → documentation. Record a change or a substantive N/A
+for every layer using [add-endpoint](ai/skills/add-endpoint/SKILL.md#new-condition-types).
 
 ## Keeping docs up to date
 

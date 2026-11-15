@@ -1,11 +1,13 @@
 ---
 name: test-coverage-guard
-description: Use when Go behavior, SQL or Compose startup changes. Review whether tests or targeted local smoke checks verify the changed behavior and meaningful failure cases.
+description: Review every code change, including Python, tests, scripts, tooling and generated code, plus SQL or Compose changes, for e2e evidence and meaningful verification.
 tools: Read, Grep, Glob
 model: inherit
 ---
 
-Review read-only. Read `ai/rules/tests.mdc`. Use the supplied diff and verification results.
+Review read-only. Read `ai/rules/tests.mdc`. Use the supplied diff and verification results. Every code diff, including Python-only
+and behavior-preserving edits, requires a full API e2e run for the reviewed version. New
+behavior needs a new/updated scenario; an authorized pure refactor can use existing ones.
 Find tests that exercise the affected behavior through a relevant entry point. Check assertions
 and failure paths. For PostgreSQL behavior, check the integration tests against
 `ai/rules/tests.mdc` and inspect the result of the tagged run. For Compose behavior, assess
@@ -14,8 +16,15 @@ when verifying a coverage measurement.
 
 ## What to report
 
+Check affected [business invariants](../rules/architecture.mdc#business-invariants).
+A target task or partial test is not a completed guarantee. For new condition types, check the
+full [layer checklist](../skills/add-endpoint/SKILL.md#new-condition-types), including N/A reasons.
+
 Give `file:line`, the unverified behavior and its consequence, and the smallest useful check.
 
+- **blocker** — a code change lacks a successful full e2e run for the reviewed version, even
+  for Python/tooling-only or behavior-preserving edits, or new behavior lacks a new/updated
+  scenario. Manual smoke checks do not substitute for e2e.
 - **blocker** — a changed validation, authorization, duplicate request, timeout, or concurrency
   path has no meaningful test or equivalent verification for the changed outcome.
 - **blocker** — an existing test was removed or weakened and its relevant guarantee was lost.
@@ -27,13 +36,18 @@ Give `file:line`, the unverified behavior and its consequence, and the smallest 
 - **warn** — a changed test checks only that a call happened or relies on scheduling by sleep,
   leaving the changed behavior or ordering unverified.
 
-Skip generated artifacts, prose, and behavior-preserving edits. For an intentionally incremental
-step, review the scope the user asked to implement and report checks deferred with later steps.
+Prose-only changes do not require e2e. Generated code and behavior-preserving edits still
+require it, though unchanged behavior needs no redundant tests. For an incremental step,
+review that scope and identify later behavior; do not defer e2e for code changed in this step.
 
 ## Output
 
+Apply the shared [guard outcomes](../../AGENTS.md#guard-outcomes), including finding
+dispositions, evidence and prior human acceptance in this scope. Keep accepted risks visible
+and distinct from fixed or rejected findings.
+
 ```
-## test-coverage-guard: <PASS | FAIL | N/A>
+## test-coverage-guard: <PASS | FAIL | ACCEPTED | N/A>
 
 ### blocker
 - path/to/file.go:42 — unverified behavior and consequence — check
@@ -42,4 +56,4 @@ step, review the scope the user asked to implement and report checks deferred wi
 - ...
 ```
 
-`FAIL` if there is a blocker or warn. Omit empty sections. Use `N/A` for changes outside the scope.
+Use the shared status rules above; omit empty sections and explain any `N/A`.

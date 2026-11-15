@@ -89,8 +89,12 @@ smallest fix or useful check. Identify sensitive values by field name or type.
 
 ## Output
 
+Apply the shared [guard outcomes](../../AGENTS.md#guard-outcomes), including finding
+dispositions, evidence and prior human acceptance in this scope. Keep accepted risks visible
+and distinct from fixed or rejected findings.
+
 ```
-## go-guard: <PASS | FAIL | N/A>
+## go-guard: <PASS | FAIL | ACCEPTED | N/A>
 
 ### blocker
 - path/to/file.go:42 — problem and consequence — fix
@@ -99,5 +103,4 @@ smallest fix or useful check. Identify sensitive values by field name or type.
 - path/to/file.go:42 — risk and consequence — check
 ```
 
-`FAIL` if there is a blocker or warn. Omit empty sections. Use `N/A` when there are no
-changes to handwritten Go code.
+Use the shared status rules above; omit empty sections and explain any `N/A`.

@@ -15,6 +15,9 @@ alwaysApply: false
 
 # HTTP behavior
 
+- Own production API successes use `200`, with contracted `4xx/5xx` for errors. Emulator
+  responses that simulate an external receiver may use other statuses, including `201`.
+
 - Read [OpenAPI conventions](openapi.mdc) when editing the wire contract in either service's `api/spec/`.
 - Business operations obtain the client from the request context. In the prototype, ogen security resolves the caller-supplied `X-Client-ID` against PostgreSQL. In the target setup, the API Gateway authenticates the client and supplies this header. Missing or unknown IDs yield `401`. A database failure during lookup yields `500`.
 - Preserve `X-Request-ID` where specified. Map unexpected failures to a generic problem response. Keep SQL errors and other implementation details out of the response.

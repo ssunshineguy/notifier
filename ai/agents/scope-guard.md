@@ -27,6 +27,10 @@ dependency so the implementer can ask the user. Leave other improvements for a s
 
 ## Output
 
+Apply the shared [guard outcomes](../../AGENTS.md#guard-outcomes), including finding
+dispositions, evidence and prior human acceptance in this scope. Keep accepted risks visible
+and distinct from fixed or rejected findings.
+
 ```
 ## scope-guard: <PASS | FAIL>
 
@@ -34,4 +38,4 @@ dependency so the implementer can ask the user. Leave other improvements for a s
 - path/to/file.go:42 — scope mismatch — smallest fix
 ```
 
-`FAIL` if there is a blocker. Omit the blocker section when it is empty.
+Use the shared status rules above; omit empty sections and explain any `N/A`.

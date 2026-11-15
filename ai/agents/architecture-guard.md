@@ -13,6 +13,11 @@ Trace changed log values from their sources to the logger, including nested attr
 formatted messages and wrapped errors. Check all levels. Describe sensitive values by field
 name or type in the report.
 
+Check affected [business invariants](../rules/architecture.mdc#business-invariants) against
+code and tests. Labeled targets remain pending in their owning tasks. For a new condition type,
+check the full [layer checklist](../skills/add-endpoint/SKILL.md#new-condition-types), including
+substantive N/A reasons; the HTTP layer alone is insufficient.
+
 ## What to report
 
 Give `file:line`, the concrete consequence, and the smallest fix for each finding.
@@ -52,8 +57,12 @@ Give `file:line`, the concrete consequence, and the smallest fix for each findin
 
 ## Output
 
+Apply the shared [guard outcomes](../../AGENTS.md#guard-outcomes), including finding
+dispositions, evidence and prior human acceptance in this scope. Keep accepted risks visible
+and distinct from fixed or rejected findings.
+
 ```
-## architecture-guard: <PASS | FAIL | N/A>
+## architecture-guard: <PASS | FAIL | ACCEPTED | N/A>
 
 ### blocker
 - path/to/file.go:42 — problem and consequence — fix
@@ -62,4 +71,4 @@ Give `file:line`, the concrete consequence, and the smallest fix for each findin
 - ...
 ```
 
-`FAIL` if there is a blocker or warn. Omit empty sections. Use `N/A` for changes outside the scope.
+Use the shared status rules above; omit empty sections and explain any `N/A`.

@@ -47,3 +47,44 @@ alwaysApply: false
 - Use parameterized queries and qualify tables with `notifier`. Reuse the `Store.scanRow` path for single-row operations. The database operation budget covers pool wait, execution and scanning.
 - Close result sets and check iteration errors. Release explicitly acquired connections. For multi-step writes that must be atomic, use a transaction with commit and rollback paths.
 - Scope client-owned lookups and mutations by the client ID resolved from the request. For notification creation, the database unique constraint on `(client_id, external_id)` arbitrates concurrent requests. The duplicate lookup uses the same key.
+
+## Business invariants
+
+Code and tests are the source of truth. This table separates existing behavior from **Target**
+work in the approved 2026-11-15 plan. The task links below point to that local plan outside the
+repository; they are not published issues. Replace target references with implementation and
+checks as the owning tasks land. A test link records coverage, not a successful test run.
+
+| Guarantee | Code | Verification |
+| --- | --- | --- |
+| 1. `notification_status` is the event outcome; `delivery_status` is delivery progress. | [Delivery model][delivery], [result persistence][result]. | [Delivery tests][delivery-tests]: `TestAfterDeliveryStopsAcceptedNotifications`, `TestAfterDeliverySchedulesUpTo42Attempts`; [GET tests][get-tests]. |
+| 2. Persisted `success` is retried after deadline. A still-`active` row can emit `deadline_exceeded` after an earlier `success` callback arrived but its result was not saved. | [Processor][processor]: saved status wins; deadline is evaluated for `active`; persistence follows callback. | [Processor tests][processor-tests]: “success retry keeps status past deadline”, “deadline reached”. Partial: no combined callback-success → save-failure → retry-after-deadline test. |
+| 3. Callback and persistence are not atomic; repeated delivery is allowed. | [Processor][processor]: `deliver` precedes `saveResult`; a save error does not undo HTTP. | [Processor tests][processor-tests]: `TestProcessNotificationSavesNextState` checks callback-before-save. Partial: no save-failure/redelivery sequence. |
+| 4. A stale worker cannot overwrite a new reservation. Losing a lease does not itself cancel an HTTP request already started. | [Result SQL][result] fences writes and target lookup by the claimed lease; [processor][processor] uses context/timeout, with no lease monitor. | [Result integration tests][result-tests]: expired/reclaimed claims and `TestDeliveryRejectsLeaseThatExpiresWhileWaitingForRowIntegration`. These do not cover mid-HTTP lease loss. |
+| 5. Errors before callback do not increment callback attempts. | [Processor][processor]: early returns and source-error recheck preserve the counter; `AfterDelivery` follows `Send`. Explicit technical rescheduling is **Target [task 04][task-04]**. | [Processor tests][processor-tests]: `TestMissingCallbackClientDoesNotCountAsAttempt`, “source unavailable”; further transient-error checks belong to task 04. |
+| 6. Distinguish reservation `409`, existing duplicate `409` with UUID, and vanished duplicate `409` Problem. | [Mutation handlers][update] / [delete][delete], [create handler][create], [create SQL][create-sql]. A vanished duplicate returns its own Problem without another INSERT. | [Mutation integration tests][mutation-tests]; [create handler tests][create-tests]: `TestCreateNotificationDuplicate`, `TestCreateNotificationDuplicateDisappeared`; [conflict integration tests][conflict-tests]: controlled INSERT-conflict → DELETE → lookup and error classification. |
+| 7. Initial check, ordinary recheck, technical reschedule and callback backoff are independent. | **Target [task 07][task-07] and [task 04][task-04]**: [API wiring][api-wiring] and [worker wiring][worker-wiring] currently share `ScheduledTimeSec`; [processor][processor] uses `ScheduledDelay` for source errors. [Callback backoff][delivery] is already separate. | [Create tests][create-tests] check the current initial schedule; [processor tests][processor-tests] cover recheck and first backoff; [delivery tests][delivery-tests] cover retry intervals. Independence of initial/technical delays requires tasks 07/04. |
+| 8. Shutdown stops new claims and all stages share one 10-second budget. | **Target [task 02][task-02]**. [Worker][worker] currently waits for polling loops, not all processors; [worker wiring][worker-wiring] closes the pool without the required common budget. | [Worker tests][worker-tests] cover cycle cancellation and slot limits, not complete shutdown. Task 02 owns no-new-claims, drain, hung-operation and pool-close checks. |
+| 9. DLQ is only for irreparable required stored conditions: `dlq`, absent delivery status, no callback. Exhausted callback retries remain `delivery_failed`. | DLQ is **Target [task 04][task-04]** and is absent today. [Delivery model][delivery] already preserves the event status on exhausted retries. | [Delivery tests][delivery-tests]: `TestAfterDeliverySchedulesUpTo42Attempts`; [processor][processor-tests] and [result integration tests][result-tests]: “attempts exhausted”. Task 04 adds DLQ, no-callback and ownership checks. |
+
+[delivery]: ../../notifier/internal/core/notification_delivery.go
+[delivery-tests]: ../../notifier/internal/core/notification_delivery_test.go
+[result]: ../../notifier/internal/storage/postgres/notification_result.go
+[result-tests]: ../../notifier/internal/storage/postgres/notification_result_integration_test.go
+[get-tests]: ../../notifier/internal/server/handlers/get_notification_test.go
+[processor]: ../../notifier/internal/worker/notification_processor.go
+[processor-tests]: ../../notifier/internal/worker/notification_processor_test.go
+[update]: ../../notifier/internal/server/handlers/update_notification.go
+[delete]: ../../notifier/internal/server/handlers/delete_notification.go
+[create]: ../../notifier/internal/server/handlers/create_notification.go
+[create-sql]: ../../notifier/internal/storage/postgres/notification.go
+[create-tests]: ../../notifier/internal/server/handlers/create_notification_test.go
+[mutation-tests]: ../../notifier/internal/storage/postgres/notification_mutation_integration_test.go
+[api-wiring]: ../../notifier/internal/application/api.go
+[worker-wiring]: ../../notifier/internal/application/worker.go
+[worker]: ../../notifier/internal/worker/worker.go
+[worker-tests]: ../../notifier/internal/worker/worker_test.go
+[task-02]: /Users/sunshineguy/Documents/ChatGPT/notifier/outputs/notifier-final-plan-2026-11-15.md#02-завершать-worker-в-общем-бюджете-10-секунд
+[task-04]: /Users/sunshineguy/Documents/ChatGPT/notifier/outputs/notifier-final-plan-2026-11-15.md#04-реализовать-dlq-только-для-неисправимых-сохранённых-условий
+[task-07]: /Users/sunshineguy/Documents/ChatGPT/notifier/outputs/notifier-final-plan-2026-11-15.md#07-вынести-первую-проверку-в-независимую-настройку
+[conflict-tests]: ../../notifier/internal/storage/postgres/create_notification_conflict_integration_test.go

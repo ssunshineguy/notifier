@@ -5,7 +5,7 @@ description: Smoke-test Notifier HTTP behavior with curl and real PostgreSQL in 
 
 # Verify the API on a local stack
 
-Check which Compose project and ports are in use. If `notifier/db/migrations/` or `notifier/db/init/` changed, run `migration-guard` and resolve blockers or record the author's exception before starting a stack that applies the changes.
+Check which Compose project and ports are in use. If `notifier/db/migrations/` or `notifier/db/init/` changed, run `migration-guard` and resolve confirmed blockers and obtain or reuse explicit human acceptance of remaining warnings under [guard outcomes](../../../AGENTS.md#guard-outcomes) before starting a stack that applies the changes.
 
 For a read-only check, use the intended local stack. Start it with `make up` if needed. It builds the images and waits for migrations, API readiness, and emulator readiness. Use `docker compose ps -a` and `docker compose logs --tail=100 api emulator migrate postgres` to diagnose startup.
 

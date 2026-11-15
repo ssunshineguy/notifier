@@ -40,7 +40,9 @@ alwaysApply: false
 ## Operations
 
 - Every operation has `tags`, `summary`, `description` and an example for its request body and success response.
-- Success is always `200`; do not use `201`, `204` or other `2xx`.
+- Successful responses from our own production APIs use `200`; errors retain contracted
+  `4xx/5xx` statuses. This is not a rule to rewrite errors to `200`. The emulator may model
+  external receiver responses, including `201` and simulated failures; do not normalize them.
 - Every business operation takes the `X-Request-ID` parameter and returns it as a response header.
 - Notifier API authentication uses the global `clientID` security scheme.
 - Keep internal health probes outside the API specifications.
@@ -54,6 +56,8 @@ alwaysApply: false
 - Request schemas set `additionalProperties: false`.
 - Polymorphism: `oneOf` + `discriminator` on the `type` field, one file per variant.
 - Trigger conditions are a tree: add a new leaf kind as a new variant of `Condition` (schema file + `oneOf` + discriminator mapping); the `and`/`or` groups stay generic.
+  Follow the full [condition-type workflow](../skills/add-endpoint/SKILL.md#new-condition-types);
+  contract and generation alone do not complete a new type.
 - Do not use `allOf` for inheritance; duplicate the few shared fields instead.
 
 ## Compatibility
