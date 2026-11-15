@@ -313,6 +313,40 @@ func (s *ClientTimeOverrideParameter) UnmarshalText(data []byte) error {
 	}
 }
 
+// ContentTooLargeHeaders wraps Problem with response headers.
+type ContentTooLargeHeaders struct {
+	XRequestID OptString
+	Response   Problem
+}
+
+// GetXRequestID returns the value of XRequestID.
+func (s *ContentTooLargeHeaders) GetXRequestID() OptString {
+	return s.XRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *ContentTooLargeHeaders) GetResponse() Problem {
+	return s.Response
+}
+
+// SetXRequestID sets the value of XRequestID.
+func (s *ContentTooLargeHeaders) SetXRequestID(val OptString) {
+	s.XRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ContentTooLargeHeaders) SetResponse(val Problem) {
+	s.Response = val
+}
+
+func (*ContentTooLargeHeaders) getPriceRes()                 {}
+func (*ContentTooLargeHeaders) getTimeRes()                  {}
+func (*ContentTooLargeHeaders) receiveNotificationEventRes() {}
+func (*ContentTooLargeHeaders) resetCallbackOverrideRes()    {}
+func (*ContentTooLargeHeaders) resetClientOverridesRes()     {}
+func (*ContentTooLargeHeaders) setCallbackOverrideRes()      {}
+func (*ContentTooLargeHeaders) setClientOverrideRes()        {}
+
 //   - `success` — the conditions were met.
 //   - `deadline_exceeded` — the conditions were not met before `deadline_dt`.
 //

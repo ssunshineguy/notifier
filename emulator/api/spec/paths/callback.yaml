@@ -14,6 +14,7 @@ post:
     If the emulator shuts down during a delay, it returns 503 when the
     connection is still open.
   requestBody:
+    description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
     required: true
     content:
       application/json:
@@ -33,6 +34,8 @@ post:
       $ref: ../components/responses/BadEvent.yaml
     "404":
       $ref: ../components/responses/SimulatedCallbackFailure.yaml
+    "413":
+      $ref: ../../../../notifier/api/spec/components/responses/ContentTooLarge.yaml
     "415":
       $ref: ../components/responses/UnsupportedMediaType.yaml
     "500":

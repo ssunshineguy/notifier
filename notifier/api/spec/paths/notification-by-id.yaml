@@ -41,6 +41,8 @@ get:
       $ref: ../components/responses/Unauthorized.yaml
     "404":
       $ref: ../components/responses/NotFound.yaml
+    "413":
+      $ref: ../components/responses/ContentTooLarge.yaml
     "429":
       $ref: ../components/responses/TooManyRequests.yaml
     "500":
@@ -63,6 +65,7 @@ put:
     The change applies from the next check. Delivery of an already selected
     event, including retries, continues with the same event status.
   requestBody:
+    description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
     required: true
     content:
       application/json:
@@ -134,6 +137,8 @@ put:
       $ref: ../components/responses/NotFound.yaml
     "409":
       $ref: ../components/responses/NotificationInProgress.yaml
+    "413":
+      $ref: ../components/responses/ContentTooLarge.yaml
     "429":
       $ref: ../components/responses/TooManyRequests.yaml
     "500":
@@ -169,6 +174,8 @@ delete:
       $ref: ../components/responses/NotFound.yaml
     "409":
       $ref: ../components/responses/NotificationInProgress.yaml
+    "413":
+      $ref: ../components/responses/ContentTooLarge.yaml
     "429":
       $ref: ../components/responses/TooManyRequests.yaml
     "500":

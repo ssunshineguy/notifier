@@ -32,6 +32,7 @@ post:
   parameters:
     - $ref: ../components/parameters/RequestId.yaml
   requestBody:
+    description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
     required: true
     content:
       application/json:
@@ -95,6 +96,8 @@ post:
       $ref: ../components/responses/Unauthorized.yaml
     "409":
       $ref: ../components/responses/AlreadyExists.yaml
+    "413":
+      $ref: ../components/responses/ContentTooLarge.yaml
     "429":
       $ref: ../components/responses/TooManyRequests.yaml
     "500":

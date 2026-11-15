@@ -10,6 +10,17 @@ info:
 
     Test controls store overrides in the emulator process. Restarting the
     process clears all overrides.
+
+    ## Body size
+
+    JSON request bodies are limited to 32768 bytes (32 KiB), including whitespace
+    and escape sequences. This is an explicit byte limit in addition to field
+    validation; it does not accept every textual representation of the same object.
+    Oversized bodies return `413` when their declared length or decoder read
+    exceeds the limit, including chunked requests. Authentication or other checks
+    may reject a request before its body is read.
+    Notifier applies the same byte limit to Information Service response bodies;
+    exceeding it is a data-fetch error, not a usable time or price.
 servers:
   - url: http://localhost:8081
     description: Local emulator
@@ -46,6 +57,8 @@ paths:
                 time: '2026-12-01T09:00:00Z'
         '400':
           $ref: '#/components/responses/BadInformationRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
   /price:
     get:
       operationId: getPrice
@@ -70,6 +83,8 @@ paths:
                 price: 19990
         '400':
           $ref: '#/components/responses/BadInformationRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
   /callback:
     post:
       operationId: receiveNotificationEvent
@@ -87,6 +102,7 @@ paths:
         If the emulator shuts down during a delay, it returns 503 when the
         connection is still open.
       requestBody:
+        description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
         required: true
         content:
           application/json:
@@ -106,6 +122,8 @@ paths:
           $ref: '#/components/responses/BadEvent'
         '404':
           $ref: '#/components/responses/SimulatedCallbackFailure'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '500':
@@ -123,6 +141,7 @@ paths:
       summary: Set an Information Service value for a client
       description: Sets or replaces the selected parameter. The client's other parameter keeps its value.
       requestBody:
+        description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
         required: true
         content:
           application/json:
@@ -142,6 +161,8 @@ paths:
           $ref: '#/components/responses/OverrideApplied'
         '400':
           $ref: '#/components/responses/BadOverrideRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
     delete:
@@ -155,6 +176,8 @@ paths:
           $ref: '#/components/responses/OverrideApplied'
         '400':
           $ref: '#/components/responses/BadOverrideRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
   /v1/callback-overrides/{notification_id}:
     parameters:
       - $ref: '#/components/parameters/NotificationId'
@@ -166,6 +189,7 @@ paths:
       summary: Set the callback response for a notification
       description: Creates or replaces the response status and delay for the notification.
       requestBody:
+        description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
         required: true
         content:
           application/json:
@@ -179,6 +203,8 @@ paths:
           $ref: '#/components/responses/OverrideApplied'
         '400':
           $ref: '#/components/responses/BadOverrideRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
     delete:
@@ -192,6 +218,8 @@ paths:
           $ref: '#/components/responses/OverrideApplied'
         '400':
           $ref: '#/components/responses/BadOverrideRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
 components:
   parameters:
     RequestId:
@@ -451,6 +479,20 @@ components:
             title: Request validation failed
             status: 400
             detail: X-Client-ID is required
+            request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
+    ContentTooLarge:
+      description: The request body exceeds 32768 bytes (32 KiB), including JSON whitespace and escapes.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: /problems/content-too-large
+            title: Request body exceeds the byte limit
+            status: 413
             request_id: 6f1c2a9e-0d4b-4b8e-9a51-2c7d3e8f1a20
     BadEvent:
       description: The notification event fails validation or a 400 response was configured.

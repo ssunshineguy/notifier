@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from http import HTTPStatus
 from uuid import UUID
 
@@ -43,6 +44,20 @@ class NotifierApiClient:
             assert_problem_response(response, expected_type=(
                 DUPLICATE_DISAPPEARED_TYPE if expected_status == HTTPStatus.CONFLICT else None
             ))
+        return response
+
+    def create_notification_raw(
+        self, body: bytes | Iterator[bytes], *, expected_status: int = HTTPStatus.OK,
+    ) -> Response:
+        response = self._http.request(
+            "POST", NOTIFICATIONS_PATH, client_id=self._client_id, raw_body=body,
+        )
+        if expected_status == HTTPStatus.OK:
+            assert_response(response, expected_status, content_type=JSON_CONTENT_TYPE)
+            assert_created_response(response)
+        else:
+            assert_response(response, expected_status, content_type=PROBLEM_CONTENT_TYPE)
+            assert_problem_response(response, expected_type="/problems/content-too-large")
         return response
 
     def get_notification(

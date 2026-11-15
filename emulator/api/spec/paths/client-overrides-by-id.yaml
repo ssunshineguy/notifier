@@ -8,6 +8,7 @@ post:
   summary: Set an Information Service value for a client
   description: Sets or replaces the selected parameter. The client's other parameter keeps its value.
   requestBody:
+    description: JSON body limited to 32768 bytes (32 KiB), including whitespace and escapes.
     required: true
     content:
       application/json:
@@ -27,6 +28,8 @@ post:
       $ref: ../components/responses/OverrideApplied.yaml
     "400":
       $ref: ../components/responses/BadOverrideRequest.yaml
+    "413":
+      $ref: ../../../../notifier/api/spec/components/responses/ContentTooLarge.yaml
     "415":
       $ref: ../components/responses/UnsupportedMediaType.yaml
 delete:
@@ -40,3 +43,5 @@ delete:
       $ref: ../components/responses/OverrideApplied.yaml
     "400":
       $ref: ../components/responses/BadOverrideRequest.yaml
+    "413":
+      $ref: ../../../../notifier/api/spec/components/responses/ContentTooLarge.yaml

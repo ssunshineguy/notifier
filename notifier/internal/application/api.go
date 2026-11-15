@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ssunshineguy/notifier/internal/bodylimit"
 	"github.com/ssunshineguy/notifier/internal/health"
 	"github.com/ssunshineguy/notifier/notifier/internal/config"
 	"github.com/ssunshineguy/notifier/notifier/internal/server/codegen"
@@ -49,7 +50,7 @@ func RunAPI(ctx context.Context, cfg config.Config) error {
 	requestTimeout := time.Duration(cfg.API.RequestTimeoutMS) * time.Millisecond
 	server := &http.Server{
 		Addr:              cfg.API.ListenAddr,
-		Handler:           middleware.LogAPIRequests(slog.Default(), middleware.RequestTimeout(requestTimeout, limited)),
+		Handler:           middleware.LogAPIRequests(slog.Default(), bodylimit.Requests(middleware.RequestTimeout(requestTimeout, limited))),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	probes := middleware.LogAPIRequests(slog.Default(), middleware.RequestTimeout(requestTimeout, health.NewHandler(store.CheckConnection)))

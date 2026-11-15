@@ -15,6 +15,7 @@ import (
 	"github.com/ssunshineguy/notifier/emulator/internal/server/codegen"
 	"github.com/ssunshineguy/notifier/emulator/internal/server/handlers"
 	"github.com/ssunshineguy/notifier/emulator/internal/storage/memory"
+	"github.com/ssunshineguy/notifier/internal/bodylimit"
 	"github.com/ssunshineguy/notifier/internal/health"
 	"github.com/ssunshineguy/notifier/internal/logging"
 	"github.com/ssunshineguy/notifier/internal/problem"
@@ -24,10 +25,14 @@ var loggableRequestID = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
 
 // NewRouter creates the emulator's HTTP router with fresh preset caches.
 func NewRouter() (http.Handler, error) {
-	return codegen.NewServer(
+	router, err := codegen.NewServer(
 		handlers.New(memory.NewClientCache(), memory.NewCallbackCache()),
 		codegen.WithErrorHandler(handleError),
 	)
+	if err != nil {
+		return nil, err
+	}
+	return bodylimit.Requests(router), nil
 }
 
 func handleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
@@ -36,7 +41,11 @@ func handleError(ctx context.Context, w http.ResponseWriter, r *http.Request, er
 		requestID = "[redacted]"
 	}
 	ctx = logging.WithLogger(ctx, slog.Default().With("request_id", requestID))
-	problem.WriteError(ctx, w, r, ogenerrors.ErrorCode(err))
+	status := ogenerrors.ErrorCode(err)
+	if bodylimit.IsExceeded(err) {
+		status = http.StatusRequestEntityTooLarge
+	}
+	problem.WriteError(ctx, w, r, status)
 }
 
 // Run serves the emulator until ctx is canceled or the server fails.
