@@ -2,13 +2,10 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ssunshineguy/notifier/internal/bodylimit"
 	"github.com/ssunshineguy/notifier/internal/health"
@@ -21,15 +18,9 @@ import (
 
 // RunAPI serves requests on the configured address until ctx is canceled.
 func RunAPI(ctx context.Context, cfg config.Config) error {
-	poolConfig, err := pgxpool.ParseConfig(cfg.Database.APIDSN)
+	pool, err := newDatabasePool(ctx, cfg.Database)
 	if err != nil {
-		return errors.New("invalid API database configuration")
-	}
-	poolConfig.MinConns = cfg.Database.MinConns
-	poolConfig.MaxConns = cfg.Database.MaxConns
-	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
-	if err != nil {
-		return fmt.Errorf("open API database pool: %w", err)
+		return fmt.Errorf("configure api database: %w", err)
 	}
 	defer pool.Close()
 

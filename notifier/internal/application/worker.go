@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/ssunshineguy/notifier/internal/health"
 	"github.com/ssunshineguy/notifier/notifier/internal/config"
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
@@ -23,15 +21,9 @@ const workerShutdownTimeout = 10 * time.Second
 
 // RunWorker owns the worker database pool, polling, and probe listener.
 func RunWorker(ctx context.Context, cfg config.Config) error {
-	poolConfig, err := pgxpool.ParseConfig(cfg.Database.WorkerDSN)
+	pool, err := newDatabasePool(ctx, cfg.Database)
 	if err != nil {
-		return errors.New("invalid worker database configuration")
-	}
-	poolConfig.MinConns = cfg.Database.MinConns
-	poolConfig.MaxConns = cfg.Database.MaxConns
-	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
-	if err != nil {
-		return fmt.Errorf("open worker database pool: %w", err)
+		return fmt.Errorf("configure worker database: %w", err)
 	}
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
