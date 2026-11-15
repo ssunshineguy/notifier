@@ -39,7 +39,7 @@ alwaysApply: false
 - Pass the request or job context into I/O. Derive operation deadlines from that context and release them with the corresponding cancel function.
 - Give long-lived resources an owner. Tie background work to shutdown and bound concurrent work and wait queues using the existing limits.
 - Release acquired resources on every exit path. Check errors that affect the response, persisted state or cleanup. Keep error classification with `errors.Is` or `errors.As` across wrapping.
-- Give the claim and every goroutine in its batch the same cycle context. Each polling loop makes at most one claim per cycle and waits for the cycle deadline before trying again. A handler occupies its slot until it exits, even after the cycle deadline. Reserve no more rows than the polling loop has free slots. Skip the claim when all slots are occupied. The notification reservation must cover the cycle budget. The scheduling delay and reservation duration live under `notification`.
+- Give the claim and every goroutine in its batch the same cycle context. Each polling loop makes at most one claim per cycle. Start the next cycle as soon as every handler in a nonempty batch exits, or when the cycle deadline expires. Empty or failed claims wait for the cycle deadline before retrying. A handler occupies its slot until it exits, even after the cycle deadline. Reserve no more rows than the polling loop has free slots. When all slots are occupied, wait for a slot to be freed without querying the database; start the next cycle immediately when one becomes available. The notification reservation must cover the cycle budget. The scheduling delay and reservation duration live under `notification`.
 
 ## PostgreSQL runtime
 
