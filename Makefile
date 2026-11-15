@@ -1,4 +1,8 @@
-.PHONY: gen up down reset migrate psql ai-setup ai-check
+.PHONY: gen up down reset migrate psql ai-setup ai-check check test-integration setup-e2e test-e2e lock-e2e
+
+PYTHON ?= python3.14
+E2E_VENV ?= tests/e2e/.venv
+export E2E_VENV
 
 gen:
 	./scripts/gen.sh
@@ -30,3 +34,24 @@ ai-setup:
 
 ai-check:
 	python3 -B scripts/ai-check.py
+
+check:
+	go test ./...
+	go vet ./...
+	golangci-lint run
+	@diff=$$(mktemp); trap 'rm -f "$$diff"' EXIT; \
+		golangci-lint fmt --diff > "$$diff" || { cat "$$diff"; exit 1; }; \
+		if test -s "$$diff"; then cat "$$diff"; exit 1; fi
+	git diff --check
+
+test-integration:
+	go test -tags=integration -count=1 ./notifier/internal/storage/postgres
+
+setup-e2e:
+	$(PYTHON) scripts/e2e.py setup
+
+test-e2e:
+	$(PYTHON) scripts/e2e.py test $(PYTEST_ARGS)
+
+lock-e2e:
+	$(PYTHON) scripts/e2e.py lock

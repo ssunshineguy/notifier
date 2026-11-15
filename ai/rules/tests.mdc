@@ -29,7 +29,7 @@ alwaysApply: false
 - Check the observable result and the changed failure case. For HTTP, verify the relevant status, content type, headers or body. For retries, duplicate creation, or cross-client access, verify the resulting state or absence of an unintended write.
 - Use synchronization when testing queueing and cancellation. Keep sleeps out of ordering assertions.
 - For changed PostgreSQL queries, test behavior that depends on the database with the real adapter. For Compose changes, verify the affected startup or runtime behavior on a disposable stack.
-- Run the relevant tests while implementing and `go test ./...` before handing off a Go change. Use `go test -race ./...` for concurrency or lifecycle changes. Report the manual scenarios actually run and any material verification gaps.
+- Run the relevant tests while implementing and `make check` before handing off a Go change. Use `go test -race ./...` for concurrency or lifecycle changes. Report the manual scenarios actually run and any material verification gaps.
 - Use [PR coverage methodology](../skills/pr-description/SKILL.md#test-coverage) for percentages. Judge test adequacy by the changed behavior, including any runtime checks needed to verify it.
 
 ## Business invariant verification
@@ -46,13 +46,14 @@ implemented; their planned behavior is not evidence of current correctness.
 - Put store tests beside the implementation in `notifier/internal/storage/postgres/*_integration_test.go` with `//go:build integration`. Use `notification_integration_test.go` as the first example.
 - Use the existing `startPostgres(t)` helper. It uses a fresh Docker container with a random loopback port, applies the project's bootstrap SQL and migrations, and checks readiness with `SELECT 1`. The test connects as `notifier_api`. Keep containers, database state, and cleanup within the test.
 - Exercise the public store method. Use deterministic fixtures and verify returned values, ownership, and database errors relevant to the change. Seed state through existing store methods or targeted SQL in the disposable database. Keep dependent subtests serial.
-- Run `go test -tags=integration -count=1 ./notifier/internal/storage/postgres` for the store suite with Docker running. Run `go test ./...` for the default suite. A tagged test fails if its database cannot start.
+- Run `make test-integration` for the store suite with Docker running. Run `make check` for the default suite and static checks. A tagged test fails if its database cannot start.
 
 ## API end-to-end tests
 
-- Run against the existing Compose stack. Start it with `make up`, install the test
-  project with `python -m pip install -e tests/e2e` in a virtual environment, and run
-  `python -m pytest tests/e2e`.
+- Run against the existing Compose stack. Start it with `make up`, install the pinned test
+  environment with `make setup-e2e`, and run `make test-e2e`. The test command never
+  updates dependencies. See the [development guide](../../docs/development.md) for
+  prerequisites, isolated build constraints and explicit lock updates.
 - Use pytest, Requests, and SQLAlchemy Core with psycopg. Resolve the API, emulator and
   PostgreSQL host ports once per test session with `docker compose port` from the checkout
   root. Keep the Compose address lookup, local `notifier_e2e` DSN and timeouts in
