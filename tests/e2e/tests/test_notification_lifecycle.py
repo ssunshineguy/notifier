@@ -15,6 +15,22 @@ from notifier_e2e.steps.notifications import (
 )
 
 
+def nested_conditions(timestamp: str, price: int) -> dict[str, object]:
+    return {
+        "type": "and",
+        "conditions": [
+            {"type": "price", "operation": "less_than", "value": price + 1},
+            {
+                "type": "or",
+                "conditions": [
+                    {"type": "time", "operation": "greater_than", "value": timestamp},
+                    {"type": "price", "operation": "less_than", "value": 0},
+                ],
+            },
+        ],
+    }
+
+
 def test_notification_lifecycle(
     notifier_api: NotifierApiClient,
     emulator_api: EmulatorClient,
@@ -25,11 +41,16 @@ def test_notification_lifecycle(
     price = 100
     emulator_api.set_client_override(client.client_id, "price", price).raise_for_status()
     assert emulator_api.get_price(client.client_id).json()["price"] == price
-    original_params = [{"type": "price", "operation": "greater_than", "value": price}]
-    replacement_params = [{"type": "price", "operation": "greater_than", "value": price + 1}]
+    original_price = {"type": "price", "operation": "greater_than", "value": price}
+    replacement_price = {"type": "price", "operation": "greater_than", "value": price + 1}
+    original_params = [original_price, nested_conditions("2026-01-01T00:00:00Z", price)]
+    replacement_params = [replacement_price, nested_conditions("2026-01-01T00:00:01Z", price)]
 
     before_create = datetime.now(timezone.utc)
-    created = notifier_api.create_notification(external_id, original_params)
+    created = notifier_api.create_notification(
+        external_id,
+        [original_price, nested_conditions("2026-01-01T00:00:00.987654321Z", price)],
+    )
     after_create = datetime.now(timezone.utc)
     notification_id = UUID(created.json()["notification_id"])
 
@@ -71,6 +92,10 @@ def test_notification_lifecycle(
     update_notification(
         notifier_api,
         database,
+        notification_params=[
+            replacement_price,
+            nested_conditions("2026-01-01T00:00:01.987654321Z", price),
+        ],
         expected_response={
             "notification_id": str(notification_id),
             "external_id": external_id,

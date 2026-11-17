@@ -75,8 +75,16 @@ func TestUpdateNotification(t *testing.T) {
 		{name: "invalid UUID", id: "not-a-uuid", status: 400, problem: "/problems/validation-error"},
 		{name: "missing conditions", body: `{}`, status: 400, problem: "/problems/validation-error"},
 		{name: "empty conditions", body: `{"notification_params":[]}`, status: 400, problem: "/problems/validation-error"},
-		{name: "removed after operation", body: `{"notification_params":[{"type":"time","operation":"after","value":"2026-12-02T09:00:00Z"}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "unsupported time operation", body: `{"notification_params":[{"type":"time","operation":"equal","value":"2026-12-02T09:00:00Z"}]}`, status: 400, problem: "/problems/validation-error"},
 		{name: "negative price threshold", body: `{"notification_params":[{"type":"price","operation":"greater_than","value":-1}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "null condition array", body: `{"notification_params":null}`, status: 400, problem: "/problems/validation-error"},
+		{name: "case-sensitive condition fields", body: `{"notification_params":[{"Type":"time","operation":"greater_than","value":"2026-12-02T09:00:00Z"}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "unexpected condition field", body: `{"notification_params":[{"type":"time","operation":"greater_than","value":"2026-12-02T09:00:00Z","unexpected":true}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "leaf with group fields", body: `{"notification_params":[{"type":"price","operation":"greater_than","value":0,"conditions":[]}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "fractional price threshold", body: `{"notification_params":[{"type":"price","operation":"greater_than","value":1.5}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "duplicate discriminator", body: `{"notification_params":[{"type":"time","type":"price","operation":"greater_than","value":1}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "duplicate threshold", body: `{"notification_params":[{"type":"price","operation":"greater_than","value":"invalid","value":1}]}`, status: 400, problem: "/problems/validation-error"},
+		{name: "unencodable time offset", body: `{"notification_params":[{"type":"time","operation":"greater_than","value":"2026-12-02T09:00:00+24:00"}]}`, status: 400, problem: "/problems/validation-error"},
 		{name: "reject deadline changes", body: `{"notification_params":[` + condition + `],"deadline_dt":"2026-12-02T20:00:00Z"}`, status: 400, problem: "/problems/validation-error"},
 		{name: "group depth", body: `{"notification_params":[` + deepCondition + `]}`, status: 400, problem: "/problems/validation-error", fieldError: true},
 		{name: "total leaves", body: `{"notification_params":[` + groupOfSeven + "," + groupOfSeven + "," + groupOfSeven + `]}`, status: 400, problem: "/problems/validation-error", fieldError: true},
@@ -148,19 +156,8 @@ func TestUpdateNotification(t *testing.T) {
 				want := codegen.Notification{
 					NotificationID: codegen.NotificationId(id), ExternalID: "order-42",
 					NotificationStatus: codegen.NewOptOrdinaryNotificationStatus(codegen.OrdinaryNotificationStatus(notificationStatus)),
-					NotificationParams: codegen.NotificationParams{codegen.NewOrConditionCondition(codegen.OrCondition{
-						Type: codegen.OrConditionTypeOr,
-						Conditions: []codegen.Condition{
-							timeCondition(after),
-							codegen.NewTimeConditionCondition(codegen.TimeCondition{
-								Type: codegen.TimeConditionTypeTime, Operation: codegen.ComparisonOperationLessThan, Value: before,
-							}),
-							codegen.NewPriceConditionCondition(codegen.PriceCondition{
-								Type: codegen.PriceConditionTypePrice, Operation: codegen.ComparisonOperationGreaterThan, Value: 0,
-							}),
-						},
-					})},
-					DeadlineDt: deadline, StartDt: start,
+					NotificationParams: codegen.NotificationParams(expectedConditions),
+					DeadlineDt:         deadline, StartDt: start,
 				}
 				if deliveryStatus != "" {
 					want.DeliveryStatus.SetTo(codegen.DeliveryStatus(deliveryStatus))

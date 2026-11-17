@@ -102,7 +102,7 @@ Checks repeated against this local baseline on 2026-11-15:
   the generated file also passes with a command-local `blank-at-eof` exclusion.
   The generator and repository configuration were not changed.
 - Additional lint with all integration files reports two pre-existing findings:
-  gofumpt in `notification_result_integration_test.go:45` and context-argument
+  gofumpt in `worker_result_integration_test.go:45` and context-argument
   order in `notification_mutation_integration_test.go:120`. The same tagged lint
   restricted to changes against `origin/main` reports no new issues. These
   unrelated findings remain unfixed.

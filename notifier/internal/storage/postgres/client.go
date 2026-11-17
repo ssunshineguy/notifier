@@ -13,11 +13,6 @@ import (
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
 )
 
-const selectClient = `
-SELECT client_id, callback_url, max_lifetime_sec, callback_timeout_ms, created_dt
-FROM notifier.t_client
-WHERE client_id = $1`
-
 // GetClient returns core.ErrClientNotFound when clientID is absent.
 func (s *Store) GetClient(ctx context.Context, clientID string) (core.Client, error) {
 	var client core.Client

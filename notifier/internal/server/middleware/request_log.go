@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ssunshineguy/notifier/internal/logging"
-	"github.com/ssunshineguy/notifier/notifier/internal/server/codegen"
+	"github.com/ssunshineguy/notifier/notifier/internal/conditions"
 )
 
 const responseLogLimit = 8 * 1024
@@ -226,14 +226,14 @@ func (w *loggedResponse) logBody() {
 	}
 
 	var body struct {
-		NotificationID     *uuid.UUID                 `json:"notification_id"`
-		ExternalID         json.RawMessage            `json:"external_id"`
-		NotificationStatus string                     `json:"notification_status"`
-		NotificationParams codegen.NotificationParams `json:"notification_params"`
-		Deadline           *time.Time                 `json:"deadline_dt"`
-		Start              *time.Time                 `json:"start_dt"`
-		ProblemType        string                     `json:"type"`
-		Status             json.RawMessage            `json:"status"`
+		NotificationID     *uuid.UUID      `json:"notification_id"`
+		ExternalID         json.RawMessage `json:"external_id"`
+		NotificationStatus string          `json:"notification_status"`
+		NotificationParams conditions.Tree `json:"notification_params"`
+		Deadline           *time.Time      `json:"deadline_dt"`
+		Start              *time.Time      `json:"start_dt"`
+		ProblemType        string          `json:"type"`
+		Status             json.RawMessage `json:"status"`
 	}
 	if err := json.Unmarshal(w.body.Bytes(), &body); err != nil {
 		return

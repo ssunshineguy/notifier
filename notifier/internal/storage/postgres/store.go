@@ -29,7 +29,7 @@ func NewStore(pool *pgxpool.Pool, operationTimeout time.Duration) *Store {
 // CheckConnection verifies that PostgreSQL can execute SQL within the store's operation budget.
 func (s *Store) CheckConnection(ctx context.Context) error {
 	var result int
-	return s.scanRowWithLogLevel(ctx, slog.LevelDebug, "check_connection", "SELECT 1", nil, func() slog.Attr {
+	return s.scanRowWithLogLevel(ctx, slog.LevelDebug, "check_connection", checkConnection, nil, func() slog.Attr {
 		return slog.Int("value", result)
 	}, &result)
 }

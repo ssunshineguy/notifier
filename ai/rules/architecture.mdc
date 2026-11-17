@@ -20,6 +20,7 @@ alwaysApply: false
 | `internal/problem` | Write Problem Details responses for both services' HTTP middleware. |
 | `internal/bodylimit` | Share the HTTP body byte limit and bound request reads before generated decoders. |
 | `notifier/internal/core` | Domain types and rules. Keep them independent of other internal packages and I/O. Pass in time when a rule depends on it. |
+| `notifier/internal/conditions` | Own the condition JSON shared by the HTTP API and PostgreSQL. Keep the codec independent of the server and storage packages. |
 | `notifier/internal/server/handlers` | Map ogen requests to domain inputs, call domain logic and storage interfaces, map outcomes to typed responses. |
 | `notifier/internal/server/middleware` | Handle HTTP concerns shared by operations, including client lookup, request deadlines and admission. |
 | `internal/health` | Serve internal probes on loopback and coordinate their listener lifecycle with the service. |
@@ -71,8 +72,8 @@ checks as the owning tasks land. A test link records coverage, not a successful 
 
 [delivery]: ../../notifier/internal/core/notification_delivery.go
 [delivery-tests]: ../../notifier/internal/core/notification_delivery_test.go
-[result]: ../../notifier/internal/storage/postgres/notification_result.go
-[result-tests]: ../../notifier/internal/storage/postgres/notification_result_integration_test.go
+[result]: ../../notifier/internal/storage/postgres/worker.go
+[result-tests]: ../../notifier/internal/storage/postgres/worker_result_integration_test.go
 [get-tests]: ../../notifier/internal/server/handlers/get_notification_test.go
 [processor]: ../../notifier/internal/worker/notification_processor.go
 [processor-tests]: ../../notifier/internal/worker/notification_processor_test.go
@@ -92,10 +93,10 @@ checks as the owning tasks land. A test link records coverage, not a successful 
 [task-07]: /Users/sunshineguy/Documents/ChatGPT/notifier/outputs/notifier-final-plan-2026-11-15.md#07-вынести-первую-проверку-в-независимую-настройку
 [conflict-tests]: ../../notifier/internal/storage/postgres/create_notification_conflict_integration_test.go
 
-[dlq-store]: ../../notifier/internal/storage/postgres/notification_dlq.go
-[dlq-tests]: ../../notifier/internal/storage/postgres/notification_dlq_integration_test.go
+[dlq-store]: ../../notifier/internal/storage/postgres/worker.go
+[dlq-tests]: ../../notifier/internal/storage/postgres/worker_dlq_integration_test.go
 [transient-tests]: ../../notifier/internal/worker/dlq_test.go
-[claim-conditions]: ../../notifier/internal/storage/postgres/notification_conditions.go
+[claim-conditions]: ../../notifier/internal/storage/postgres/worker.go
 [get-handler]: ../../notifier/internal/server/handlers/get_notification.go
 [initial-delay-tests]: ../../notifier/internal/worker/initial_check_delay_test.go
 [retry-config-tests]: ../../notifier/internal/config/technical_retry_test.go

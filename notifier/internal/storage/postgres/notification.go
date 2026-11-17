@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,27 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/ssunshineguy/notifier/notifier/internal/conditions"
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
 )
-
-const insertNotification = `
-INSERT INTO notifier.t_notification
-    (id, client_id, external_id, data, deadline_dt, start_dt, next_scheduled_dt)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT ON CONSTRAINT uq_notification_client_id_external_id DO NOTHING
-RETURNING id`
-
-const selectNotification = `
-SELECT notification.id, notification.external_id, notification.data,
-       notification.deadline_dt, notification.start_dt, notification.notification_status,
-       COALESCE(notification.delivery_status, ''), notification.stop_dt, dlq.created_dt, COALESCE(dlq.reason, '')
-FROM notifier.t_notification AS notification
-LEFT JOIN notifier.t_dlq AS dlq ON dlq.notification_id = notification.id
-WHERE notification.id = $1 AND notification.client_id = $2`
-
-const selectNotificationID = `
-SELECT id FROM notifier.t_notification
-WHERE client_id = $1 AND external_id = $2`
 
 // CreateNotification assigns a UUID v7 or reports an existing or concurrently deleted duplicate.
 func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uuid.UUID, error) {
@@ -39,9 +20,9 @@ func (s *Store) CreateNotification(ctx context.Context, n core.Notification) (uu
 		return uuid.Nil, fmt.Errorf("generate notification id: %w", err)
 	}
 
-	data, err := json.Marshal(conditionsToJSON(n.Params))
+	data, _, err := encodeConditions(n.Params)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("encode notification params: %w", err)
+		return uuid.Nil, err
 	}
 
 	var inserted uuid.UUID
@@ -97,11 +78,7 @@ func (s *Store) GetNotification(ctx context.Context, notificationID uuid.UUID, c
 		return notification, nil
 	}
 
-	var conditions []conditionJSON[*json.RawMessage]
-	if err := json.Unmarshal(data, &conditions); err != nil {
-		return core.NotificationDetails{}, fmt.Errorf("decode notification params: %w", err)
-	}
-	notification.Params, err = conditionsFromJSON(conditions)
+	notification.Params, err = conditions.DecodeStored(data)
 	if err != nil {
 		return core.NotificationDetails{}, fmt.Errorf("map notification params: %w", err)
 	}
@@ -122,71 +99,60 @@ func (s *Store) FindNotificationID(ctx context.Context, clientID, externalID str
 	return id, true, nil
 }
 
-type conditionJSON[T any] struct {
-	Type       core.ConditionType       `json:"type"`
-	Operation  core.ComparisonOperation `json:"operation,omitempty"`
-	Value      T                        `json:"value,omitempty"`
-	Conditions []conditionJSON[T]       `json:"conditions,omitempty"`
+// UpdateNotification replaces only the conditions and returns the notification as updated.
+func (s *Store) UpdateNotification(ctx context.Context, notificationID uuid.UUID, clientID string, conditions []core.Condition) (core.NotificationDetails, error) {
+	data, normalized, err := encodeConditions(conditions)
+	if err != nil {
+		return core.NotificationDetails{}, err
+	}
+
+	var notification core.NotificationDetails
+	var stopped, updated bool
+	err = s.scanRow(ctx, "update_notification", updateNotification,
+		[]any{notificationID, clientID, data},
+		func() slog.Attr { return slog.String("notification_id", notification.ID.String()) },
+		&notification.ID, &notification.ExternalID, &notification.Deadline, &notification.Start,
+		&notification.NotificationStatus, &notification.DeliveryStatus, &stopped, &updated)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return core.NotificationDetails{}, core.ErrNotificationNotFound
+	}
+	if err != nil {
+		return core.NotificationDetails{}, fmt.Errorf("update notification: %w", err)
+	}
+	if stopped {
+		return core.NotificationDetails{}, core.ErrNotificationStopped
+	}
+	if !updated {
+		return core.NotificationDetails{}, core.ErrNotificationReserved
+	}
+
+	notification.Params = normalized
+	return notification, nil
 }
 
-func conditionsToJSON(conds []core.Condition) []conditionJSON[any] {
-	out := make([]conditionJSON[any], 0, len(conds))
-	for _, c := range conds {
-		switch c.Type {
-		case core.ConditionTime:
-			out = append(out, conditionJSON[any]{Type: c.Type, Operation: c.Time.Operation, Value: c.Time.Threshold})
-		case core.ConditionPrice:
-			out = append(out, conditionJSON[any]{Type: c.Type, Operation: c.Price.Operation, Value: c.Price.Threshold})
-		default:
-			out = append(out, conditionJSON[any]{Type: c.Type, Conditions: conditionsToJSON(c.Conditions)})
-		}
+// DeleteNotification removes an owned notification outside an active worker reservation.
+func (s *Store) DeleteNotification(ctx context.Context, notificationID uuid.UUID, clientID string) error {
+	var id uuid.UUID
+	var deleted bool
+	err := s.scanRow(ctx, "delete_notification", deleteNotification, []any{notificationID, clientID},
+		func() slog.Attr { return slog.String("notification_id", id.String()) }, &id, &deleted)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return core.ErrNotificationNotFound
 	}
-	return out
+	if err != nil {
+		return fmt.Errorf("delete notification: %w", err)
+	}
+	if !deleted {
+		return core.ErrNotificationReserved
+	}
+	return nil
 }
 
-func conditionsFromJSON(conditions []conditionJSON[*json.RawMessage]) ([]core.Condition, error) {
-	result := make([]core.Condition, len(conditions))
-	for i, condition := range conditions {
-		node := &result[i]
-		node.Type = condition.Type
-		switch condition.Type {
-		case core.ConditionTime:
-			op := condition.Operation
-			if op == "after" {
-				// Existing rows can predate the shared comparison operators.
-				op = core.GreaterThan
-			}
-			if condition.Value == nil || !op.IsValid() {
-				return nil, errors.New("invalid stored time condition")
-			}
-			node.Time.Operation = op
-			if err := json.Unmarshal(*condition.Value, &node.Time.Threshold); err != nil {
-				return nil, fmt.Errorf("invalid stored time condition: %w", err)
-			}
-		case core.ConditionPrice:
-			if !condition.Operation.IsValid() {
-				return nil, errors.New("invalid stored price operation")
-			}
-			if condition.Value == nil {
-				return nil, errors.New("missing stored price threshold")
-			}
-			var threshold int64
-			if err := json.Unmarshal(*condition.Value, &threshold); err != nil {
-				return nil, fmt.Errorf("invalid stored price threshold: %w", err)
-			}
-			if threshold < 0 {
-				return nil, errors.New("invalid stored price threshold")
-			}
-			node.Price = core.PriceCondition{Operation: condition.Operation, Threshold: threshold}
-		case core.ConditionAnd, core.ConditionOr:
-			children, err := conditionsFromJSON(condition.Conditions)
-			if err != nil {
-				return nil, err
-			}
-			node.Conditions = children
-		default:
-			return nil, fmt.Errorf("unsupported stored condition type %q", condition.Type)
-		}
+func encodeConditions(params []core.Condition) ([]byte, []core.Condition, error) {
+	normalized := conditions.Tree(params).AtSecondPrecision()
+	data, err := normalized.MarshalJSON()
+	if err != nil {
+		return nil, nil, fmt.Errorf("encode notification params: %w", err)
 	}
-	return result, nil
+	return data, normalized, nil
 }

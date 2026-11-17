@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"net/http"
 
 	"github.com/google/uuid"
 
@@ -53,81 +52,4 @@ func (h *Handler) GetNotification(ctx context.Context, params codegen.GetNotific
 		XRequestID: requestID,
 		Response:   codegen.NewNotificationNotificationRead(response.Response),
 	}, nil
-}
-
-func notificationNotFoundResponse(requestID codegen.OptString) *codegen.NotFoundHeaders {
-	return &codegen.NotFoundHeaders{
-		XRequestID: requestID,
-		Response: codegen.Problem{
-			Type:      "/problems/not-found",
-			Title:     "Notification not found",
-			Status:    http.StatusNotFound,
-			RequestID: requestID,
-		},
-	}
-}
-
-func notificationResponse(requestID codegen.OptString, notification core.NotificationDetails) *codegen.NotificationHeaders {
-	conditions, ok := toAPIConditions(notification.Params)
-	if !ok {
-		return nil
-	}
-	var deliveryStatus codegen.OptDeliveryStatus
-	if notification.DeliveryStatus != "" {
-		deliveryStatus.SetTo(codegen.DeliveryStatus(notification.DeliveryStatus))
-	}
-	return &codegen.NotificationHeaders{
-		XRequestID: requestID,
-		Response: codegen.Notification{
-			NotificationID:     codegen.NotificationId(notification.ID),
-			ExternalID:         codegen.ExternalId(notification.ExternalID),
-			NotificationStatus: codegen.NewOptOrdinaryNotificationStatus(codegen.OrdinaryNotificationStatus(notification.NotificationStatus)),
-			DeliveryStatus:     deliveryStatus,
-			NotificationParams: conditions,
-			DeadlineDt:         notification.Deadline,
-			StartDt:            notification.Start,
-		},
-	}
-}
-
-func toAPIConditions(conditions []core.Condition) ([]codegen.Condition, bool) {
-	result := make([]codegen.Condition, len(conditions))
-	for i, condition := range conditions {
-		if condition.Type == core.ConditionTime {
-			result[i] = codegen.NewTimeConditionCondition(codegen.TimeCondition{
-				Type:      codegen.TimeConditionTypeTime,
-				Operation: codegen.ComparisonOperation(condition.Time.Operation),
-				Value:     condition.Time.Threshold,
-			})
-			continue
-		}
-		if condition.Type == core.ConditionPrice {
-			result[i] = codegen.NewPriceConditionCondition(codegen.PriceCondition{
-				Type:      codegen.PriceConditionTypePrice,
-				Operation: codegen.ComparisonOperation(condition.Price.Operation),
-				Value:     condition.Price.Threshold,
-			})
-			continue
-		}
-
-		children, ok := toAPIConditions(condition.Conditions)
-		if !ok {
-			return nil, false
-		}
-		switch condition.Type {
-		case core.ConditionAnd:
-			result[i] = codegen.NewAndConditionCondition(codegen.AndCondition{
-				Type:       codegen.AndConditionTypeAnd,
-				Conditions: children,
-			})
-		case core.ConditionOr:
-			result[i] = codegen.NewOrConditionCondition(codegen.OrCondition{
-				Type:       codegen.OrConditionTypeOr,
-				Conditions: children,
-			})
-		default:
-			return nil, false
-		}
-	}
-	return result, true
 }

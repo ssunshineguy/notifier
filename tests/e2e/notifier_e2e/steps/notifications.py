@@ -46,12 +46,13 @@ def update_notification(
     api: NotifierApiClient,
     database: Engine,
     *,
+    notification_params: list[dict[str, object]],
     expected_response: dict[str, object],
     expected: Notification,
 ) -> None:
     updated = wait_for_mutation(
         lambda remaining: api.update_notification(
-            expected.id, expected.data, allow_in_progress=True, timeout_seconds=remaining
+            expected.id, notification_params, allow_in_progress=True, timeout_seconds=remaining
         )
     ).json()
     assert updated == expected_response

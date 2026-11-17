@@ -51,16 +51,10 @@ func TestPrepareCreateNotification(t *testing.T) {
 		ExternalID: "order-42",
 		NotificationParams: codegen.NotificationParams{
 			timeCondition(after),
-			codegen.NewAndConditionCondition(codegen.AndCondition{
-				Type: codegen.AndConditionTypeAnd,
-				Conditions: []codegen.Condition{
-					timeCondition(later),
-					codegen.NewOrConditionCondition(codegen.OrCondition{
-						Type:       codegen.OrConditionTypeOr,
-						Conditions: []codegen.Condition{timeCondition(after), timeCondition(later)},
-					}),
-				},
-			}),
+			{Type: core.ConditionAnd, Conditions: []core.Condition{
+				timeCondition(later),
+				{Type: core.ConditionOr, Conditions: []core.Condition{timeCondition(after), timeCondition(later)}},
+			}},
 		},
 	}
 
@@ -123,12 +117,11 @@ func TestPrepareCreateNotification(t *testing.T) {
 	})
 }
 
-func timeCondition(after time.Time) codegen.Condition {
-	return codegen.NewTimeConditionCondition(codegen.TimeCondition{
-		Type:      codegen.TimeConditionTypeTime,
-		Operation: codegen.ComparisonOperationGreaterThan,
-		Value:     after,
-	})
+func timeCondition(after time.Time) core.Condition {
+	return core.Condition{
+		Type: core.ConditionTime,
+		Time: core.TimeCondition{Operation: core.GreaterThan, Threshold: after},
+	}
 }
 
 type notificationStoreStub struct {
