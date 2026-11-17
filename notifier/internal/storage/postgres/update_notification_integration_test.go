@@ -36,6 +36,8 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 		{Type: core.ConditionTime, Time: core.TimeCondition{Operation: core.LessThan, Threshold: start.Add(3 * time.Hour)}},
 		{Type: core.ConditionPrice, Price: core.PriceCondition{Operation: core.LessThan, Threshold: 19990}},
 	}}}
+	requestedReplacement := []core.Condition{{Type: core.ConditionAnd, Conditions: append([]core.Condition(nil), replacement[0].Conditions...)}}
+	requestedReplacement[0].Conditions[0].Time.Threshold = start.Add(2*time.Hour + 900*time.Millisecond)
 	id, err := store.CreateNotification(ctx, core.Notification{
 		ClientID: owner, ExternalID: externalID, Params: original,
 		Start: start, Deadline: deadline, NextScheduled: scheduled,
@@ -78,7 +80,7 @@ func TestUpdateNotificationIntegration(t *testing.T) {
 
 	t.Run("replace and repeat after reservation expires", func(t *testing.T) {
 		for range 2 {
-			got, err := store.UpdateNotification(t.Context(), id, owner, replacement)
+			got, err := store.UpdateNotification(t.Context(), id, owner, requestedReplacement)
 			if err != nil {
 				t.Fatal(err)
 			}

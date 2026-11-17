@@ -151,7 +151,7 @@ def test_mutation_passes_timeout_budget_to_transport(method):
     ("notification_params", [{"type": "price", "operation": "greater_than", "value": -1}]),
     ("notification_params", [{"type": "price", "operation": "greater_than", "value": True}]),
     ("notification_params", [{"type": "price", "operation": "greater_than", "value": 2**63}]),
-    ("notification_params", [{"type": "price", "operation": "after", "value": 100}]),
+    ("notification_params", [{"type": "price", "operation": "equal", "value": 100}]),
     ("notification_params", [{"type": "time", "operation": "less_than", "value": "yesterday"}]),
     ("notification_params", [{"type": "and", "conditions": PARAMS}]),
 ])

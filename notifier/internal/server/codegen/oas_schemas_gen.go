@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
+	"github.com/ssunshineguy/notifier/notifier/internal/conditions"
 )
 
 // AlreadyExistsApplicationJSONHeaders wraps NotificationCreated with response headers.
@@ -36,67 +37,6 @@ func (s *AlreadyExistsApplicationJSONHeaders) SetResponse(val NotificationCreate
 }
 
 func (*AlreadyExistsApplicationJSONHeaders) createNotificationRes() {}
-
-// Met when all nested conditions are met.
-// Ref: #/components/schemas/AndCondition
-type AndCondition struct {
-	Type       AndConditionType `json:"type"`
-	Conditions []Condition      `json:"conditions"`
-}
-
-// GetType returns the value of Type.
-func (s *AndCondition) GetType() AndConditionType {
-	return s.Type
-}
-
-// GetConditions returns the value of Conditions.
-func (s *AndCondition) GetConditions() []Condition {
-	return s.Conditions
-}
-
-// SetType sets the value of Type.
-func (s *AndCondition) SetType(val AndConditionType) {
-	s.Type = val
-}
-
-// SetConditions sets the value of Conditions.
-func (s *AndCondition) SetConditions(val []Condition) {
-	s.Conditions = val
-}
-
-type AndConditionType string
-
-const (
-	AndConditionTypeAnd AndConditionType = "and"
-)
-
-// AllValues returns all AndConditionType values.
-func (AndConditionType) AllValues() []AndConditionType {
-	return []AndConditionType{
-		AndConditionTypeAnd,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AndConditionType) MarshalText() ([]byte, error) {
-	switch s {
-	case AndConditionTypeAnd:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AndConditionType) UnmarshalText(data []byte) error {
-	switch AndConditionType(data) {
-	case AndConditionTypeAnd:
-		*s = AndConditionTypeAnd
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
 
 // BadRequestHeaders wraps Problem with response headers.
 type BadRequestHeaders struct {
@@ -152,175 +92,6 @@ func (s *ClientID) SetAPIKey(val string) {
 // SetRoles sets the value of Roles.
 func (s *ClientID) SetRoles(val []string) {
 	s.Roles = val
-}
-
-//   - `greater_than` — met when the current value is strictly greater than the threshold.
-//   - `less_than` — met when the current value is strictly less than the threshold.
-//
-// Ref: #/components/schemas/ComparisonOperation
-type ComparisonOperation string
-
-const (
-	ComparisonOperationGreaterThan ComparisonOperation = "greater_than"
-	ComparisonOperationLessThan    ComparisonOperation = "less_than"
-)
-
-// AllValues returns all ComparisonOperation values.
-func (ComparisonOperation) AllValues() []ComparisonOperation {
-	return []ComparisonOperation{
-		ComparisonOperationGreaterThan,
-		ComparisonOperationLessThan,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ComparisonOperation) MarshalText() ([]byte, error) {
-	switch s {
-	case ComparisonOperationGreaterThan:
-		return []byte(s), nil
-	case ComparisonOperationLessThan:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ComparisonOperation) UnmarshalText(data []byte) error {
-	switch ComparisonOperation(data) {
-	case ComparisonOperationGreaterThan:
-		*s = ComparisonOperationGreaterThan
-		return nil
-	case ComparisonOperationLessThan:
-		*s = ComparisonOperationLessThan
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Node of the condition tree. The `type` field selects the node kind:
-//
-//   - leaf conditions (`time`, `price`) check one fact;
-//   - groups (`and`, `or`) combine nested conditions, which can be leaves or other groups.
-//
-// New leaf kinds are added as new variants.
-// Ref: #/components/schemas/Condition
-// Condition represents sum type.
-type Condition struct {
-	// Type selects the active sum variant, switch on this field.
-	Type           ConditionType
-	TimeCondition  TimeCondition
-	PriceCondition PriceCondition
-	AndCondition   AndCondition
-	OrCondition    OrCondition
-}
-
-// ConditionType is oneOf type of Condition.
-type ConditionType string
-
-// Possible values for ConditionType.
-const (
-	TimeConditionCondition  ConditionType = "time"
-	PriceConditionCondition ConditionType = "price"
-	AndConditionCondition   ConditionType = "and"
-	OrConditionCondition    ConditionType = "or"
-)
-
-// IsTimeCondition reports whether Condition is TimeCondition.
-func (s Condition) IsTimeCondition() bool { return s.Type == TimeConditionCondition }
-
-// IsPriceCondition reports whether Condition is PriceCondition.
-func (s Condition) IsPriceCondition() bool { return s.Type == PriceConditionCondition }
-
-// IsAndCondition reports whether Condition is AndCondition.
-func (s Condition) IsAndCondition() bool { return s.Type == AndConditionCondition }
-
-// IsOrCondition reports whether Condition is OrCondition.
-func (s Condition) IsOrCondition() bool { return s.Type == OrConditionCondition }
-
-// SetTimeCondition sets Condition to TimeCondition.
-func (s *Condition) SetTimeCondition(v TimeCondition) {
-	s.Type = TimeConditionCondition
-	s.TimeCondition = v
-}
-
-// GetTimeCondition returns TimeCondition and true boolean if Condition is TimeCondition.
-func (s Condition) GetTimeCondition() (v TimeCondition, ok bool) {
-	if !s.IsTimeCondition() {
-		return v, false
-	}
-	return s.TimeCondition, true
-}
-
-// NewTimeConditionCondition returns new Condition from TimeCondition.
-func NewTimeConditionCondition(v TimeCondition) Condition {
-	var s Condition
-	s.SetTimeCondition(v)
-	return s
-}
-
-// SetPriceCondition sets Condition to PriceCondition.
-func (s *Condition) SetPriceCondition(v PriceCondition) {
-	s.Type = PriceConditionCondition
-	s.PriceCondition = v
-}
-
-// GetPriceCondition returns PriceCondition and true boolean if Condition is PriceCondition.
-func (s Condition) GetPriceCondition() (v PriceCondition, ok bool) {
-	if !s.IsPriceCondition() {
-		return v, false
-	}
-	return s.PriceCondition, true
-}
-
-// NewPriceConditionCondition returns new Condition from PriceCondition.
-func NewPriceConditionCondition(v PriceCondition) Condition {
-	var s Condition
-	s.SetPriceCondition(v)
-	return s
-}
-
-// SetAndCondition sets Condition to AndCondition.
-func (s *Condition) SetAndCondition(v AndCondition) {
-	s.Type = AndConditionCondition
-	s.AndCondition = v
-}
-
-// GetAndCondition returns AndCondition and true boolean if Condition is AndCondition.
-func (s Condition) GetAndCondition() (v AndCondition, ok bool) {
-	if !s.IsAndCondition() {
-		return v, false
-	}
-	return s.AndCondition, true
-}
-
-// NewAndConditionCondition returns new Condition from AndCondition.
-func NewAndConditionCondition(v AndCondition) Condition {
-	var s Condition
-	s.SetAndCondition(v)
-	return s
-}
-
-// SetOrCondition sets Condition to OrCondition.
-func (s *Condition) SetOrCondition(v OrCondition) {
-	s.Type = OrConditionCondition
-	s.OrCondition = v
-}
-
-// GetOrCondition returns OrCondition and true boolean if Condition is OrCondition.
-func (s Condition) GetOrCondition() (v OrCondition, ok bool) {
-	if !s.IsOrCondition() {
-		return v, false
-	}
-	return s.OrCondition, true
-}
-
-// NewOrConditionCondition returns new Condition from OrCondition.
-func NewOrConditionCondition(v OrCondition) Condition {
-	var s Condition
-	s.SetOrCondition(v)
-	return s
 }
 
 // ContentTooLargeHeaders wraps Problem with response headers.
@@ -916,7 +687,7 @@ func (s *NotificationInProgressHeaders) SetResponse(val Problem) {
 func (*NotificationInProgressHeaders) deleteNotificationRes() {}
 func (*NotificationInProgressHeaders) updateNotificationRes() {}
 
-type NotificationParams []Condition
+type NotificationParams conditions.Tree
 
 // Ordinary notification parameters or terminal DLQ metadata.
 // Ref: #/components/schemas/NotificationRead
@@ -1214,67 +985,6 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
-// Met when at least one nested condition is met.
-// Ref: #/components/schemas/OrCondition
-type OrCondition struct {
-	Type       OrConditionType `json:"type"`
-	Conditions []Condition     `json:"conditions"`
-}
-
-// GetType returns the value of Type.
-func (s *OrCondition) GetType() OrConditionType {
-	return s.Type
-}
-
-// GetConditions returns the value of Conditions.
-func (s *OrCondition) GetConditions() []Condition {
-	return s.Conditions
-}
-
-// SetType sets the value of Type.
-func (s *OrCondition) SetType(val OrConditionType) {
-	s.Type = val
-}
-
-// SetConditions sets the value of Conditions.
-func (s *OrCondition) SetConditions(val []Condition) {
-	s.Conditions = val
-}
-
-type OrConditionType string
-
-const (
-	OrConditionTypeOr OrConditionType = "or"
-)
-
-// AllValues returns all OrConditionType values.
-func (OrConditionType) AllValues() []OrConditionType {
-	return []OrConditionType{
-		OrConditionTypeOr,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s OrConditionType) MarshalText() ([]byte, error) {
-	switch s {
-	case OrConditionTypeOr:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *OrConditionType) UnmarshalText(data []byte) error {
-	switch OrConditionType(data) {
-	case OrConditionTypeOr:
-		*s = OrConditionTypeOr
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 // Condition result for a notification outside DLQ.
 // Ref: #/components/schemas/OrdinaryNotificationStatus
 type OrdinaryNotificationStatus string
@@ -1319,79 +1029,6 @@ func (s *OrdinaryNotificationStatus) UnmarshalText(data []byte) error {
 		return nil
 	case OrdinaryNotificationStatusDeadlineExceeded:
 		*s = OrdinaryNotificationStatusDeadlineExceeded
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Condition on the current price.
-// Ref: #/components/schemas/PriceCondition
-type PriceCondition struct {
-	Type      PriceConditionType  `json:"type"`
-	Operation ComparisonOperation `json:"operation"`
-	// Price threshold in minor units, where 19990 represents 199.90 major units.
-	Value int64 `json:"value"`
-}
-
-// GetType returns the value of Type.
-func (s *PriceCondition) GetType() PriceConditionType {
-	return s.Type
-}
-
-// GetOperation returns the value of Operation.
-func (s *PriceCondition) GetOperation() ComparisonOperation {
-	return s.Operation
-}
-
-// GetValue returns the value of Value.
-func (s *PriceCondition) GetValue() int64 {
-	return s.Value
-}
-
-// SetType sets the value of Type.
-func (s *PriceCondition) SetType(val PriceConditionType) {
-	s.Type = val
-}
-
-// SetOperation sets the value of Operation.
-func (s *PriceCondition) SetOperation(val ComparisonOperation) {
-	s.Operation = val
-}
-
-// SetValue sets the value of Value.
-func (s *PriceCondition) SetValue(val int64) {
-	s.Value = val
-}
-
-type PriceConditionType string
-
-const (
-	PriceConditionTypePrice PriceConditionType = "price"
-)
-
-// AllValues returns all PriceConditionType values.
-func (PriceConditionType) AllValues() []PriceConditionType {
-	return []PriceConditionType{
-		PriceConditionTypePrice,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s PriceConditionType) MarshalText() ([]byte, error) {
-	switch s {
-	case PriceConditionTypePrice:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *PriceConditionType) UnmarshalText(data []byte) error {
-	switch PriceConditionType(data) {
-	case PriceConditionTypePrice:
-		*s = PriceConditionTypePrice
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -1533,79 +1170,6 @@ func (*RequestTimeoutHeaders) createNotificationRes() {}
 func (*RequestTimeoutHeaders) deleteNotificationRes() {}
 func (*RequestTimeoutHeaders) getNotificationRes()    {}
 func (*RequestTimeoutHeaders) updateNotificationRes() {}
-
-// Condition on a timestamp.
-// Ref: #/components/schemas/TimeCondition
-type TimeCondition struct {
-	Type      TimeConditionType   `json:"type"`
-	Operation ComparisonOperation `json:"operation"`
-	// Comparison threshold in ISO 8601.
-	Value time.Time `json:"value"`
-}
-
-// GetType returns the value of Type.
-func (s *TimeCondition) GetType() TimeConditionType {
-	return s.Type
-}
-
-// GetOperation returns the value of Operation.
-func (s *TimeCondition) GetOperation() ComparisonOperation {
-	return s.Operation
-}
-
-// GetValue returns the value of Value.
-func (s *TimeCondition) GetValue() time.Time {
-	return s.Value
-}
-
-// SetType sets the value of Type.
-func (s *TimeCondition) SetType(val TimeConditionType) {
-	s.Type = val
-}
-
-// SetOperation sets the value of Operation.
-func (s *TimeCondition) SetOperation(val ComparisonOperation) {
-	s.Operation = val
-}
-
-// SetValue sets the value of Value.
-func (s *TimeCondition) SetValue(val time.Time) {
-	s.Value = val
-}
-
-type TimeConditionType string
-
-const (
-	TimeConditionTypeTime TimeConditionType = "time"
-)
-
-// AllValues returns all TimeConditionType values.
-func (TimeConditionType) AllValues() []TimeConditionType {
-	return []TimeConditionType{
-		TimeConditionTypeTime,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s TimeConditionType) MarshalText() ([]byte, error) {
-	switch s {
-	case TimeConditionTypeTime:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *TimeConditionType) UnmarshalText(data []byte) error {
-	switch TimeConditionType(data) {
-	case TimeConditionTypeTime:
-		*s = TimeConditionTypeTime
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
 
 // TooManyRequestsHeaders wraps Problem with response headers.
 type TooManyRequestsHeaders struct {

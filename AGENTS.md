@@ -61,7 +61,7 @@ profile keeps Collector out of `make up`; run it explicitly after stack startup.
 
 | Area | Paths and rules |
 | --- | --- |
-| Go package boundaries and runtime I/O | `notifier/`, `emulator/`, shared `internal/`, [architecture rules](ai/rules/architecture.mdc) |
+| Go package boundaries, shared condition JSON and runtime I/O | `notifier/`, `emulator/`, shared `internal/`, [architecture rules](ai/rules/architecture.mdc) |
 | HTTP contract | `notifier/api/spec/`, `emulator/api/spec/`, [OpenAPI rules](ai/rules/openapi.mdc) |
 | HTTP implementation | `notifier/internal/server/`, `emulator/internal/server/`, [HTTP rules](ai/rules/http-api.mdc) |
 | PostgreSQL runtime | `notifier/internal/storage/postgres/`, [architecture rules](ai/rules/architecture.mdc#postgresql-runtime) |

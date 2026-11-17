@@ -3,117 +3,9 @@
 package codegen
 
 import (
-	"fmt"
-
 	"github.com/go-faster/errors"
 	"github.com/ogen-go/ogen/validate"
 )
-
-func (s *AndCondition) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Type.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "type",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Conditions == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    2,
-			MinLengthSet: true,
-			MaxLength:    10,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Conditions)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Conditions {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "conditions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s AndConditionType) Validate() error {
-	switch s {
-	case "and":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ComparisonOperation) Validate() error {
-	switch s {
-	case "greater_than":
-		return nil
-	case "less_than":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s Condition) Validate() error {
-	switch s.Type {
-	case TimeConditionCondition:
-		if err := s.TimeCondition.Validate(); err != nil {
-			return err
-		}
-		return nil
-	case PriceConditionCondition:
-		if err := s.PriceCondition.Validate(); err != nil {
-			return err
-		}
-		return nil
-	case AndConditionCondition:
-		if err := s.AndCondition.Validate(); err != nil {
-			return err
-		}
-		return nil
-	case OrConditionCondition:
-		if err := s.OrCondition.Validate(); err != nil {
-			return err
-		}
-		return nil
-	default:
-		return errors.Errorf("invalid type %q", s.Type)
-	}
-}
 
 func (s *DLQNotification) Validate() error {
 	if s == nil {
@@ -264,17 +156,6 @@ func (s *Notification) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if err := s.NotificationParams.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "notification_params",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -295,17 +176,6 @@ func (s *NotificationCreate) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "external_id",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.NotificationParams.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "notification_params",
 			Error: err,
 		})
 	}
@@ -331,39 +201,6 @@ func (s *NotificationHeaders) Validate() error {
 			Name:  "Response",
 			Error: err,
 		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s NotificationParams) Validate() error {
-	alias := ([]Condition)(s)
-	if alias == nil {
-		return errors.New("nil is invalid value")
-	}
-	if err := (validate.Array{
-		MinLength:    1,
-		MinLengthSet: true,
-		MaxLength:    10,
-		MaxLengthSet: true,
-	}).ValidateLength(len(alias)); err != nil {
-		return errors.Wrap(err, "array")
-	}
-	var failures []validate.FieldError
-	for i, elem := range alias {
-		if err := func() error {
-			if err := elem.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			failures = append(failures, validate.FieldError{
-				Name:  fmt.Sprintf("[%d]", i),
-				Error: err,
-			})
-		}
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
@@ -411,97 +248,6 @@ func (s *NotificationReadHeaders) Validate() error {
 	return nil
 }
 
-func (s *NotificationUpdate) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.NotificationParams.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "notification_params",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *OrCondition) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Type.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "type",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Conditions == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    2,
-			MinLengthSet: true,
-			MaxLength:    10,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Conditions)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Conditions {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "conditions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s OrConditionType) Validate() error {
-	switch s {
-	case "or":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s OrdinaryNotificationStatus) Validate() error {
 	switch s {
 	case "active":
@@ -509,113 +255,6 @@ func (s OrdinaryNotificationStatus) Validate() error {
 	case "success":
 		return nil
 	case "deadline_exceeded":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *PriceCondition) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Type.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "type",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Operation.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "operation",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           0,
-			MaxSet:        false,
-			Max:           0,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Value)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "value",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s PriceConditionType) Validate() error {
-	switch s {
-	case "price":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *TimeCondition) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Type.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "type",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Operation.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "operation",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s TimeConditionType) Validate() error {
-	switch s {
-	case "time":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

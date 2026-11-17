@@ -20,7 +20,8 @@ generate_server() {
     "$spec" 2> >(grep -v -E 'not canonical|will not be enforced|Convenient errors' >&2)
 }
 
-generate_server notifier/api/bundle/openapi.yaml notifier/internal/server/codegen
+# ogen v1.24 expects named JSON interfaces, which Go 1.27 aliases under jsonv2.
+GOEXPERIMENT="${GOEXPERIMENT:+$GOEXPERIMENT,}nojsonv2" generate_server notifier/api/bundle/openapi.yaml notifier/internal/server/codegen
 generate_server emulator/api/bundle/openapi.yaml emulator/internal/server/codegen
 
 go tool ogen \

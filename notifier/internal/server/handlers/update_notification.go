@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ssunshineguy/notifier/internal/logging"
+	"github.com/ssunshineguy/notifier/notifier/internal/conditions"
 	"github.com/ssunshineguy/notifier/notifier/internal/core"
 	"github.com/ssunshineguy/notifier/notifier/internal/server/codegen"
 	"github.com/ssunshineguy/notifier/notifier/internal/server/middleware"
@@ -21,19 +22,19 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *codegen.Notificat
 		return internalErrorResponse(requestID), nil
 	}
 
-	conditions, err := toCoreConditions(req.NotificationParams)
-	if err != nil {
+	notificationParams := conditions.Tree(req.NotificationParams)
+	if !notificationParams.CanEncode() {
 		return internalErrorResponse(requestID), nil
 	}
 	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "API Request Parameters", "top_level_condition_count", len(conditions))
-	if fields := core.ValidateNotificationConditions(conditions); len(fields) != 0 {
+	logger.InfoContext(ctx, "API Request Parameters", "top_level_condition_count", len(notificationParams))
+	if fields := core.ValidateNotificationConditions(notificationParams); len(fields) != 0 {
 		logger.InfoContext(ctx, "Notification Condition Checks", "outcome", "failed", "invalid_field_count", len(fields))
 		return validationResponse(requestID, fields), nil
 	}
 	logger.InfoContext(ctx, "Notification Condition Checks", "outcome", "passed")
 
-	notification, err := h.store.UpdateNotification(ctx, uuid.UUID(params.NotificationID), client.ID, conditions)
+	notification, err := h.store.UpdateNotification(ctx, uuid.UUID(params.NotificationID), client.ID, notificationParams)
 	switch {
 	case errors.Is(err, core.ErrNotificationNotFound):
 		return notificationNotFoundResponse(requestID), nil
@@ -58,16 +59,4 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *codegen.Notificat
 		return internalErrorResponse(requestID), nil
 	}
 	return response, nil
-}
-
-func notificationInProgressResponse(requestID codegen.OptString) *codegen.NotificationInProgressHeaders {
-	return &codegen.NotificationInProgressHeaders{
-		XRequestID: requestID,
-		Response: codegen.Problem{
-			Type:      "/problems/notification-in-progress",
-			Title:     "Notification is being processed",
-			Status:    http.StatusConflict,
-			RequestID: requestID,
-		},
-	}
 }

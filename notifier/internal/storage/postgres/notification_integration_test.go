@@ -88,16 +88,6 @@ func TestGetNotificationIntegration(t *testing.T) {
 		assertMissing(t, id, "other-client")
 		assertMissing(t, uuid.New(), owner)
 	})
-	t.Run("legacy after operation", func(t *testing.T) {
-		_, err := pool.Exec(t.Context(), `
-			UPDATE notifier.t_notification
-			SET data = jsonb_set(data, '{0,conditions,0,operation}', '"after"'::jsonb)
-			WHERE id = $1`, id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertStatus(t, core.NotificationActive, "")
-	})
 	for _, state := range stoppedNotificationStates {
 		t.Run(state.name, func(t *testing.T) {
 			_, err := pool.Exec(t.Context(), `
@@ -120,6 +110,7 @@ func TestGetNotificationIntegration(t *testing.T) {
 		{"unknown nested condition", `[{"type":"and","conditions":[{}]}]`, "map notification params:"},
 		{"time without timestamp", `[{"type":"time","operation":"greater_than"}]`, "map notification params:"},
 		{"invalid timestamp", `[{"type":"time","operation":"greater_than","value":"invalid"}]`, "map notification params:"},
+		{"unencodable time offset", `[{"type":"time","operation":"greater_than","value":"2026-12-02T09:00:00+24:00"}]`, "map notification params:"},
 		{"invalid time operation", `[{"type":"time","operation":"equal","value":"2026-12-02T09:00:00Z"}]`, "map notification params:"},
 		{"price without threshold", `[{"type":"price","operation":"less_than"}]`, "map notification params:"},
 		{"null price threshold", `[{"type":"price","operation":"less_than","value":null}]`, "map notification params:"},

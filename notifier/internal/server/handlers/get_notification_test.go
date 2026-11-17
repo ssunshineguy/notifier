@@ -54,7 +54,8 @@ func TestGetNotification(t *testing.T) {
 		id                 uuid.UUID
 		clientID           string
 		storeErr           error
-		invalidConditions  bool
+		storedConditions   []core.Condition
+		wantConditions     []core.Condition
 		notificationStatus string
 		deliveryStatus     string
 		wantStatus         int
@@ -68,7 +69,13 @@ func TestGetNotification(t *testing.T) {
 		{name: "foreign client", id: id, clientID: "another-client", wantStatus: http.StatusNotFound, wantType: "/problems/not-found", wantTitle: "Notification not found"},
 		{name: "missing notification", id: unknownID, clientID: owner, wantStatus: http.StatusNotFound, wantType: "/problems/not-found", wantTitle: "Notification not found"},
 		{name: "database error", id: id, clientID: owner, storeErr: dbErr, wantStatus: http.StatusInternalServerError, wantType: "/problems/internal-error", wantTitle: "Internal server error"},
-		{name: "invalid condition type", id: id, clientID: owner, invalidConditions: true, wantStatus: http.StatusInternalServerError, wantType: "/problems/internal-error", wantTitle: "Internal server error"},
+		{name: "invalid condition type", id: id, clientID: owner, storedConditions: []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{{Type: "unknown"}}}}, wantStatus: http.StatusInternalServerError, wantType: "/problems/internal-error", wantTitle: "Internal server error"},
+		{name: "unencodable timestamp", id: id, clientID: owner, storedConditions: []core.Condition{timeCondition(time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC))}, wantStatus: http.StatusInternalServerError, wantType: "/problems/internal-error", wantTitle: "Internal server error"},
+		{
+			name: "stored fractional timestamp", id: id, clientID: owner, notificationStatus: "active", wantStatus: http.StatusOK,
+			storedConditions: []core.Condition{timeCondition(after.Add(987 * time.Millisecond))},
+			wantConditions:   []core.Condition{timeCondition(after)},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,8 +95,8 @@ func TestGetNotification(t *testing.T) {
 					notification := details
 					notification.NotificationStatus = tt.notificationStatus
 					notification.DeliveryStatus = tt.deliveryStatus
-					if tt.invalidConditions {
-						notification.Params = []core.Condition{{Type: core.ConditionAnd, Conditions: []core.Condition{{Type: "unknown"}}}}
+					if tt.storedConditions != nil {
+						notification.Params = tt.storedConditions
 					}
 					return notification, nil
 				},
@@ -126,34 +133,17 @@ func TestGetNotification(t *testing.T) {
 				if err := json.Unmarshal(resp.Body.Bytes(), &got); err != nil {
 					t.Fatal(err)
 				}
+				wantConditions := tt.wantConditions
+				if wantConditions == nil {
+					wantConditions = details.Params
+				}
 				want := codegen.Notification{
 					NotificationID:     codegen.NotificationId(id),
 					ExternalID:         "order-42",
 					NotificationStatus: codegen.NewOptOrdinaryNotificationStatus(codegen.OrdinaryNotificationStatus(tt.notificationStatus)),
 					DeadlineDt:         deadline,
 					StartDt:            start,
-					NotificationParams: codegen.NotificationParams{
-						codegen.NewAndConditionCondition(codegen.AndCondition{
-							Type: codegen.AndConditionTypeAnd,
-							Conditions: []codegen.Condition{
-								timeCondition(after),
-								codegen.NewOrConditionCondition(codegen.OrCondition{
-									Type: codegen.OrConditionTypeOr,
-									Conditions: []codegen.Condition{
-										timeCondition(after),
-										codegen.NewTimeConditionCondition(codegen.TimeCondition{
-											Type:      codegen.TimeConditionTypeTime,
-											Operation: codegen.ComparisonOperationLessThan,
-											Value:     after.Add(time.Minute),
-										}),
-										codegen.NewPriceConditionCondition(codegen.PriceCondition{
-											Type: codegen.PriceConditionTypePrice, Operation: codegen.ComparisonOperationLessThan, Value: math.MaxInt64,
-										}),
-									},
-								}),
-							},
-						}),
-					},
+					NotificationParams: codegen.NotificationParams(wantConditions),
 				}
 				if tt.deliveryStatus != "" {
 					want.DeliveryStatus.SetTo(codegen.DeliveryStatus(tt.deliveryStatus))

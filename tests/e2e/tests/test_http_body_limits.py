@@ -93,4 +93,4 @@ def test_maximum_condition_forest_with_escaped_json(
         stored = Notification.get(connection, client.client_id, UUID(response.json()["notification_id"]))
     assert stored is not None
     assert stored.external_id == external_id
-    assert stored.data == params
+    assert stored.data == [binary_group(depth, "9999-12-31T23:59:59+03:00") for depth in (3, 3, 2)]

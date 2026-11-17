@@ -7,23 +7,6 @@ import (
 	"time"
 )
 
-const deleteStoppedNotifications = `
-WITH expired AS (
-    SELECT id
-    FROM notifier.t_notification
-    WHERE stop_dt < $1
-      AND notification_status IN ('success', 'deadline_exceeded')
-    ORDER BY stop_dt, id
-    LIMIT $2
-    FOR UPDATE SKIP LOCKED
-), deleted AS (
-    DELETE FROM notifier.t_notification AS notification
-    USING expired
-    WHERE notification.id = expired.id
-    RETURNING notification.id
-)
-SELECT count(*) FROM deleted`
-
 // DeleteStoppedNotifications atomically removes at most limit stopped rows strictly before the cutoff.
 func (s *Store) DeleteStoppedNotifications(ctx context.Context, before time.Time, limit int) (int64, error) {
 	if limit < 1 {
